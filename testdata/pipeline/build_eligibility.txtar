@@ -1,0 +1,83 @@
+# Only open tickets can be built
+
+# in_progress: not eligible
+! exec ko build ko-inprog
+stderr 'not eligible'
+
+# closed: not eligible
+! exec ko build ko-closed
+stderr 'already closed'
+
+# blocked: not eligible
+! exec ko build ko-blocked
+stderr 'blocked'
+
+# unresolved deps: not eligible
+! exec ko build ko-deps
+stderr 'unresolved dependencies'
+
+-- .tickets/ko-inprog.md --
+---
+id: ko-inprog
+status: in_progress
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# In progress ticket
+-- .tickets/ko-closed.md --
+---
+id: ko-closed
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Closed ticket
+-- .tickets/ko-blocked.md --
+---
+id: ko-blocked
+status: blocked
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked ticket
+-- .tickets/ko-deps.md --
+---
+id: ko-deps
+status: open
+deps: [ko-other]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Has unresolved deps
+-- .tickets/ko-other.md --
+---
+id: ko-other
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# The dependency
+-- .ko/pipeline.yml --
+command: ./fake-llm
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "ok"

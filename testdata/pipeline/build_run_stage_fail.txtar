@@ -1,0 +1,31 @@
+# Run stage failure with on_fail: fail blocks the ticket
+! exec ko build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'FAIL'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Should fail verify
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: implement
+    prompt: implement.md
+  - name: verify
+    run: exit 1
+    on_fail: fail
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Implementation complete."

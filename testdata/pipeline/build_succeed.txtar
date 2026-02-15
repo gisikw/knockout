@@ -1,0 +1,34 @@
+# SUCCEED: all stages pass, ticket is closed
+chmod 755 fake-llm
+exec ko build ko-a001
+stdout 'SUCCEED'
+exec ko show ko-a001
+stdout 'status: closed'
+stdout 'SUCCEED'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Fix the auth bug
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+  - name: implement
+    prompt: implement.md
+-- .ko/prompts/triage.md --
+Triage this ticket.
+-- .ko/prompts/implement.md --
+Implement the changes.
+-- fake-llm --
+#!/bin/sh
+echo "Stage completed successfully."

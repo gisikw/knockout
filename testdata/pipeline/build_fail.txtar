@@ -1,0 +1,31 @@
+# FAIL: stage signals FAIL, ticket is blocked
+chmod 755 fake-llm
+! exec ko build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'FAIL'
+stdout 'Missing API spec'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Add new endpoint
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage this ticket.
+-- fake-llm --
+#!/bin/sh
+echo "FAIL"
+echo "Missing API spec"

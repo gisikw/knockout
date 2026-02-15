@@ -1,0 +1,31 @@
+# Run stages execute shell commands
+chmod 755 fake-llm
+exec ko build ko-a001
+stdout 'SUCCEED'
+exec ko show ko-a001
+stdout 'status: closed'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Run a test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: implement
+    prompt: implement.md
+  - name: verify
+    run: echo 'tests passed'
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Implementation complete."

@@ -1,0 +1,46 @@
+# Decomposition denied at max depth
+chmod 755 fake-llm
+! exec ko build ko-a001.b002
+exec ko show ko-a001.b002
+stdout 'status: blocked'
+stdout 'max decomposition depth'
+# No children should exist
+exec ko ls
+! stdout 'ko-a001.b002\.'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Root ticket
+-- .tickets/ko-a001.b002.md --
+---
+id: ko-a001.b002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+parent: ko-a001
+---
+# Child at depth 1
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+max_depth: 1
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "DECOMPOSE"
+echo "- Should not be created"

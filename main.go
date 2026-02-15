@@ -55,6 +55,8 @@ func run(args []string) int {
 		return cmdAddNote(rest)
 	case "query":
 		return cmdQuery(rest)
+	case "build":
+		return cmdBuild(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -122,6 +124,8 @@ Commands:
 
   add-note <id> <text>  Add a note to a ticket
   query                 Output all tickets as JSONL
+
+  build <id>         Run build pipeline against ticket
 
   help               Show this help
   version            Show version`)

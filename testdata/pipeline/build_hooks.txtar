@@ -1,0 +1,36 @@
+# Lifecycle hooks: on_succeed runs before close, on_close runs after
+chmod 755 fake-llm
+exec ko build ko-a001
+exec ko show ko-a001
+stdout 'status: closed'
+# Verify on_succeed ran (created marker file)
+exists succeed_marker
+# Verify on_close ran (created marker file)
+exists close_marker
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Hook test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: implement
+    prompt: implement.md
+on_succeed:
+  - touch succeed_marker
+on_close:
+  - touch close_marker
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

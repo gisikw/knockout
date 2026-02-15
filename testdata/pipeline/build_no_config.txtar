@@ -1,0 +1,15 @@
+# Missing pipeline config is a fatal error
+! exec ko build ko-a001
+stderr 'no pipeline config found'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# No pipeline

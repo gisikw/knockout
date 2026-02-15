@@ -1,0 +1,36 @@
+# DECOMPOSE: creates children, blocks parent
+chmod 755 fake-llm
+exec ko build ko-a001
+exec ko show ko-a001
+stdout '## Children'
+exec ko ready
+! stdout 'ko-a001 '
+# Children should be on the ready queue
+stdout 'ko-a001\.'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Refactor the widget system
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+max_depth: 2
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage this ticket.
+-- fake-llm --
+#!/bin/sh
+echo "DECOMPOSE"
+echo "- Extract widget interface"
+echo "- Migrate existing widgets"
+echo "- Update tests"

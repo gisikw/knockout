@@ -52,3 +52,7 @@ func TestIDResolution(t *testing.T) {
 func TestDirectoryResolution(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/directory_resolution"})
 }
+
+func TestPipeline(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/pipeline"})
+}
