@@ -1,0 +1,32 @@
+# Add with unrecognized tag goes to default project as captured
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Register default project
+mkdir $WORK/default-proj/.tickets
+cd $WORK/default-proj
+exec ko register '#catchall'
+exec ko default '#catchall'
+cd $WORK
+
+# Add with unrecognized tag
+exec ko add 'Build splash page #marketing-site'
+
+# Verify ticket in default project with status captured and tag preserved
+env TICKETS_DIR=$WORK/default-proj/.tickets
+exec ko query
+stdout 'Build splash page'
+stdout '"status":"captured"'
+stdout 'marketing-site'
+
+-- .tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed

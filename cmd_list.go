@@ -59,6 +59,7 @@ func cmdReady(args []string) int {
 		return 1
 	}
 
+	// Local ready queue (deps resolved locally only)
 	var ready []*Ticket
 	for _, t := range tickets {
 		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) {
@@ -66,11 +67,33 @@ func cmdReady(args []string) int {
 		}
 	}
 
-	SortByPriorityThenID(ready)
-
-	for _, t := range ready {
-		fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+	// If local queue is non-empty, return it without cross-project checks
+	if len(ready) > 0 {
+		SortByPriorityThenID(ready)
+		for _, t := range ready {
+			fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+		}
+		return 0
 	}
+
+	// Local queue empty — check cross-project deps (short-circuit on first)
+	regPath := RegistryPath()
+	if regPath == "" {
+		return 0
+	}
+	reg, err := LoadRegistry(regPath)
+	if err != nil || len(reg.Projects) == 0 {
+		return 0
+	}
+
+	lookup := CrossProjectLookup(ticketsDir, reg)
+	for _, t := range tickets {
+		if IsReady(t.Status, AllDepsResolvedWith(t.Deps, lookup)) {
+			fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+			return 0 // short-circuit: one ticket at a time
+		}
+	}
+
 	return 0
 }
 

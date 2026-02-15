@@ -125,3 +125,104 @@ func sortStrings(s []string) {
 func CleanTag(tag string) string {
 	return strings.TrimPrefix(tag, "#")
 }
+
+// CrossProjectLookup returns a dep lookup function that checks the local
+// tickets directory first, then falls back to searching registered projects.
+func CrossProjectLookup(localTicketsDir string, reg *Registry) func(string) (string, bool) {
+	return func(id string) (string, bool) {
+		// Try local first
+		t, err := LoadTicket(localTicketsDir, id)
+		if err == nil {
+			return t.Status, true
+		}
+		// Search registered projects
+		for _, path := range reg.Projects {
+			remoteDir := filepath.Join(path, ".tickets")
+			t, err := LoadTicket(remoteDir, id)
+			if err == nil {
+				return t.Status, true
+			}
+		}
+		return "", false
+	}
+}
+
+// RoutingDecision describes where a ticket should be created.
+type RoutingDecision struct {
+	Title         string
+	RoutingTag    string   // first #tag (cleaned), empty if none
+	ExtraTags     []string // remaining #tags (cleaned)
+	TargetPath    string   // project path to create ticket in
+	Status        string   // status for the created ticket
+	IsRouted      bool     // true if routed to a different project
+	IsCaptured    bool     // true if tag was unrecognized (sent to default)
+}
+
+// ParseTags extracts #tags from a title string.
+// Returns the cleaned title and the list of tags (without #).
+func ParseTags(title string) (string, []string) {
+	words := strings.Fields(title)
+	var clean []string
+	var tags []string
+	for _, w := range words {
+		if strings.HasPrefix(w, "#") && len(w) > 1 {
+			tags = append(tags, CleanTag(w))
+		} else {
+			clean = append(clean, w)
+		}
+	}
+	return strings.Join(clean, " "), tags
+}
+
+// RouteTicket determines where a ticket should go based on its tags and
+// the project registry. Pure decision function — no I/O.
+func RouteTicket(title string, reg *Registry, localPath string) RoutingDecision {
+	cleanTitle, tags := ParseTags(title)
+
+	// No tags — local ticket
+	if len(tags) == 0 {
+		return RoutingDecision{
+			Title:      cleanTitle,
+			TargetPath: localPath,
+			Status:     "open",
+		}
+	}
+
+	routingTag := tags[0]
+	extraTags := tags[1:]
+
+	// Recognized tag — route to that project
+	if path, ok := reg.Projects[routingTag]; ok {
+		return RoutingDecision{
+			Title:      cleanTitle,
+			RoutingTag: routingTag,
+			ExtraTags:  extraTags,
+			TargetPath: path,
+			Status:     "routed",
+			IsRouted:   true,
+		}
+	}
+
+	// Unrecognized tag — send to default project as captured
+	if reg.Default != "" {
+		if path, ok := reg.Projects[reg.Default]; ok {
+			return RoutingDecision{
+				Title:      cleanTitle,
+				RoutingTag: routingTag,
+				ExtraTags:  extraTags,
+				TargetPath: path,
+				Status:     "captured",
+				IsCaptured: true,
+			}
+		}
+	}
+
+	// No default — create locally with tag preserved
+	return RoutingDecision{
+		Title:      cleanTitle,
+		RoutingTag: routingTag,
+		ExtraTags:  extraTags,
+		TargetPath: localPath,
+		Status:     "open",
+	}
+}

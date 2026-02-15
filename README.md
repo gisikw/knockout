@@ -36,6 +36,7 @@ Commands:
 
   build <id>         Run build pipeline against ticket
 
+  add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry
   default [#<tag>]   Show or set the default project for routing
   projects           List registered projects

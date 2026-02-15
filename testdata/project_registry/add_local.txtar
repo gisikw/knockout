@@ -1,0 +1,19 @@
+# Add without tag creates ticket in current project
+env HOME=$WORK/home
+mkdir $WORK/home
+exec ko add 'Fix the flaky test'
+exec ko query
+stdout 'Fix the flaky test'
+stdout '"status":"open"'
+
+-- .tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed

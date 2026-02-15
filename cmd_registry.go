@@ -129,6 +129,83 @@ func cmdProjects(args []string) int {
 	return 0
 }
 
+func cmdAdd(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: ko add '<title> [#tag ...]'")
+		return 1
+	}
+
+	title := args[0]
+
+	// Find local project context
+	localRoot, err := findProjectRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+		return 1
+	}
+
+	// Load registry (non-fatal if missing — just route locally)
+	regPath := RegistryPath()
+	reg := &Registry{Projects: map[string]string{}}
+	if regPath != "" {
+		loaded, loadErr := LoadRegistry(regPath)
+		if loadErr == nil {
+			reg = loaded
+		}
+	}
+
+	decision := RouteTicket(title, reg, localRoot)
+
+	// Ensure target .tickets directory exists
+	targetTicketsDir := filepath.Join(decision.TargetPath, ".tickets")
+	if err := EnsureTicketsDir(targetTicketsDir); err != nil {
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+		return 1
+	}
+
+	// Create ticket in target project
+	prefix := detectPrefix(targetTicketsDir)
+	t := NewTicket(prefix, decision.Title)
+	t.Status = decision.Status
+
+	// Attach tags: routing tag (if unrecognized/captured) + extra tags
+	var ticketTags []string
+	if decision.IsCaptured && decision.RoutingTag != "" {
+		ticketTags = append(ticketTags, decision.RoutingTag)
+	}
+	ticketTags = append(ticketTags, decision.ExtraTags...)
+	if len(ticketTags) > 0 {
+		t.Tags = ticketTags
+	}
+
+	if err := SaveTicket(targetTicketsDir, t); err != nil {
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+		return 1
+	}
+
+	// If routed to a different project, create a closed audit ticket locally
+	if decision.IsRouted {
+		localTicketsDir := filepath.Join(localRoot, ".tickets")
+		if err := EnsureTicketsDir(localTicketsDir); err != nil {
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+			return 1
+		}
+		localPrefix := detectPrefix(localTicketsDir)
+		audit := NewTicket(localPrefix, decision.Title)
+		audit.Status = "closed"
+		AddNote(audit, fmt.Sprintf("routed to #%s as %s", decision.RoutingTag, t.ID))
+		if err := SaveTicket(localTicketsDir, audit); err != nil {
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+			return 1
+		}
+		fmt.Printf("%s -> #%s (%s)\n", audit.ID, decision.RoutingTag, t.ID)
+	} else {
+		fmt.Println(t.ID)
+	}
+
+	return 0
+}
+
 // findProjectRoot returns the absolute path to the project root.
 // If a .tickets directory is found, the root is its parent.
 // Otherwise, returns the current working directory.

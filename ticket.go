@@ -359,12 +359,21 @@ func SortByPriorityThenID(tickets []*Ticket) {
 
 // AllDepsResolved checks if all deps of a ticket are closed.
 func AllDepsResolved(ticketsDir string, deps []string) bool {
-	for _, depID := range deps {
-		t, err := LoadTicket(ticketsDir, depID)
+	return AllDepsResolvedWith(deps, func(id string) (string, bool) {
+		t, err := LoadTicket(ticketsDir, id)
 		if err != nil {
-			return false
+			return "", false
 		}
-		if t.Status != "closed" {
+		return t.Status, true
+	})
+}
+
+// AllDepsResolvedWith checks if all deps are closed using a lookup function.
+// The lookup returns (status, found). Pure decision function.
+func AllDepsResolvedWith(deps []string, lookup func(id string) (string, bool)) bool {
+	for _, depID := range deps {
+		status, found := lookup(depID)
+		if !found || status != "closed" {
 			return false
 		}
 	}
