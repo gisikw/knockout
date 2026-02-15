@@ -51,6 +51,10 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 			"exo":      "/tmp/exo",
 			"fort-nix": "/tmp/fort-nix",
 		},
+		Prefixes: map[string]string{
+			"exo":      "exo",
+			"fort-nix": "fn",
+		},
 	}
 	output := FormatRegistry(reg)
 	parsed, err := ParseRegistry(output)
@@ -66,6 +70,52 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 	for k, v := range reg.Projects {
 		if parsed.Projects[k] != v {
 			t.Errorf("Projects[%s] = %q, want %q", k, parsed.Projects[k], v)
+		}
+	}
+	if len(parsed.Prefixes) != len(reg.Prefixes) {
+		t.Fatalf("len(Prefixes) = %d, want %d", len(parsed.Prefixes), len(reg.Prefixes))
+	}
+	for k, v := range reg.Prefixes {
+		if parsed.Prefixes[k] != v {
+			t.Errorf("Prefixes[%s] = %q, want %q", k, parsed.Prefixes[k], v)
+		}
+	}
+}
+
+func TestParseRegistryBackwardCompatible(t *testing.T) {
+	// Old format without prefixes section should still parse
+	input := `default: exo
+projects:
+  exo: /tmp/exo
+`
+	reg, err := ParseRegistry(input)
+	if err != nil {
+		t.Fatalf("ParseRegistry: %v", err)
+	}
+	if len(reg.Prefixes) != 0 {
+		t.Errorf("Prefixes should be empty for old format, got %v", reg.Prefixes)
+	}
+	if reg.Projects["exo"] != "/tmp/exo" {
+		t.Errorf("Projects[exo] = %q", reg.Projects["exo"])
+	}
+}
+
+func TestExtractPrefix(t *testing.T) {
+	tests := []struct {
+		id   string
+		want string
+	}{
+		{"fn-a001", "fn"},
+		{"exo-b002", "exo"},
+		{"ko-a001.b002", "ko"},
+		{"ko-a001.b002.c003", "ko"},
+		{"nohyphen", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := extractPrefix(tt.id)
+		if got != tt.want {
+			t.Errorf("extractPrefix(%q) = %q, want %q", tt.id, got, tt.want)
 		}
 	}
 }

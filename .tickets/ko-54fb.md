@@ -1,6 +1,6 @@
 ---
 id: ko-54fb
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-15T04:59:15Z

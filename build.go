@@ -128,6 +128,10 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
 		return OutcomeFail, err
 	}
 
+	// Snapshot project files before stages run (for CHANGED_FILES tracking)
+	projectRoot := filepath.Dir(ticketsDir)
+	beforeSnapshot := snapshotFiles(projectRoot)
+
 	var lastOutput string
 
 	// Execute stages sequentially
@@ -149,6 +153,9 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
 
 		lastOutput = result.Output
 	}
+
+	// Compute changed files and write to build dir
+	writeChangedFiles(buildDir, projectRoot, beforeSnapshot)
 
 	// All stages passed — run on_succeed hooks
 	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir); err != nil {
@@ -408,4 +415,57 @@ func createBuildDir(ticketsDir, ticketID string) string {
 // saveStageArtifact writes stage output to the build directory.
 func saveStageArtifact(buildDir, stageName, output string) {
 	os.WriteFile(filepath.Join(buildDir, stageName+".md"), []byte(output), 0644)
+}
+
+// fileSnapshot records mod times for files in a project directory.
+type fileSnapshot map[string]int64 // relative path -> mod time (unix nanos)
+
+// snapshotFiles walks the project root and records mod times.
+// Skips .ko, .tickets, and hidden directories.
+func snapshotFiles(projectRoot string) fileSnapshot {
+	snap := make(fileSnapshot)
+	filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			base := filepath.Base(path)
+			if base == ".ko" || base == ".tickets" || base == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, err := filepath.Rel(projectRoot, path)
+		if err != nil {
+			return nil
+		}
+		snap[rel] = info.ModTime().UnixNano()
+		return nil
+	})
+	return snap
+}
+
+// changedFilesList compares before/after snapshots and returns changed paths.
+// Pure decision function.
+func changedFilesList(before, after fileSnapshot) []string {
+	var changed []string
+	for path, modTime := range after {
+		prevMod, existed := before[path]
+		if !existed || modTime != prevMod {
+			changed = append(changed, path)
+		}
+	}
+	sortStrings(changed)
+	return changed
+}
+
+// writeChangedFiles snapshots the current state, compares with before, and
+// writes the result to changed_files.txt in the build directory.
+func writeChangedFiles(buildDir, projectRoot string, before fileSnapshot) {
+	after := snapshotFiles(projectRoot)
+	changed := changedFilesList(before, after)
+	if len(changed) > 0 {
+		content := strings.Join(changed, "\n")
+		os.WriteFile(filepath.Join(buildDir, "changed_files.txt"), []byte(content), 0644)
+	}
 }

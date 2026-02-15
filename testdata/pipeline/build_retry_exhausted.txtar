@@ -1,0 +1,30 @@
+# Prompt stage that always exits non-zero exhausts retries and FAILs
+chmod 755 fake-llm
+! exec ko build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'FAIL'
+stdout 'failed after 3 attempts'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Always fails
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 2
+stages:
+  - name: implement
+    prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+exit 1

@@ -11,6 +11,7 @@ import (
 type Registry struct {
 	Default  string
 	Projects map[string]string // tag -> absolute path
+	Prefixes map[string]string // tag -> ticket prefix (e.g. "fn" for fort-nix)
 }
 
 // RegistryPath returns the path to the registry file.
@@ -33,17 +34,25 @@ func LoadRegistry(path string) (*Registry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Registry{Projects: map[string]string{}}, nil
+			return &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}, nil
 		}
 		return nil, err
 	}
-	return ParseRegistry(string(data))
+	reg, err := ParseRegistry(string(data))
+	if err != nil {
+		return nil, err
+	}
+	// Lazy backfill: detect prefixes for projects that have tickets but no prefix
+	if backfillPrefixes(reg) {
+		SaveRegistry(path, reg)
+	}
+	return reg, nil
 }
 
 // ParseRegistry parses a registry from its YAML content.
 func ParseRegistry(content string) (*Registry, error) {
-	r := &Registry{Projects: map[string]string{}}
-	inProjects := false
+	r := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
+	var section string // "", "projects", "prefixes"
 
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -52,7 +61,11 @@ func ParseRegistry(content string) (*Registry, error) {
 		}
 
 		if trimmed == "projects:" {
-			inProjects = true
+			section = "projects"
+			continue
+		}
+		if trimmed == "prefixes:" {
+			section = "prefixes"
 			continue
 		}
 
@@ -61,22 +74,21 @@ func ParseRegistry(content string) (*Registry, error) {
 			continue
 		}
 
-		if !inProjects {
+		indented := strings.HasPrefix(line, "  ")
+
+		if !indented {
+			section = ""
 			if key == "default" {
 				r.Default = val
 			}
 			continue
 		}
 
-		// Inside projects: indented "tag: path" lines
-		if strings.HasPrefix(line, "  ") {
+		switch section {
+		case "projects":
 			r.Projects[key] = val
-		} else {
-			// No longer indented — left the projects block
-			inProjects = false
-			if key == "default" {
-				r.Default = val
-			}
+		case "prefixes":
+			r.Prefixes[key] = val
 		}
 	}
 
@@ -100,6 +112,18 @@ func FormatRegistry(r *Registry) string {
 
 	for _, k := range keys {
 		b.WriteString(fmt.Sprintf("  %s: %s\n", k, r.Projects[k]))
+	}
+
+	if len(r.Prefixes) > 0 {
+		b.WriteString("prefixes:\n")
+		pkeys := make([]string, 0, len(r.Prefixes))
+		for k := range r.Prefixes {
+			pkeys = append(pkeys, k)
+		}
+		sortStrings(pkeys)
+		for _, k := range pkeys {
+			b.WriteString(fmt.Sprintf("  %s: %s\n", k, r.Prefixes[k]))
+		}
 	}
 	return b.String()
 }
@@ -126,16 +150,78 @@ func CleanTag(tag string) string {
 	return strings.TrimPrefix(tag, "#")
 }
 
+// backfillPrefixes detects prefixes for projects that have tickets but no
+// prefix entry. Returns true if any prefixes were added.
+func backfillPrefixes(reg *Registry) bool {
+	changed := false
+	for tag, path := range reg.Projects {
+		if _, ok := reg.Prefixes[tag]; ok {
+			continue
+		}
+		ticketsDir := filepath.Join(path, ".tickets")
+		prefix := detectPrefixFromDir(ticketsDir)
+		if prefix != "" {
+			reg.Prefixes[tag] = prefix
+			changed = true
+		}
+	}
+	return changed
+}
+
+// detectPrefixFromDir scans a tickets directory for existing ticket files
+// and extracts the prefix from the first root-level ticket ID found.
+// Returns "" if no tickets exist.
+func detectPrefixFromDir(ticketsDir string) string {
+	entries, err := os.ReadDir(ticketsDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".md") {
+			continue
+		}
+		id := strings.TrimSuffix(name, ".md")
+		// Root ticket: prefix-hash (no dots)
+		if !strings.Contains(id, ".") {
+			if idx := strings.Index(id, "-"); idx > 0 {
+				return id[:idx]
+			}
+		}
+	}
+	return ""
+}
+
 // CrossProjectLookup returns a dep lookup function that checks the local
 // tickets directory first, then falls back to searching registered projects.
+// When prefixes are available, uses prefix-based routing for O(1) lookups.
 func CrossProjectLookup(localTicketsDir string, reg *Registry) func(string) (string, bool) {
+	// Build reverse index: prefix -> tickets dir
+	prefixIndex := make(map[string]string)
+	for tag, prefix := range reg.Prefixes {
+		if path, ok := reg.Projects[tag]; ok {
+			prefixIndex[prefix] = filepath.Join(path, ".tickets")
+		}
+	}
+
 	return func(id string) (string, bool) {
 		// Try local first
 		t, err := LoadTicket(localTicketsDir, id)
 		if err == nil {
 			return t.Status, true
 		}
-		// Search registered projects
+
+		// Extract prefix from dep ID and try direct lookup
+		if prefix := extractPrefix(id); prefix != "" {
+			if dir, ok := prefixIndex[prefix]; ok {
+				t, err := LoadTicket(dir, id)
+				if err == nil {
+					return t.Status, true
+				}
+			}
+		}
+
+		// Fallback: scan all registered projects
 		for _, path := range reg.Projects {
 			remoteDir := filepath.Join(path, ".tickets")
 			t, err := LoadTicket(remoteDir, id)
@@ -145,6 +231,21 @@ func CrossProjectLookup(localTicketsDir string, reg *Registry) func(string) (str
 		}
 		return "", false
 	}
+}
+
+// extractPrefix returns the prefix from a ticket ID (e.g. "fn" from "fn-a001").
+// Returns "" if no prefix can be extracted.
+func extractPrefix(id string) string {
+	// For hierarchical IDs like "fn-a001.b002", the prefix is before the first hyphen
+	// of the root segment (before any dots).
+	root := id
+	if dot := strings.Index(id, "."); dot >= 0 {
+		root = id[:dot]
+	}
+	if idx := strings.Index(root, "-"); idx > 0 {
+		return root[:idx]
+	}
+	return ""
 }
 
 // RoutingDecision describes where a ticket should be created.

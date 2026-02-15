@@ -1,0 +1,54 @@
+# Cross-project dep resolution uses prefix-based O(1) lookup
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Set up project "alpha" with prefix "alp"
+mkdir $WORK/alpha/.tickets
+mkdir $WORK/beta/.tickets
+
+# Register both projects
+cd $WORK/alpha
+exec ko register '#alpha'
+cd $WORK/beta
+exec ko register '#beta'
+cd $WORK/alpha
+
+# Create a beta ticket (closed) — this also establishes beta's prefix
+cp $WORK/beta_ticket.txt $WORK/beta/.tickets/beta-0001.md
+
+# Create alpha ticket blocked on beta-0001
+cp $WORK/alpha_blocked.txt $WORK/alpha/.tickets/alp-0001.md
+
+# Verify the registry has prefixes after backfill
+exec ko projects
+stdout 'alpha'
+stdout 'beta'
+
+# The ready check should resolve beta-0001 via prefix lookup
+exec ko ready
+stdout 'alp-0001'
+
+-- beta_ticket.txt --
+---
+id: beta-0001
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Beta task
+
+-- alpha_blocked.txt --
+---
+id: alp-0001
+status: open
+deps: [beta-0001]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked on beta
+-- .tickets/.keep --

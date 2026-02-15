@@ -1,0 +1,35 @@
+# CHANGED_FILES: tracks files modified during build and passes to hooks
+chmod 755 fake-llm
+exec ko build ko-a001
+stdout 'SUCCEED'
+
+# Verify the on_succeed hook received CHANGED_FILES
+exec cat changed_output.txt
+stdout 'newfile.txt'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Changed files test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: implement
+    prompt: implement.md
+on_succeed:
+  - echo "$CHANGED_FILES" > changed_output.txt
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+# Simulate a stage that creates a file
+echo "hello" > newfile.txt
+echo "Done."

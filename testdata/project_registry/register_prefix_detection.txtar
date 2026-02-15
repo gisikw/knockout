@@ -1,0 +1,30 @@
+# Register detects ticket prefix from existing tickets
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Create a project with existing tickets (prefix "fn")
+mkdir $WORK/fort-nix/.tickets
+cp $WORK/fn_ticket.txt $WORK/fort-nix/.tickets/fn-a001.md
+
+# Register it
+cd $WORK/fort-nix
+exec ko register '#fort-nix'
+stdout 'registered fort-nix'
+
+# Verify prefix was stored in registry
+exec cat $WORK/home/.config/knockout/projects.yml
+stdout 'prefixes:'
+stdout 'fort-nix: fn'
+
+-- fn_ticket.txt --
+---
+id: fn-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Fort Nix task
+-- .tickets/.keep --

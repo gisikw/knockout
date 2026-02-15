@@ -39,6 +39,12 @@ func cmdRegister(args []string) int {
 
 	reg.Projects[tag] = projectRoot
 
+	// Detect and store ticket prefix
+	ticketsDir := filepath.Join(projectRoot, ".tickets")
+	if prefix := detectPrefixFromDir(ticketsDir); prefix != "" {
+		reg.Prefixes[tag] = prefix
+	}
+
 	if err := SaveRegistry(regPath, reg); err != nil {
 		fmt.Fprintf(os.Stderr, "ko register: %v\n", err)
 		return 1
@@ -146,7 +152,7 @@ func cmdAdd(args []string) int {
 
 	// Load registry (non-fatal if missing — just route locally)
 	regPath := RegistryPath()
-	reg := &Registry{Projects: map[string]string{}}
+	reg := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
 	if regPath != "" {
 		loaded, loadErr := LoadRegistry(regPath)
 		if loadErr == nil {

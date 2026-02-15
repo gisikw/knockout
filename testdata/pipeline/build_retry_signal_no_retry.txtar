@@ -1,0 +1,40 @@
+# Explicit FAIL signal is NOT retried even with max_retries > 0
+chmod 755 fake-llm
+! exec ko build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'FAIL'
+stdout 'Not retryable'
+# The marker proves fake-llm was called only once
+exists .llm_call_1
+! exists .llm_call_2
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Signal test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 2
+stages:
+  - name: implement
+    prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+# Track call count with marker files
+if [ ! -f .llm_call_1 ]; then
+    touch .llm_call_1
+elif [ ! -f .llm_call_2 ]; then
+    touch .llm_call_2
+fi
+echo "FAIL"
+echo "Not retryable"
