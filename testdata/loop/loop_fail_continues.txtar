@@ -1,0 +1,55 @@
+# A FAIL outcome doesn't stop the loop — it marks the ticket blocked and continues
+chmod 755 fake-llm
+exec ko loop
+stdout 'ko-a001 FAIL'
+stdout 'ko-b002 SUCCEED'
+stdout '2 processed'
+stdout '1 succeeded'
+stdout '1 failed'
+stdout 'stopped: empty'
+
+exec ko show ko-a001
+stdout 'status: blocked'
+
+exec ko show ko-b002
+stdout 'status: closed'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# Will fail
+-- .tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Will succeed
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+# Fail for first ticket (ko-a001 appears in stdin), succeed for second
+if cat /dev/stdin | grep -q "Will fail"; then
+  echo "FAIL"
+  echo "Not actionable"
+else
+  echo "ok"
+fi

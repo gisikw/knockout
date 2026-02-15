@@ -60,3 +60,7 @@ func TestPipeline(t *testing.T) {
 func TestProjectRegistry(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/project_registry"})
 }
+
+func TestLoop(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/loop"})
+}

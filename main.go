@@ -57,6 +57,8 @@ func run(args []string) int {
 		return cmdQuery(rest)
 	case "build":
 		return cmdBuild(rest)
+	case "loop":
+		return cmdLoop(rest)
 	case "add":
 		return cmdAdd(rest)
 	case "register":
@@ -134,6 +136,7 @@ Commands:
   query                 Output all tickets as JSONL
 
   build <id>         Run build pipeline against ticket
+  loop               Build all ready tickets until queue is empty
 
   add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry

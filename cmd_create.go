@@ -10,6 +10,11 @@ import (
 )
 
 func cmdCreate(args []string) int {
+	if os.Getenv("KO_NO_CREATE") != "" {
+		fmt.Fprintln(os.Stderr, "ko create: disabled — running in a loop context where creating new tickets could cause runaway expansion and incur significant costs")
+		return 1
+	}
+
 	args = reorderArgs(args, map[string]bool{
 		"d": true, "t": true, "p": true, "a": true,
 		"parent": true, "external-ref": true, "design": true,

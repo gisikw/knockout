@@ -1,0 +1,48 @@
+# Loop decomposes a ticket, then builds the children, completing the full graph
+chmod 755 fake-llm
+
+exec ko loop
+# Parent should decompose first
+stdout 'loop: building ko-a001'
+stdout 'ko-a001 DECOMPOSE'
+# Children should be built in the same loop run
+stdout 'SUCCEED'
+stdout 'stopped: empty'
+
+# Parent should now be closed (all child deps resolved)
+exec ko show ko-a001
+stdout 'status: closed'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Refactor the widget system
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+max_depth: 2
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage this ticket.
+-- fake-llm --
+#!/bin/sh
+# First call: decompose. Subsequent calls: succeed.
+# Uses a state file to track whether we've already decomposed.
+STATE="$TMPDIR/fake-llm-state"
+if [ ! -f "$STATE" ]; then
+  echo "1" > "$STATE"
+  echo "DECOMPOSE"
+  echo "- Child task one"
+  echo "- Child task two"
+else
+  echo "Stage completed successfully."
+fi

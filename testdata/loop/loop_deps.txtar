@@ -1,0 +1,43 @@
+# Loop respects dependency ordering — builds unblocked first
+chmod 755 fake-llm
+exec ko loop
+stdout 'loop: building ko-a001'
+stdout 'ko-a001 SUCCEED'
+stdout 'loop: building ko-b002'
+stdout 'ko-b002 SUCCEED'
+stdout '2 processed'
+stdout 'stopped: empty'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Dependency
+-- .tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: [ko-a001]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# Depends on a001
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "ok"

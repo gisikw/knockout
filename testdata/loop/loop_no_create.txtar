@@ -1,0 +1,12 @@
+# KO_NO_CREATE blocks create and add during loop
+env KO_NO_CREATE=1
+
+! exec ko create 'Should not work'
+stderr 'disabled'
+stderr 'runaway expansion'
+
+! exec ko add 'Should not work either'
+stderr 'disabled'
+stderr 'runaway expansion'
+
+-- .tickets/.gitkeep --

@@ -136,6 +136,11 @@ func cmdProjects(args []string) int {
 }
 
 func cmdAdd(args []string) int {
+	if os.Getenv("KO_NO_CREATE") != "" {
+		fmt.Fprintln(os.Stderr, "ko add: disabled — running in a loop context where creating new tickets could cause runaway expansion and incur significant costs")
+		return 1
+	}
+
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "usage: ko add '<title> [#tag ...]'")
 		return 1

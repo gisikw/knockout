@@ -1,0 +1,89 @@
+# Loop handles depth guard: decompose denied at max depth marks ticket blocked, loop continues
+chmod 755 fake-llm
+
+exec ko loop
+# The deep ticket should hit the depth guard and get blocked
+stdout 'ko-a001.b002.c003 FAIL'
+# The shallow ticket should succeed normally
+stdout 'ko-d004 SUCCEED'
+stdout '2 processed'
+stdout 'stopped: empty'
+
+# Deep ticket is blocked with depth guard message
+exec ko show ko-a001.b002.c003
+stdout 'status: blocked'
+stdout 'max decomposition depth'
+
+# No children should have been created for the deep ticket
+exec ko ls
+! stdout 'ko-a001.b002.c003\.'
+
+# Shallow ticket closed
+exec ko show ko-d004
+stdout 'status: closed'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Root ticket
+-- .tickets/ko-a001.b002.md --
+---
+id: ko-a001.b002
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+parent: ko-a001
+---
+# Depth 1 ticket
+-- .tickets/ko-a001.b002.c003.md --
+---
+id: ko-a001.b002.c003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+parent: ko-a001.b002
+---
+# Depth 2 ticket — too deep to decompose
+-- .tickets/ko-d004.md --
+---
+id: ko-d004
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Normal ticket
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+max_depth: 2
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+# Deep ticket gets DECOMPOSE (depth guard catches it).
+# Normal ticket just succeeds.
+if cat /dev/stdin | grep -q "too deep to decompose"; then
+  echo "DECOMPOSE"
+  echo "- Should not be created"
+else
+  echo "ok"
+fi

@@ -1,0 +1,17 @@
+# Loop with no ready tickets exits immediately
+exec ko loop
+stdout 'stopped: empty'
+stdout '0 processed'
+
+-- .tickets/.gitkeep --
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "ok"

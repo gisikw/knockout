@@ -1,0 +1,46 @@
+# Loop stops after --max-tickets
+chmod 755 fake-llm
+exec ko loop --max-tickets 1
+stdout '1 processed'
+stdout 'stopped: max_tickets'
+
+# Only the higher-priority ticket should have been built
+exec ko show ko-a001
+stdout 'status: closed'
+
+exec ko show ko-b002
+stdout 'status: open'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# High priority
+-- .tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Lower priority
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+stages:
+  - name: triage
+    prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "ok"

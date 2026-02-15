@@ -35,6 +35,7 @@ Commands:
   query                 Output all tickets as JSONL
 
   build <id>         Run build pipeline against ticket
+  loop               Build all ready tickets until queue is empty
 
   add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry
@@ -94,6 +95,31 @@ outcome removes the ticket from the ready queue:
 | `FAIL` | Ticket blocked (needs human) |
 | `BLOCKED` | Dependency wired, ticket off queue until dep resolves |
 | `DECOMPOSE` | Child tickets created, parent blocked on them |
+
+### Build Loop
+
+`ko loop` burns down the entire ready queue without human intervention. It
+builds one ticket at a time, re-querying after each build so that newly
+unblocked tickets (from closed deps or decomposition) get picked up.
+
+```bash
+ko loop                    # run until queue is empty
+ko loop --max-tickets 5    # stop after 5 tickets
+ko loop --max-duration 30m # stop after 30 minutes
+```
+
+**Scope containment:** During a loop, `ko create` and `ko add` are disabled
+via the `KO_NO_CREATE` environment variable. This prevents spawned agents from
+creating new tickets, which would cause runaway expansion.
+
+The loop stops when:
+- The ready queue is empty (`stopped: empty`)
+- `--max-tickets` limit reached (`stopped: max_tickets`)
+- `--max-duration` limit reached (`stopped: max_duration`)
+- A build execution error occurs (`stopped: build_error`)
+
+Outcome signals (FAIL, BLOCKED, DECOMPOSE) do **not** stop the loop — the
+affected ticket is removed from the ready queue and the loop continues.
 
 ### Project Registry
 
