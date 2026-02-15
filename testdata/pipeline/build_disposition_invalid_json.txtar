@@ -1,9 +1,9 @@
-# on_succeed failure prevents ticket close
+# Decision node with invalid JSON is retried
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
-stdout 'on_succeed failed'
+stdout 'failed after 2 attempts'
 
 -- .tickets/ko-a001.md --
 ---
@@ -15,19 +15,20 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Hook failure test
+# Bad JSON test
 -- .ko/pipeline.yml --
 command: ./fake-llm
-max_retries: 0
+max_retries: 1
 workflows:
   main:
-    - name: implement
-      type: action
-      prompt: implement.md
-on_succeed:
-  - exit 1
--- .ko/prompts/implement.md --
-Implement.
+    - name: triage
+      type: decision
+      prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
 -- fake-llm --
 #!/bin/sh
-echo "Done."
+echo "Thinking..."
+echo '```json'
+echo '{not valid json}'
+echo '```'

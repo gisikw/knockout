@@ -1,10 +1,11 @@
-# SUCCEED: all action nodes pass, ticket is closed
+# Decision node routes to a different workflow
 chmod 755 fake-llm
 exec ko build ko-a001
 stdout 'SUCCEED'
 exec ko show ko-a001
 stdout 'status: closed'
-stdout 'SUCCEED'
+# Verify the feature workflow's implement node ran
+exists .feature_ran
 
 -- .tickets/ko-a001.md --
 ---
@@ -16,22 +17,26 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Fix the auth bug
+# Add a button
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
 workflows:
   main:
     - name: triage
-      type: action
+      type: decision
       prompt: triage.md
+      routes:
+        - feature
+  feature:
     - name: implement
       type: action
-      prompt: implement.md
+      run: touch .feature_ran
 -- .ko/prompts/triage.md --
-Triage this ticket.
--- .ko/prompts/implement.md --
-Implement the changes.
+Triage.
 -- fake-llm --
 #!/bin/sh
-echo "Stage completed successfully."
+echo "Routing to feature workflow."
+echo '```json'
+echo '{"disposition": "route", "workflow": "feature"}'
+echo '```'

@@ -1,4 +1,4 @@
-# BLOCKED: stage signals BLOCKED, dependency wired
+# BLOCKED: decision node returns blocked disposition, dependency wired
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
@@ -30,12 +30,16 @@ priority: 2
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage this ticket.
 -- fake-llm --
 #!/bin/sh
-echo "BLOCKED ko-b002"
-echo "Needs auth refactor first"
+echo "This depends on auth work."
+echo '```json'
+echo '{"disposition": "blocked", "block_on": "ko-b002", "reason": "Needs auth refactor first"}'
+echo '```'

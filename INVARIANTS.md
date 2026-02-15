@@ -60,6 +60,24 @@ be ticketed for remediation. No grandfathering.
 
 ## Pipeline (build subsystem)
 
+- **Workflows, not stages.** The pipeline config declares named `workflows`,
+  each containing typed nodes. Every ticket enters the `main` workflow.
+  Reaching the end of a workflow = succeed (close the ticket).
+- **Two node types: decision and action.** Decision nodes return structured
+  JSON dispositions (extracted from the last fenced code block). Action nodes
+  just do work — their output is not parsed. This separation eliminates the
+  fragile first-line parsing of v1.
+- **Dispositions are a closed set.** `continue | fail | blocked | decompose |
+  route`. Decision nodes must return one of these. Unknown dispositions are
+  errors.
+- **Route targets must be declared.** A decision node's `routes` field lists
+  the workflows it can jump to. Attempting to route to an undeclared target
+  is a build failure, not a redirect. This prevents prompt injection from
+  hijacking the workflow graph.
+- **Node visits are bounded.** Each node has a `max_visits` (default 1) that
+  caps how many times it can be entered during a single build. Exceeding the
+  limit is a build failure (ticket blocked). This bounds cycles — routing to
+  self is allowed, but only within the visit limit.
 - **Every build outcome removes the ticket from `ready`.** SUCCEED closes.
   FAIL marks blocked. BLOCKED wires a dep. DECOMPOSE creates children and
   blocks parent on them. No outcome leaves a ticket sitting on the ready
@@ -70,6 +88,14 @@ be ticketed for remediation. No grandfathering.
 - **At most one external ask per build.** A build run can create unbounded
   local subtasks (within depth limits) but at most one cross-project ask.
   It blocks on that ask. This bounds blast radius.
+- **Workspace persists across the build.** Each build creates a workspace at
+  `.ko/builds/<ts>-<id>/workspace/`. Stage outputs are tee'd to
+  `<workflow>.<node>.md`. Exposed as `$KO_TICKET_WORKSPACE`. This replaces
+  single-stage-back output threading.
+- **Invalid disposition JSON is retry-eligible.** If a decision node produces
+  output without a valid fenced JSON block, or the JSON doesn't parse, the
+  node is retried (up to `max_retries`). Valid dispositions (even `fail`) are
+  never retried.
 - **`on_close` runs after the ticket is closed.** If an `on_close` command
   kills the process (e.g. service restart), the ticket is already closed.
   This prevents deploy loops.

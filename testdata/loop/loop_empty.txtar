@@ -7,9 +7,11 @@ stdout '0 processed'
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage.
 -- fake-llm --

@@ -72,18 +72,25 @@ priority: 2
 command: ./fake-llm
 max_retries: 0
 max_depth: 2
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage.
 -- fake-llm --
 #!/bin/sh
 # Deep ticket gets DECOMPOSE (depth guard catches it).
-# Normal ticket just succeeds.
+# Normal ticket just continues.
 if cat /dev/stdin | grep -q "too deep to decompose"; then
-  echo "DECOMPOSE"
-  echo "- Should not be created"
+  echo "This needs to be split up."
+  echo '```json'
+  echo '{"disposition": "decompose", "subtasks": ["Should not be created"]}'
+  echo '```'
 else
-  echo "ok"
+  echo "Looks good."
+  echo '```json'
+  echo '{"disposition": "continue"}'
+  echo '```'
 fi

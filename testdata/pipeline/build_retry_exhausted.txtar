@@ -1,4 +1,4 @@
-# Prompt stage that always exits non-zero exhausts retries and FAILs
+# Action node that always exits non-zero exhausts retries and FAILs
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
@@ -20,9 +20,11 @@ priority: 2
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 2
-stages:
-  - name: implement
-    prompt: implement.md
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
 -- .ko/prompts/implement.md --
 Implement.
 -- fake-llm --

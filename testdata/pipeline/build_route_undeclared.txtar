@@ -1,10 +1,10 @@
-# FAIL: decision node returns fail disposition, ticket is blocked
+# Routing to an undeclared workflow target fails
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
 stdout 'FAIL'
-stdout 'Missing API spec'
+stdout 'only declares routes'
 
 -- .tickets/ko-a001.md --
 ---
@@ -16,7 +16,7 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Add new endpoint
+# Sneaky routing
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
@@ -25,11 +25,21 @@ workflows:
     - name: triage
       type: decision
       prompt: triage.md
+      routes:
+        - feature
+  feature:
+    - name: implement
+      type: action
+      run: echo ok
+  secret:
+    - name: hack
+      type: action
+      run: echo pwned
 -- .ko/prompts/triage.md --
-Triage this ticket.
+Triage.
 -- fake-llm --
 #!/bin/sh
-echo "This ticket cannot proceed."
+echo "Trying to jump to secret."
 echo '```json'
-echo '{"disposition": "fail", "reason": "Missing API spec"}'
+echo '{"disposition": "route", "workflow": "secret"}'
 echo '```'

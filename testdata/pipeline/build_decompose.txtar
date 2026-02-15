@@ -1,4 +1,4 @@
-# DECOMPOSE: creates children, blocks parent
+# DECOMPOSE: decision node creates children, blocks parent
 chmod 755 fake-llm
 exec ko build ko-a001
 exec ko show ko-a001
@@ -23,14 +23,16 @@ priority: 2
 command: ./fake-llm
 max_retries: 0
 max_depth: 2
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage this ticket.
 -- fake-llm --
 #!/bin/sh
-echo "DECOMPOSE"
-echo "- Extract widget interface"
-echo "- Migrate existing widgets"
-echo "- Update tests"
+echo "This needs to be split up."
+echo '```json'
+echo '{"disposition": "decompose", "subtasks": ["Extract widget interface", "Migrate existing widgets", "Update tests"]}'
+echo '```'

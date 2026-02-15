@@ -73,9 +73,11 @@ priority: 2
 # The dependency
 -- .ko/pipeline.yml --
 command: ./fake-llm
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage.
 -- fake-llm --

@@ -35,12 +35,16 @@ parent: ko-a001
 command: ./fake-llm
 max_retries: 0
 max_depth: 1
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage.
 -- fake-llm --
 #!/bin/sh
-echo "DECOMPOSE"
-echo "- Should not be created"
+echo "This should be decomposed."
+echo '```json'
+echo '{"disposition": "decompose", "subtasks": ["Should not be created"]}'
+echo '```'

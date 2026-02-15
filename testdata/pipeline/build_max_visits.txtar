@@ -1,10 +1,9 @@
-# FAIL: decision node returns fail disposition, ticket is blocked
+# Node visit limit prevents infinite loops
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
-stdout 'FAIL'
-stdout 'Missing API spec'
+stdout 'exceeded max_visits'
 
 -- .tickets/ko-a001.md --
 ---
@@ -16,20 +15,23 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Add new endpoint
+# Infinite loop test
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
 workflows:
   main:
-    - name: triage
+    - name: check
       type: decision
-      prompt: triage.md
--- .ko/prompts/triage.md --
-Triage this ticket.
+      prompt: check.md
+      max_visits: 2
+      routes:
+        - main
+-- .ko/prompts/check.md --
+Check.
 -- fake-llm --
 #!/bin/sh
-echo "This ticket cannot proceed."
+echo "Trying again."
 echo '```json'
-echo '{"disposition": "fail", "reason": "Missing API spec"}'
+echo '{"disposition": "route", "workflow": "main"}'
 echo '```'

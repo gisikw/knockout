@@ -1,4 +1,4 @@
-# Run stage that exits non-zero gets retried
+# Run action node that exits non-zero gets retried
 chmod 755 fake-llm
 exec ko build ko-a001
 stdout 'SUCCEED'
@@ -19,11 +19,14 @@ priority: 2
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 1
-stages:
-  - name: implement
-    prompt: implement.md
-  - name: verify
-    run: sh -c 'if [ ! -f .verify_called ]; then touch .verify_called; exit 1; fi; echo ok'
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: verify
+      type: action
+      run: sh -c 'if [ ! -f .verify_called ]; then touch .verify_called; exit 1; fi; echo ok'
 -- .ko/prompts/implement.md --
 Implement.
 -- fake-llm --

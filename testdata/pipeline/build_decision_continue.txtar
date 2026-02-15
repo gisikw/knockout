@@ -1,10 +1,12 @@
-# FAIL: decision node returns fail disposition, ticket is blocked
+# Decision node with continue disposition advances to next node
 chmod 755 fake-llm
-! exec ko build ko-a001
+exec ko build ko-a001
+stdout 'SUCCEED'
 exec ko show ko-a001
-stdout 'status: blocked'
-stdout 'FAIL'
-stdout 'Missing API spec'
+stdout 'status: closed'
+# Both nodes executed
+exists .triage_ran
+exists .implement_ran
 
 -- .tickets/ko-a001.md --
 ---
@@ -16,7 +18,7 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Add new endpoint
+# Continue test
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
@@ -25,11 +27,15 @@ workflows:
     - name: triage
       type: decision
       prompt: triage.md
+    - name: implement
+      type: action
+      run: touch .implement_ran
 -- .ko/prompts/triage.md --
-Triage this ticket.
+Triage.
 -- fake-llm --
 #!/bin/sh
-echo "This ticket cannot proceed."
+touch .triage_ran
+echo "Looks good, proceed."
 echo '```json'
-echo '{"disposition": "fail", "reason": "Missing API spec"}'
+echo '{"disposition": "continue"}'
 echo '```'

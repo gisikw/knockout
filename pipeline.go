@@ -7,35 +7,16 @@ import (
 	"strings"
 )
 
-// Pipeline represents a parsed .ko/pipeline.yml config.
+// Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
-	Command    string  // command to invoke for prompt stages (default: "claude")
-	Model      string  // default model for prompt stages
-	MaxRetries int     // max retries per stage (default: 2)
-	MaxDepth   int     // max decomposition depth (default: 2)
-	Discretion string  // low | medium | high (default: "medium")
-	Stages     []Stage // ordered list of stages
-	OnSucceed  []string // shell commands to run after all stages pass
-	OnClose    []string // shell commands to run after ticket is closed
-}
-
-// Stage represents a single pipeline stage.
-type Stage struct {
-	Name   string // stage identifier
-	Prompt string // prompt file reference (mutually exclusive with Run)
-	Run    string // shell command (mutually exclusive with Prompt)
-	Model  string // optional model override for this stage
-	OnFail string // outcome on failure: "fail" (default) or "blocked"
-}
-
-// IsPromptStage reports whether this stage invokes an LLM.
-func (s *Stage) IsPromptStage() bool {
-	return s.Prompt != ""
-}
-
-// IsRunStage reports whether this stage runs a shell command.
-func (s *Stage) IsRunStage() bool {
-	return s.Run != ""
+	Command    string                // command to invoke for prompt nodes (default: "claude")
+	Model      string                // default model for prompt nodes
+	MaxRetries int                   // max retries per node (default: 2)
+	MaxDepth   int                   // max decomposition depth (default: 2)
+	Discretion string                // low | medium | high (default: "medium")
+	Workflows  map[string]*Workflow  // named workflows; "main" is the entry point
+	OnSucceed  []string              // shell commands to run after all stages pass
+	OnClose    []string              // shell commands to run after ticket is closed
 }
 
 // FindPipelineConfig walks up from the tickets directory looking for .ko/pipeline.yml.
@@ -58,7 +39,7 @@ func LoadPipeline(path string) (*Pipeline, error) {
 	return ParsePipeline(string(data))
 }
 
-// ParsePipeline parses pipeline YAML content.
+// ParsePipeline parses pipeline YAML content (v2 format).
 // Uses the same minimal YAML approach as ticket parsing — no external deps.
 func ParsePipeline(content string) (*Pipeline, error) {
 	p := &Pipeline{
@@ -66,11 +47,14 @@ func ParsePipeline(content string) (*Pipeline, error) {
 		MaxRetries: 2,
 		MaxDepth:   2,
 		Discretion: "medium",
+		Workflows:  make(map[string]*Workflow),
 	}
 
 	lines := strings.Split(content, "\n")
-	var section string // "", "stages", "on_succeed", "on_close"
-	var currentStage *Stage
+	var section string        // "", "workflows", "on_succeed", "on_close"
+	var currentWF *Workflow    // current workflow being parsed
+	var currentNode *Node      // current node being parsed
+	var inRoutes bool          // parsing routes list for current node
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -80,22 +64,27 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			continue
 		}
 
-		// Detect section headers
-		if trimmed == "stages:" {
-			section = "stages"
-			continue
-		}
-		if trimmed == "on_succeed:" {
-			section = "on_succeed"
-			continue
-		}
-		if trimmed == "on_close:" {
-			section = "on_close"
-			continue
-		}
-
-		// Top-level scalars (no leading whitespace)
+		// Detect top-level section headers (no indentation)
 		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			// Save any pending node/workflow
+			flushNode(&currentNode, currentWF)
+			flushWorkflow(&currentWF, p)
+			inRoutes = false
+
+			if trimmed == "workflows:" {
+				section = "workflows"
+				continue
+			}
+			if trimmed == "on_succeed:" {
+				section = "on_succeed"
+				continue
+			}
+			if trimmed == "on_close:" {
+				section = "on_close"
+				continue
+			}
+
+			// Top-level scalars
 			key, val, ok := parseYAMLLine(trimmed)
 			if !ok {
 				continue
@@ -118,30 +107,68 @@ func ParsePipeline(content string) (*Pipeline, error) {
 
 		// Section content
 		switch section {
-		case "stages":
-			if strings.HasPrefix(trimmed, "- name:") {
-				// Save previous stage
-				if currentStage != nil {
-					p.Stages = append(p.Stages, *currentStage)
-				}
-				_, val, _ := parseYAMLLine(strings.TrimPrefix(trimmed, "- "))
-				currentStage = &Stage{Name: val, OnFail: "fail"}
-			} else if currentStage != nil {
+		case "workflows":
+			indent := countIndent(line)
+			switch {
+			case indent == 2 && strings.HasSuffix(trimmed, ":"):
+				// Workflow name header (e.g. "  main:")
+				flushNode(&currentNode, currentWF)
+				flushWorkflow(&currentWF, p)
+				inRoutes = false
+				name := strings.TrimSuffix(trimmed, ":")
+				currentWF = &Workflow{Name: name}
+
+			case indent == 4 && !strings.HasPrefix(trimmed, "-") && currentWF != nil:
+				// Workflow-level property (e.g. "    model: opus")
 				key, val, ok := parseYAMLLine(trimmed)
 				if !ok {
 					continue
 				}
+				if key == "model" {
+					currentWF.Model = val
+				}
+
+			case strings.HasPrefix(trimmed, "- name:") && currentWF != nil:
+				// New node in current workflow
+				flushNode(&currentNode, currentWF)
+				inRoutes = false
+				_, val, _ := parseYAMLLine(strings.TrimPrefix(trimmed, "- "))
+				currentNode = &Node{Name: val, MaxVisits: 1}
+
+			case inRoutes && strings.HasPrefix(trimmed, "- ") && currentNode != nil:
+				// Route entry
+				route := strings.TrimPrefix(trimmed, "- ")
+				route = strings.TrimSpace(route)
+				currentNode.Routes = append(currentNode.Routes, route)
+
+			case currentNode != nil:
+				// Node-level property
+				key, val, ok := parseYAMLLine(trimmed)
+				if !ok {
+					continue
+				}
+				inRoutes = false
 				switch key {
+				case "type":
+					currentNode.Type = NodeType(val)
 				case "prompt":
-					currentStage.Prompt = val
+					currentNode.Prompt = val
 				case "run":
-					currentStage.Run = val
+					currentNode.Run = val
 				case "model":
-					currentStage.Model = val
-				case "on_fail":
-					currentStage.OnFail = val
+					currentNode.Model = val
+				case "max_visits":
+					fmt.Sscanf(val, "%d", &currentNode.MaxVisits)
+				case "routes":
+					inRoutes = true
+					// Handle inline list: routes: [a, b, c]
+					if strings.HasPrefix(val, "[") {
+						currentNode.Routes = parseYAMLList(val)
+						inRoutes = false
+					}
 				}
 			}
+
 		case "on_succeed":
 			if strings.HasPrefix(trimmed, "- ") {
 				cmd := strings.TrimPrefix(trimmed, "- ")
@@ -155,16 +182,49 @@ func ParsePipeline(content string) (*Pipeline, error) {
 		}
 	}
 
-	// Save last stage
-	if currentStage != nil {
-		p.Stages = append(p.Stages, *currentStage)
-	}
+	// Flush remaining
+	flushNode(&currentNode, currentWF)
+	flushWorkflow(&currentWF, p)
 
-	if len(p.Stages) == 0 {
-		return nil, fmt.Errorf("pipeline has no stages")
+	// Validate
+	if err := ValidateWorkflows(p.Workflows); err != nil {
+		return nil, err
 	}
 
 	return p, nil
+}
+
+// flushNode saves the current node to the current workflow and clears it.
+func flushNode(node **Node, wf *Workflow) {
+	if *node == nil || wf == nil {
+		return
+	}
+	wf.Nodes = append(wf.Nodes, **node)
+	*node = nil
+}
+
+// flushWorkflow saves the current workflow to the pipeline and clears it.
+func flushWorkflow(wf **Workflow, p *Pipeline) {
+	if *wf == nil {
+		return
+	}
+	p.Workflows[(*wf).Name] = *wf
+	*wf = nil
+}
+
+// countIndent returns the number of leading spaces in a line.
+func countIndent(line string) int {
+	count := 0
+	for _, ch := range line {
+		if ch == ' ' {
+			count++
+		} else if ch == '\t' {
+			count += 2 // treat tab as 2 spaces
+		} else {
+			break
+		}
+	}
+	return count
 }
 
 // LoadPromptFile reads a prompt file from .ko/prompts/<name>.

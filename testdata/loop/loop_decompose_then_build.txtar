@@ -28,21 +28,27 @@ priority: 2
 command: ./fake-llm
 max_retries: 0
 max_depth: 2
-stages:
-  - name: triage
-    prompt: triage.md
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
 -- .ko/prompts/triage.md --
 Triage this ticket.
 -- fake-llm --
 #!/bin/sh
-# First call: decompose. Subsequent calls: succeed.
+# First call: decompose. Subsequent calls: continue (succeed).
 # Uses a state file to track whether we've already decomposed.
 STATE="$TMPDIR/fake-llm-state"
 if [ ! -f "$STATE" ]; then
   echo "1" > "$STATE"
-  echo "DECOMPOSE"
-  echo "- Child task one"
-  echo "- Child task two"
+  echo "This needs to be split up."
+  echo '```json'
+  echo '{"disposition": "decompose", "subtasks": ["Child task one", "Child task two"]}'
+  echo '```'
 else
-  echo "Stage completed successfully."
+  echo "Looks good, continuing."
+  echo '```json'
+  echo '{"disposition": "continue"}'
+  echo '```'
 fi

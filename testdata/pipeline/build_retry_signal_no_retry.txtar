@@ -1,4 +1,4 @@
-# Explicit FAIL signal is NOT retried even with max_retries > 0
+# Valid fail disposition is NOT retried even with max_retries > 0
 chmod 755 fake-llm
 ! exec ko build ko-a001
 exec ko show ko-a001
@@ -23,11 +23,13 @@ priority: 2
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 2
-stages:
-  - name: implement
-    prompt: implement.md
--- .ko/prompts/implement.md --
-Implement.
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
 -- fake-llm --
 #!/bin/sh
 # Track call count with marker files
@@ -36,5 +38,7 @@ if [ ! -f .llm_call_1 ]; then
 elif [ ! -f .llm_call_2 ]; then
     touch .llm_call_2
 fi
-echo "FAIL"
-echo "Not retryable"
+echo "Analyzing the ticket..."
+echo '```json'
+echo '{"disposition": "fail", "reason": "Not retryable"}'
+echo '```'

@@ -1,4 +1,4 @@
-# Run stage failure with on_fail: fail blocks the ticket
+# Run action node failure blocks the ticket
 ! exec ko build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
@@ -18,12 +18,14 @@ priority: 2
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0
-stages:
-  - name: implement
-    prompt: implement.md
-  - name: verify
-    run: exit 1
-    on_fail: fail
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: verify
+      type: action
+      run: exit 1
 -- .ko/prompts/implement.md --
 Implement.
 -- fake-llm --

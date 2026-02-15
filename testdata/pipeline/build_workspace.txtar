@@ -1,0 +1,36 @@
+# Workspace: stage outputs tee'd to workspace directory
+chmod 755 fake-llm
+exec ko build ko-a001
+stdout 'SUCCEED'
+# The on_succeed hook reads from the workspace to prove it exists
+exec cat ws_verify.txt
+stdout 'workspace exists'
+stdout 'triage output found'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Workspace test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
+    - name: implement
+      type: action
+      run: sh -c 'if [ -d "$KO_TICKET_WORKSPACE" ]; then echo "workspace exists"; if [ -f "$KO_TICKET_WORKSPACE/main.triage.md" ]; then echo "triage output found"; fi; fi > ws_verify.txt'
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "Triage complete."
