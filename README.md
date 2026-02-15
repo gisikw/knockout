@@ -35,6 +35,7 @@ Commands:
   query                 Output all tickets as JSONL
 
   build <id>         Run build pipeline against ticket
+  build-init         Initialize pipeline config in current project
   loop               Build all ready tickets until queue is empty
 
   add '<title> [#tag]'  Capture a task, route by tag if registered
@@ -86,15 +87,53 @@ at the limit, tickets get blocked for human review instead of further decomposed
 
 ### Build Pipeline
 
-`ko build <ticket-id>` runs a YAML-defined pipeline against a ticket. Every
-outcome removes the ticket from the ready queue:
+`ko build <ticket-id>` runs a workflow-based pipeline against a ticket. The
+pipeline config lives in `.ko/pipeline.yml` and declares named **workflows**
+containing typed **nodes**. Every ticket enters the `main` workflow.
+
+There are two node types:
+
+- **Decision nodes** return structured JSON dispositions (extracted from the
+  last fenced code block in the output). These drive the workflow graph.
+- **Action nodes** just do work — their output is not parsed.
+
+Every build outcome removes the ticket from the ready queue:
 
 | Outcome | Effect |
 |---------|--------|
-| `SUCCEED` | Ticket closed |
+| `SUCCEED` | Ticket closed (all nodes in the workflow completed) |
 | `FAIL` | Ticket blocked (needs human) |
 | `BLOCKED` | Dependency wired, ticket off queue until dep resolves |
 | `DECOMPOSE` | Child tickets created, parent blocked on them |
+
+#### Dispositions
+
+Decision nodes end their output with a fenced JSON block. The runner extracts
+the **last** fenced JSON block:
+
+```json
+{"disposition": "continue"}
+```
+
+Valid dispositions:
+
+| Disposition | Meaning | Required fields |
+|------------|---------|-----------------|
+| `continue` | Advance to next node in workflow | — |
+| `fail` | Block ticket for human review | `reason` |
+| `blocked` | Wire a dependency | `block_on`, `reason` |
+| `route` | Jump to a different workflow | `workflow` |
+| `decompose` | Split into subtasks | `subtasks` (array) |
+
+Route targets must be declared in the node's `routes` field — a decision node
+cannot route to a workflow it hasn't declared. This prevents prompt injection
+from hijacking the workflow graph.
+
+#### Workspace
+
+Each build creates a workspace at `.ko/builds/<ts>-<id>/workspace/`. Node
+outputs are tee'd to `<workflow>.<node>.md` files in the workspace. The path
+is available to all nodes and hooks as `$KO_TICKET_WORKSPACE`.
 
 ### Build Loop
 
@@ -137,7 +176,8 @@ Registry lives at `~/.config/knockout/projects.yml`.
 ## Pipeline Configuration
 
 Pipeline config lives in `.ko/pipeline.yml`, prompts in `.ko/prompts/`.
-See `examples/` for starter templates.
+Run `ko build-init` to scaffold a starter pipeline, or see `examples/` for
+templates.
 
 ```yaml
 # .ko/pipeline.yml
@@ -146,27 +186,64 @@ max_retries: 2
 max_depth: 2
 discretion: high
 
-stages:
-  - name: triage
-    prompt: triage.md
-    on_fail: blocked
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+      routes:
+        - hotfix
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: verify
+      type: action
+      run: just test
+    - name: review
+      type: decision
+      prompt: review.md
 
-  - name: implement
-    prompt: implement.md
-
-  - name: verify
-    run: just test
-    on_fail: fail
-
-  - name: review
-    prompt: review.md
-    on_fail: fail
+  hotfix:
+    - name: implement
+      type: action
+      prompt: implement.md
 
 on_succeed:
   - git add -A
   - git commit -m "ko: implement ${TICKET_ID}"
+
+on_close:
   - git push
 ```
+
+### Pipeline options
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `model` | — | Default model for all prompt nodes |
+| `command` | `claude` | CLI command for prompt nodes |
+| `max_retries` | `2` | Retry attempts per node |
+| `max_depth` | `2` | Max decomposition depth |
+| `discretion` | `medium` | `low` \| `medium` \| `high` — passed to prompt nodes |
+
+### Node properties
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `name` | yes | Node identifier (unique across all workflows) |
+| `type` | yes | `decision` or `action` |
+| `prompt` | one of | Prompt file in `.ko/prompts/` |
+| `run` | one of | Shell command to execute |
+| `model` | no | Model override for this node |
+| `routes` | no | Workflows this decision node may route to |
+| `max_visits` | no | Max times this node can run per build (default: 1) |
+
+### Hooks
+
+- **`on_succeed`** runs after all workflows pass, before the ticket is closed.
+  Available env: `$TICKET_ID`, `$CHANGED_FILES`, `$KO_TICKET_WORKSPACE`.
+- **`on_close`** runs after the ticket is closed. Safe for deploys — if the
+  hook kills the process, the ticket is already closed.
 
 ## Data Model
 

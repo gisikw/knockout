@@ -14,15 +14,19 @@ Evaluate the ticket:
 4. **Are there acceptance criteria?** Either explicit or clearly implied from
    the current code and the requested change?
 
-If the ticket is actionable, respond with:
+If the ticket is actionable, provide:
 - A brief summary of what needs to be done
 - The files you expect to modify
 - Any assumptions you're making
 
-Only flag `FAIL` (on its own line, followed by what's missing) if the ticket is
-genuinely ambiguous *after* you've looked at the code. A short ticket that
-points at an obvious change is fine.
+Then end with a `continue` disposition.
+
+If the ticket is genuinely ambiguous *after* you've looked at the code, end
+with a `fail` disposition explaining what's missing.
 
 If implementing this ticket requires something else to be done first that isn't
-captured in the ticket's dependencies, respond with `BLOCKED` on its own line,
-followed by a description of the blocker.
+captured in the ticket's dependencies, end with a `blocked` disposition
+identifying the blocker.
+
+If the ticket is too large for a single implementation pass, end with a
+`decompose` disposition listing the subtasks.

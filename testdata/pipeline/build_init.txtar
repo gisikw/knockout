@@ -1,0 +1,26 @@
+# build-init scaffolds pipeline config and prompt files
+exec ko build-init
+stdout 'initialized .ko/pipeline.yml'
+stdout 'triage.md'
+stdout 'implement.md'
+stdout 'review.md'
+exists .ko/pipeline.yml
+exists .ko/prompts/triage.md
+exists .ko/prompts/implement.md
+exists .ko/prompts/review.md
+
+# Running again refuses to overwrite
+! exec ko build-init
+stderr 'already exists'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Placeholder

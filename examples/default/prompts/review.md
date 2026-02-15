@@ -13,8 +13,10 @@ Look at the git diff of uncommitted changes and evaluate:
    check the diff against every documented contract. These are non-negotiable --
    a violation is a blocker.
 
-If the changes look good, say so briefly.
+If the changes look good, end with a `continue` disposition.
 
-If there are problems, describe them clearly. If problems are fixable, fix them.
-If they indicate a fundamental misunderstanding of the ticket or an invariant
-violation, respond with `FAIL` on its own line and explain what went wrong.
+If there are problems that you can fix, fix them and end with `continue`.
+
+If the problems indicate a fundamental misunderstanding of the ticket or an
+invariant violation that you cannot fix, end with a `fail` disposition
+explaining what went wrong.

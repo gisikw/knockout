@@ -57,6 +57,8 @@ func run(args []string) int {
 		return cmdQuery(rest)
 	case "build":
 		return cmdBuild(rest)
+	case "build-init":
+		return cmdBuildInit(rest)
 	case "loop":
 		return cmdLoop(rest)
 	case "add":
@@ -136,6 +138,7 @@ Commands:
   query                 Output all tickets as JSONL
 
   build <id>         Run build pipeline against ticket
+  build-init         Initialize pipeline config in current project
   loop               Build all ready tickets until queue is empty
 
   add '<title> [#tag]'  Capture a task, route by tag if registered
