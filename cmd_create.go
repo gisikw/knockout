@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 func cmdCreate(args []string) int {
@@ -45,7 +47,7 @@ func cmdCreate(args []string) int {
 		return 1
 	}
 
-	// Determine prefix from existing tickets or default to "ko"
+	// Determine prefix from existing tickets or derive from directory name
 	prefix := detectPrefix(ticketsDir)
 
 	var t *Ticket
@@ -99,11 +101,15 @@ func cmdCreate(args []string) int {
 }
 
 // detectPrefix looks at existing ticket files to infer the project prefix.
-// Falls back to "ko".
+// Falls back to deriving from the project root directory name.
 func detectPrefix(ticketsDir string) string {
 	entries, err := os.ReadDir(ticketsDir)
 	if err != nil {
-		return "ko"
+		absDir, absErr := filepath.Abs(ticketsDir)
+		if absErr != nil {
+			return DerivePrefix(filepath.Base(filepath.Dir(ticketsDir)))
+		}
+		return DerivePrefix(filepath.Base(filepath.Dir(absDir)))
 	}
 	for _, e := range entries {
 		name := e.Name()
@@ -117,6 +123,55 @@ func detectPrefix(ticketsDir string) string {
 				return id[:idx]
 			}
 		}
+	}
+	// No existing root tickets — derive from directory name.
+	// Resolve to absolute path so relative paths like ".tickets" work correctly.
+	absDir, err := filepath.Abs(ticketsDir)
+	if err != nil {
+		return DerivePrefix(filepath.Base(filepath.Dir(ticketsDir)))
+	}
+	return DerivePrefix(filepath.Base(filepath.Dir(absDir)))
+}
+
+// DerivePrefix generates a ticket prefix from a directory name.
+// Multi-segment names (split on - and _) use the first letter of each segment.
+// Single-segment names use the first 3 characters.
+// Always returns a lowercase string of at least 2 characters.
+func DerivePrefix(dirName string) string {
+	dirName = strings.ToLower(dirName)
+
+	// Split on hyphens and underscores
+	segments := strings.FieldsFunc(dirName, func(r rune) bool {
+		return r == '-' || r == '_'
+	})
+
+	if len(segments) > 1 {
+		var b strings.Builder
+		for _, seg := range segments {
+			if len(seg) > 0 {
+				b.WriteRune(rune(seg[0]))
+			}
+		}
+		prefix := b.String()
+		if len(prefix) >= 2 {
+			return prefix
+		}
+	}
+
+	// Single segment or initials too short: use first 3 chars
+	// Strip non-alphanumeric
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return r
+		}
+		return -1
+	}, dirName)
+
+	if len(cleaned) >= 3 {
+		return cleaned[:3]
+	}
+	if len(cleaned) >= 2 {
+		return cleaned
 	}
 	return "ko"
 }

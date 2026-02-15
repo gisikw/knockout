@@ -7,4 +7,14 @@ stdout '"type":"task"'
 stdout '"deps":\[\]'
 stdout '"links":\[\]'
 
--- .tickets/.keep --
+-- .tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection

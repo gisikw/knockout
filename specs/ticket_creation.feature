@@ -102,3 +102,27 @@ Feature: Ticket Creation
     When I run "ko create 'First ticket'"
     Then the command should succeed
     And the tickets directory should exist
+
+  Scenario: Prefix matches existing tickets
+    Given a ticket exists with ID "myproj-a001" and title "Existing"
+    When I run "ko create 'Another ticket'"
+    Then the command should succeed
+    And the created ticket ID should start with "myproj-"
+
+  Scenario: Prefix derived from directory name when no tickets exist
+    Given a clean tickets directory in project "my-cool-project"
+    When I run "ko create 'First ticket'"
+    Then the command should succeed
+    And the created ticket ID should start with "mcp-"
+
+  Scenario: Single-segment directory uses first three characters
+    Given a clean tickets directory in project "exocortex"
+    When I run "ko create 'First ticket'"
+    Then the command should succeed
+    And the created ticket ID should start with "exo-"
+
+  Scenario: Underscore-separated directory name uses initials
+    Given a clean tickets directory in project "fort_nix"
+    When I run "ko create 'First ticket'"
+    Then the command should succeed
+    And the created ticket ID should start with "fn-"
