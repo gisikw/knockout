@@ -1,0 +1,8 @@
+# Minimal pipeline -- just implement, no triage or review gates
+model: claude-sonnet-4-5-20250929
+max_retries: 1
+discretion: high  # low | medium | high
+
+stages:
+  - name: implement
+    prompt: implement.md

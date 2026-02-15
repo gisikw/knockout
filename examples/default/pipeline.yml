@@ -1,0 +1,27 @@
+# Default build pipeline -- triage, implement, verify, review
+model: claude-sonnet-4-5-20250929
+max_retries: 2
+discretion: medium  # low | medium | high
+
+stages:
+  - name: triage
+    prompt: triage.md
+    on_fail: badly_defined
+
+  - name: implement
+    prompt: implement.md
+
+  - name: verify
+    run: just test
+    on_fail: fail
+
+  - name: review
+    prompt: review.md
+    on_fail: fail
+
+# Commands to run after all stages succeed (before ticket is closed).
+# $TICKET_ID is available for interpolation.
+# on_succeed:
+#   - git add -A
+#   - git commit -m "ko: implement ${TICKET_ID}"
+#   - git push

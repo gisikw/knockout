@@ -1,0 +1,12 @@
+# Show "no default" when none is set
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Register without setting default
+exec ko register '#exo'
+
+# Query shows no default
+exec ko default
+stdout 'no default'
+
+-- .tickets/.keep --

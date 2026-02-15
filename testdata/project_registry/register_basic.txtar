@@ -1,0 +1,26 @@
+# Register a project with a tag
+env HOME=$WORK/home
+mkdir $WORK/home
+exec ko register '#fort-nix'
+stdout 'registered fort-nix'
+
+# Registry file was created
+exists $WORK/home/.config/knockout/projects.yml
+
+# Registry contains the project with correct path
+exec ko projects
+stdout 'fort-nix'
+stdout $WORK
+
+# Register a second project
+mkdir $WORK/other-project/.tickets
+cd $WORK/other-project
+exec ko register '#exo'
+stdout 'registered exo'
+
+# Both projects are listed
+exec ko projects
+stdout 'fort-nix'
+stdout 'exo'
+
+-- .tickets/.keep --

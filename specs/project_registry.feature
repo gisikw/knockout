@@ -3,6 +3,67 @@ Feature: Project Registry
   I want a central registry of projects
   So that routing and cross-project deps can be resolved
 
+  # Registration
+
+  Scenario: Register a project with a tag
+    Given I am in a project directory "/tmp/test-projects/fort-nix"
+    When I run "ko register #fort-nix"
+    Then the command should succeed
+    And the registry at "~/.config/knockout/projects.yml" should contain project "fort-nix"
+    And the registered path for "fort-nix" should be "/tmp/test-projects/fort-nix"
+
+  Scenario: Register strips the hash from the tag
+    Given I am in a project directory "/tmp/test-projects/exo"
+    When I run "ko register #exo"
+    Then the registered project name should be "exo" not "#exo"
+
+  Scenario: Register requires a tag argument
+    When I run "ko register"
+    Then the command should fail
+    And the error should contain "usage: ko register #<tag>"
+
+  Scenario: Register overwrites existing entry for same tag
+    Given a registry with project "exo" at "/old/path"
+    And I am in a project directory "/new/path"
+    When I run "ko register #exo"
+    Then the command should succeed
+    And the registered path for "exo" should be "/new/path"
+
+  Scenario: Register creates registry file if it does not exist
+    Given no registry file exists
+    And I am in a project directory "/tmp/test-projects/fort-nix"
+    When I run "ko register #fort-nix"
+    Then the command should succeed
+    And the registry file should exist
+
+  # Default project
+
+  Scenario: Set default project
+    Given a registry with project "exo" at "/tmp/test-projects/exo"
+    When I run "ko default #exo"
+    Then the command should succeed
+    And the registry default should be "exo"
+
+  Scenario: Show current default
+    Given a registry with default project "exo"
+    When I run "ko default"
+    Then the command should succeed
+    And the output should contain "exo"
+
+  Scenario: Show no default set
+    Given a registry with no default project
+    When I run "ko default"
+    Then the command should succeed
+    And the output should contain "no default"
+
+  Scenario: Default rejects unregistered tags
+    Given a registry with no projects
+    When I run "ko default #ghost"
+    Then the command should fail
+    And the error should contain "not registered"
+
+  # Listing
+
   Scenario: Registry is a config file
     Given a registry file at "~/.config/knockout/projects.yml"
     When I run "ko projects"

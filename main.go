@@ -57,6 +57,12 @@ func run(args []string) int {
 		return cmdQuery(rest)
 	case "build":
 		return cmdBuild(rest)
+	case "register":
+		return cmdRegister(rest)
+	case "default":
+		return cmdDefault(rest)
+	case "projects":
+		return cmdProjects(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -126,6 +132,10 @@ Commands:
   query                 Output all tickets as JSONL
 
   build <id>         Run build pipeline against ticket
+
+  register #<tag>    Register current project in the global registry
+  default [#<tag>]   Show or set the default project for routing
+  projects           List registered projects
 
   help               Show this help
   version            Show version`)

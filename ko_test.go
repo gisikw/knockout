@@ -56,3 +56,7 @@ func TestDirectoryResolution(t *testing.T) {
 func TestPipeline(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/pipeline"})
 }
+
+func TestProjectRegistry(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/project_registry"})
+}

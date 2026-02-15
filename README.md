@@ -3,56 +3,84 @@
 A task tracker and build pipeline for autonomous agent workflows. Track tickets,
 route work across projects, and burn down backlogs with BFS over the ready queue.
 
-## What It Does
+## Usage
 
-`ko` is a single binary that combines ticket management with an automated build
-pipeline. Every `ko build` outcome mutates the ready queue — tickets get closed,
-blocked, or decomposed into subtasks. Nothing stays unchanged after a build
-attempt.
+```
+ko - knockout task tracker
 
-## Quick Start
+Usage: ko <command> [arguments]
 
-```bash
-# Create a ticket
-ko create "Fix the auth bug"
+Commands:
+  create [title]     Create a new ticket
+  show <id>          Show ticket details
+  ls                 List open tickets
+  ready              Show ready queue (open + deps resolved)
+  blocked            Show tickets with unresolved deps
+  closed             Show closed tickets
 
-# See what's ready to work on
-ko ready
+  status <id> <s>    Set ticket status
+  start <id>         Set status to in_progress
+  close <id>         Set status to closed
+  reopen <id>        Set status to open
+  block <id>         Set status to blocked
 
-# Build it (run the automated pipeline)
-ko build ko-a1b2
+  dep <id> <dep>     Add dependency
+  undep <id> <dep>   Remove dependency
+  dep tree <id>      Show dependency tree
 
-# Capture something for another project
-ko add "Add foobar to dev-sandbox #fort-nix"
+  link <id1> <id2>   Link two tickets
+  unlink <id1> <id2> Unlink two tickets
+
+  add-note <id> <text>  Add a note to a ticket
+  query                 Output all tickets as JSONL
+
+  build <id>         Run build pipeline against ticket
+
+  register #<tag>    Register current project in the global registry
+  default [#<tag>]   Show or set the default project for routing
+  projects           List registered projects
+
+  help               Show this help
+  version            Show version
+```
+
+### Create options
+
+```
+ko create [title] [-d description] [-t type] [-p priority] [-a assignee]
+                  [--parent id] [--external-ref ref]
+                  [--design notes] [--acceptance criteria]
+                  [--tags tag1,tag2]
 ```
 
 ## Concepts
+
+### Ticket IDs
+
+Ticket IDs encode hierarchy. The prefix is derived from existing tickets or,
+for new projects, from the directory name (e.g. `my-cool-project` -> `mcp-`):
+
+```
+mcp-a1b2            root ticket (depth 0)
+mcp-a1b2.c3d4       child (depth 1)
+mcp-a1b2.c3d4.e5f6  grandchild (depth 2)
+```
+
+Depth is visible by counting dots. Decomposition is bounded by max depth --
+at the limit, tickets get blocked for human review instead of further decomposed.
 
 ### Statuses
 
 | Status | Meaning |
 |--------|---------|
-| `captured` | Just captured, probably doesn't belong here yet |
-| `routed` | Triaged to this repo, needs evaluation |
+| `captured` | Just captured, needs triage |
+| `routed` | Routed to this project from elsewhere |
 | `open` | Ready to be worked (eligible for `ko ready`) |
 | `in_progress` | Currently being worked |
 | `closed` | Done |
 | `blocked` | Needs human attention |
 
 `ko ready` only returns `open` and `in_progress` tickets with all deps resolved.
-
-### Hierarchical IDs
-
-Ticket IDs encode parent-child relationships:
-
-```
-ko-a1b2          # root ticket (depth 0)
-ko-a1b2.c3d4     # child (depth 1)
-ko-a1b2.c3d4.e5f6  # grandchild (depth 2)
-```
-
-Depth is visible by counting dots. Decomposition is bounded by max depth —
-at the limit, tickets get blocked for human review instead of further decomposed.
 
 ### Build Pipeline
 
@@ -61,21 +89,28 @@ outcome removes the ticket from the ready queue:
 
 | Outcome | Effect |
 |---------|--------|
-| `SUCCEED` | Ticket closed. Queue shrinks. |
-| `FAIL` | Ticket blocked (needs human). Reason note explains why. |
-| `BLOCKED` | Dependency wired. Ticket off queue until dep resolves. |
-| `DECOMPOSE` | Child tickets created, parent blocked on them. Queue reshapes. |
+| `SUCCEED` | Ticket closed |
+| `FAIL` | Ticket blocked (needs human) |
+| `BLOCKED` | Dependency wired, ticket off queue until dep resolves |
+| `DECOMPOSE` | Child tickets created, parent blocked on them |
 
-### Cross-Project Routing
+### Project Registry
 
-`ko add "thing #project-name"` captures a task and routes it to the target
-project via the project registry. Unrecognized tags go to the default project
-as a catch-all — repeated unrecognized tags signal that a project wants to exist.
+Register projects for cross-project routing:
 
-Cross-project deps are resolved lazily: `ko ready` only checks them when the
-local queue is empty, and short-circuits on the first unblocked ticket.
+```bash
+ko register #fort-nix     # register current project as "fort-nix"
+ko register #exo           # register another project
+ko default #exo            # set default for unrecognized tags
+ko projects                # list all registered projects
+```
 
-### Pipeline Configuration
+Registry lives at `~/.config/knockout/projects.yml`.
+
+## Pipeline Configuration
+
+Pipeline config lives in `.ko/pipeline.yml`, prompts in `.ko/prompts/`.
+See `examples/` for starter templates.
 
 ```yaml
 # .ko/pipeline.yml
@@ -87,7 +122,7 @@ discretion: high
 stages:
   - name: triage
     prompt: triage.md
-    on_fail: blocked
+    on_fail: badly_defined
 
   - name: implement
     prompt: implement.md
@@ -101,22 +136,12 @@ stages:
     on_fail: fail
 
 on_succeed:
-  - echo "${CHANGED_FILES}" | xargs git add
-  - git add .tickets/${TICKET_ID}.md
+  - git add -A
   - git commit -m "ko: implement ${TICKET_ID}"
   - git push
-
-on_close:
-  - just deploy
 ```
 
 ## Data Model
 
 Tickets are markdown files with YAML frontmatter in `.tickets/`. No database,
 no index, no derived state. The file is the source of truth.
-
-## Status
-
-Pre-implementation. Specs and invariants are defined. The reference implementation
-is [tk-build](https://git.gisi.network/infra/tk-build) (bash), which this
-project supersedes.

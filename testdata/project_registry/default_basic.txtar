@@ -1,0 +1,20 @@
+# Set and query default project
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Register a project first
+exec ko register '#exo'
+
+# Set as default
+exec ko default '#exo'
+stdout 'default: exo'
+
+# Query default (no args)
+exec ko default
+stdout 'exo'
+
+# Default rejects unregistered tags
+! exec ko default '#ghost'
+stderr 'not registered'
+
+-- .tickets/.keep --

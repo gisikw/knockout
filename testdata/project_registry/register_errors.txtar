@@ -1,0 +1,7 @@
+# Register requires a tag argument
+env HOME=$WORK/home
+mkdir $WORK/home
+! exec ko register
+stderr 'usage: ko register #<tag>'
+
+-- .tickets/.keep --

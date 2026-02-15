@@ -1,0 +1,8 @@
+# Missing registry shows helpful error
+env HOME=$WORK/home
+mkdir $WORK/home
+! exec ko projects
+stderr 'no project registry found'
+stderr 'knockout/projects.yml'
+
+-- .tickets/.keep --
