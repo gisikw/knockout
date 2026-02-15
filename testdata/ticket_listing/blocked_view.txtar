@@ -1,0 +1,32 @@
+# Blocked shows tickets with unclosed deps
+exec ko blocked
+stdout 'block-001'
+stdout '<- \[block-002\]'
+
+# After closing dep, ticket no longer in blocked view
+exec ko close block-002
+exec ko blocked
+! stdout 'block-001'
+
+-- .tickets/block-001.md --
+---
+id: block-001
+status: open
+deps: [block-002]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked ticket
+-- .tickets/block-002.md --
+---
+id: block-002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocker ticket

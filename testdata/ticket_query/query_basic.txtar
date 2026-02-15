@@ -1,0 +1,31 @@
+# Query all tickets as JSONL
+exec ko query
+stdout 'query-001'
+stdout 'query-002'
+stdout '"id"'
+stdout '"status"'
+stdout '"deps"'
+stdout '"priority"'
+
+-- .tickets/query-001.md --
+---
+id: query-001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .tickets/query-002.md --
+---
+id: query-002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket

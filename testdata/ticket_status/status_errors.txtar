@@ -1,0 +1,20 @@
+# Invalid status
+! exec ko status test-0001 invalid
+stderr 'invalid status'
+stderr 'captured routed open in_progress closed blocked'
+
+# Non-existent ticket
+! exec ko status nonexistent open
+stderr 'not found'
+
+-- .tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

@@ -1,0 +1,31 @@
+# Exact ID match
+exec ko show abc-1234
+stdout 'id: abc-1234'
+
+# Partial ID match by suffix
+exec ko show 1234
+stdout 'id: abc-1234'
+
+# Partial ID match by prefix
+exec ko show abc-
+stdout 'id: abc-1234'
+
+# Partial ID match by substring
+exec ko show c-12
+stdout 'id: abc-1234'
+
+# Non-existent ID error
+! exec ko show nonexistent
+stderr 'not found'
+
+-- .tickets/abc-1234.md --
+---
+id: abc-1234
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

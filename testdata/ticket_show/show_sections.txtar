@@ -1,0 +1,65 @@
+# Show displays blockers when deps are open
+exec ko show show-001
+stdout '## Blockers'
+stdout 'show-002'
+
+# Show displays blocking section
+exec ko show show-002
+stdout '## Blocking'
+stdout 'show-001'
+
+# After closing dep, blockers section disappears
+exec ko close show-002
+exec ko show show-001
+! stdout '## Blockers'
+
+# Show children section
+exec ko show show-003
+stdout '## Children'
+stdout 'show-003.a001'
+
+-- .tickets/show-001.md --
+---
+id: show-001
+status: open
+deps: [show-002]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked ticket
+-- .tickets/show-002.md --
+---
+id: show-002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocker ticket
+-- .tickets/show-003.md --
+---
+id: show-003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Parent ticket
+-- .tickets/show-003.a001.md --
+---
+id: show-003.a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+parent: show-003
+---
+# Child ticket

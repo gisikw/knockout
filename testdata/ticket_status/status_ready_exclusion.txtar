@@ -1,0 +1,27 @@
+# Blocked tickets excluded from ready
+exec ko block test-0001
+exec ko ready
+! stdout 'test-0001'
+
+# Reopen, then set to captured — also excluded
+exec ko reopen test-0001
+exec ko status test-0001 captured
+exec ko ready
+! stdout 'test-0001'
+
+# Set to routed — also excluded
+exec ko status test-0001 routed
+exec ko ready
+! stdout 'test-0001'
+
+-- .tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

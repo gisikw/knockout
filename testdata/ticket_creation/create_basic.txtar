@@ -1,0 +1,15 @@
+# Create a basic ticket with title
+exec ko create 'My first ticket'
+stdout '^ko-[0-9a-f]{4}$'
+
+# Verify the ticket file exists with correct content
+exec ko ls
+stdout 'My first ticket'
+
+# Create a ticket with default title
+exec ko create
+stdout '^ko-[0-9a-f]{4}$'
+exec ko query
+stdout 'Untitled'
+
+-- .tickets/.keep --

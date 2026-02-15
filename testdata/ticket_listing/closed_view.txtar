@@ -1,0 +1,30 @@
+# Closed shows recently closed tickets
+exec ko closed
+stdout 'done-0001'
+
+# Closed respects limit
+exec ko closed --limit=1
+stdout -count=1 'done-'
+
+-- .tickets/done-0001.md --
+---
+id: done-0001
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First done
+-- .tickets/done-0002.md --
+---
+id: done-0002
+status: closed
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second done

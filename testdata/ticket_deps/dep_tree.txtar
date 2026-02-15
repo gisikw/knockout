@@ -1,0 +1,41 @@
+# View dependency tree
+exec ko dep tree task-0001
+stdout 'task-0001'
+stdout 'task-0002'
+stdout 'task-0003'
+stdout '\[open\]'
+stdout 'Main task'
+
+-- .tickets/task-0001.md --
+---
+id: task-0001
+status: open
+deps: [task-0002]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Main task
+-- .tickets/task-0002.md --
+---
+id: task-0002
+status: open
+deps: [task-0003]
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Dependency task
+-- .tickets/task-0003.md --
+---
+id: task-0003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Another task

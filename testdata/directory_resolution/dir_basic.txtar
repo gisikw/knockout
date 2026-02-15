@@ -1,0 +1,25 @@
+# Find tickets in current directory
+exec ko ls
+stdout 'test-0001'
+
+# Error when no tickets directory found — we test this via TICKETS_DIR
+# because testscript runs in a temp dir
+env TICKETS_DIR=nonexistent
+! exec ko ls
+stderr 'not a directory'
+
+# Help works without tickets directory
+env TICKETS_DIR=
+exec ko help
+
+-- .tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

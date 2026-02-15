@@ -1,0 +1,62 @@
+# Add a dependency
+exec ko dep task-0001 task-0002
+stdout 'Added dependency'
+
+# Verify dep exists
+exec ko show task-0001
+stdout 'task-0002'
+
+# Add dependency is idempotent
+exec ko dep task-0001 task-0002
+stdout 'already exists'
+
+# Self-dependency is rejected
+! exec ko dep task-0001 task-0001
+stderr 'cannot depend on itself'
+
+# Add dependency with non-existent ticket
+! exec ko dep task-0001 nonexistent
+stderr 'not found'
+
+# Remove dependency
+exec ko undep task-0001 task-0002
+exec ko show task-0001
+! stdout 'deps:.*task-0002'
+
+# Remove non-existent dependency
+! exec ko undep task-0001 task-0002
+stderr 'not found'
+
+-- .tickets/task-0001.md --
+---
+id: task-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Main task
+-- .tickets/task-0002.md --
+---
+id: task-0002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Dependency task
+-- .tickets/task-0003.md --
+---
+id: task-0003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Another task

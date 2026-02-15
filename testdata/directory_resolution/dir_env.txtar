@@ -1,0 +1,28 @@
+# TICKETS_DIR env var takes priority
+env TICKETS_DIR=other-tickets
+exec ko ls
+stdout 'other-0001'
+! stdout 'parent-0001'
+
+-- .tickets/parent-0001.md --
+---
+id: parent-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Parent ticket
+-- other-tickets/other-0001.md --
+---
+id: other-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Other ticket

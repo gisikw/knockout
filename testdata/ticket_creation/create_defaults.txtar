@@ -1,0 +1,10 @@
+# Ticket has correct defaults
+exec ko create 'Default ticket'
+exec ko query
+stdout '"status":"open"'
+stdout '"priority":2'
+stdout '"type":"task"'
+stdout '"deps":\[\]'
+stdout '"links":\[\]'
+
+-- .tickets/.keep --

@@ -1,0 +1,32 @@
+# Partial ID works with hierarchical IDs
+exec ko show b002
+stdout 'id: ko-a001.b002'
+
+# ID resolution works across commands
+exec ko status b002 in_progress
+exec ko show b002
+stdout 'status: in_progress'
+
+-- .tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Parent
+-- .tickets/ko-a001.b002.md --
+---
+id: ko-a001.b002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+parent: ko-a001
+---
+# Child

@@ -1,0 +1,49 @@
+# List all open tickets
+exec ko ls
+stdout 'list-0001'
+stdout 'list-0002'
+
+# List with status filter
+exec ko close list-0002
+exec ko ls --status=open
+stdout 'list-0001'
+! stdout 'list-0002'
+
+# List shows deps
+exec ko dep list-0001 list-0003
+exec ko ls
+stdout '<- \[list-0003\]'
+
+-- .tickets/list-0001.md --
+---
+id: list-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .tickets/list-0002.md --
+---
+id: list-0002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket
+-- .tickets/list-0003.md --
+---
+id: list-0003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Third ticket

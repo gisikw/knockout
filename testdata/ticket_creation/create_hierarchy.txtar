@@ -1,0 +1,19 @@
+# Create a parent, then a child ticket
+exec ko create 'Parent ticket'
+cp stdout parent_id.txt
+
+# Create child with --parent flag
+exec ko create --parent ko-parent 'Child ticket'
+stdout '^ko-parent\.'
+
+-- .tickets/ko-parent.md --
+---
+id: ko-parent
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Parent ticket

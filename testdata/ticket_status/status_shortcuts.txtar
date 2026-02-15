@@ -1,0 +1,31 @@
+# Start command
+exec ko start test-0001
+exec ko show test-0001
+stdout 'status: in_progress'
+
+# Close command
+exec ko close test-0001
+exec ko show test-0001
+stdout 'status: closed'
+
+# Reopen command
+exec ko reopen test-0001
+exec ko show test-0001
+stdout 'status: open'
+
+# Block command
+exec ko block test-0001
+exec ko show test-0001
+stdout 'status: blocked'
+
+-- .tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

@@ -1,0 +1,4 @@
+# Tickets directory created on demand
+exec ko create 'First ticket'
+stdout '^ko-[0-9a-f]{4}$'
+exists .tickets

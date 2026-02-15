@@ -1,0 +1,43 @@
+# Link two tickets
+exec ko link link-0001 link-0002
+stdout 'Linked'
+exec ko show link-0001
+stdout 'link-0002'
+exec ko show link-0002
+stdout 'link-0001'
+
+# Link is idempotent
+exec ko link link-0001 link-0002
+stdout 'already exist'
+
+# Unlink
+exec ko unlink link-0001 link-0002
+exec ko show link-0001
+! stdout 'links:.*link-0002'
+
+# Link with non-existent ticket
+! exec ko link link-0001 nonexistent
+stderr 'not found'
+
+-- .tickets/link-0001.md --
+---
+id: link-0001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .tickets/link-0002.md --
+---
+id: link-0002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket

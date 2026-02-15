@@ -1,0 +1,52 @@
+# Ambiguous ID error
+! exec ko show abc
+stderr 'ambiguous'
+
+# Exact match takes precedence
+exec ko show xyz
+stdout 'id: xyz'
+
+-- .tickets/abc-1234.md --
+---
+id: abc-1234
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .tickets/abc-5678.md --
+---
+id: abc-5678
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket
+-- .tickets/xyz.md --
+---
+id: xyz
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Short ID ticket
+-- .tickets/xyz-1234.md --
+---
+id: xyz-1234
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Long ID ticket

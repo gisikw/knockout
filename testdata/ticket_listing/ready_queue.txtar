@@ -1,0 +1,40 @@
+# Ready shows tickets with no deps
+exec ko ready
+stdout 'ready-001'
+
+# Ready excludes tickets with unclosed deps
+exec ko dep ready-001 ready-002
+exec ko ready
+! stdout 'ready-001'
+stdout 'ready-002'
+
+# Ready shows tickets after deps closed
+exec ko close ready-002
+exec ko ready
+stdout 'ready-001'
+
+# Ready excludes closed tickets
+! stdout 'ready-002'
+
+-- .tickets/ready-001.md --
+---
+id: ready-001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Ready ticket
+-- .tickets/ready-002.md --
+---
+id: ready-002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Dependency ticket

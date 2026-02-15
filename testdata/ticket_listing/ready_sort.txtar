@@ -1,0 +1,40 @@
+# Ready sorts by priority then ID
+exec ko ready
+stdout -count=3 'ready-'
+# p1 tickets first, then p3
+stdout 'ready-001.*High priority'
+stdout 'ready-003.*Low priority'
+
+-- .tickets/ready-003.md --
+---
+id: ready-003
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 3
+---
+# Low priority
+-- .tickets/ready-001.md --
+---
+id: ready-001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# High priority
+-- .tickets/ready-002.md --
+---
+id: ready-002
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# Also high priority
