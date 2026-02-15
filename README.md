@@ -122,7 +122,7 @@ discretion: high
 stages:
   - name: triage
     prompt: triage.md
-    on_fail: badly_defined
+    on_fail: blocked
 
   - name: implement
     prompt: implement.md

@@ -19,9 +19,9 @@ If the ticket is actionable, respond with:
 - The files you expect to modify
 - Any assumptions you're making
 
-Only flag `BADLY_DEFINED` (on its own line, followed by what's missing) if the
-ticket is genuinely ambiguous *after* you've looked at the code. A short ticket
-that points at an obvious change is fine.
+Only flag `FAIL` (on its own line, followed by what's missing) if the ticket is
+genuinely ambiguous *after* you've looked at the code. A short ticket that
+points at an obvious change is fine.
 
 If implementing this ticket requires something else to be done first that isn't
 captured in the ticket's dependencies, respond with `BLOCKED` on its own line,
