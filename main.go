@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 var version = "dev"
@@ -64,6 +65,33 @@ func run(args []string) int {
 		fmt.Fprintln(os.Stderr, "Run 'ko help' for usage.")
 		return 1
 	}
+}
+
+// reorderArgs moves flags before positional arguments so that Go's flag
+// package can parse them regardless of where the caller placed them.
+// valueFlags is the set of flag names (without leading dash) that consume
+// the next argument as a value (e.g. "p", "d", "parent").
+func reorderArgs(args []string, valueFlags map[string]bool) []string {
+	var flags, positional []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "-") {
+			flags = append(flags, a)
+			// Check if this flag consumes the next arg as a value.
+			// Handles both "-p 0" and "--parent ko-a001" forms.
+			// Does NOT consume next arg if the flag contains "=" (e.g. "--status=open").
+			if !strings.Contains(a, "=") {
+				name := strings.TrimLeft(a, "-")
+				if valueFlags[name] && i+1 < len(args) {
+					i++
+					flags = append(flags, args[i])
+				}
+			}
+		} else {
+			positional = append(positional, a)
+		}
+	}
+	return append(flags, positional...)
 }
 
 func cmdHelp(args []string) int {

@@ -8,6 +8,8 @@ import (
 )
 
 func cmdLs(args []string) int {
+	args = reorderArgs(args, map[string]bool{"status": true})
+
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
 	if err := fs.Parse(args); err != nil {
@@ -102,6 +104,8 @@ func cmdBlocked(args []string) int {
 }
 
 func cmdClosed(args []string) int {
+	args = reorderArgs(args, map[string]bool{"limit": true})
+
 	fs := flag.NewFlagSet("closed", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
 	if err := fs.Parse(args); err != nil {

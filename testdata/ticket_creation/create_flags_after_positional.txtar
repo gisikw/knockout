@@ -1,0 +1,25 @@
+# Flags work after positional arg (agent-friendly)
+exec ko create 'Bug ticket' -t bug
+exec ko query
+stdout '"type":"bug"'
+
+# Priority after title
+exec ko create 'High priority' -p 0
+exec ko query
+stdout '"priority":0'
+stdout 'High priority'
+
+# Multiple flags after title
+exec ko create 'Full ticket' -p 1 -t bug -a 'Jane Doe' -d 'The description'
+exec ko query
+stdout '"priority":1'
+stdout '"type":"bug"'
+stdout '"assignee":"Jane Doe"'
+
+# Mixed: some flags before, some after
+exec ko create -t feature 'Mixed flags' -p 0
+exec ko query
+stdout '"type":"feature"'
+stdout '"priority":0'
+
+-- .tickets/.keep --

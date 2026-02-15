@@ -8,6 +8,12 @@ import (
 )
 
 func cmdCreate(args []string) int {
+	args = reorderArgs(args, map[string]bool{
+		"d": true, "t": true, "p": true, "a": true,
+		"parent": true, "external-ref": true, "design": true,
+		"acceptance": true, "tags": true,
+	})
+
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	desc := fs.String("d", "", "description")
 	typ := fs.String("t", "", "ticket type")
