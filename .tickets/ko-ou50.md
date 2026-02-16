@@ -1,8 +1,7 @@
 ---
 id: ko-ou50
-status: open
-deps:
-  - ko-38xt
+status: closed
+deps: []
 links: []
 created: 2026-02-16T00:07:41Z
 type: task

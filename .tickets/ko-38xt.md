@@ -1,6 +1,6 @@
 ---
 id: ko-38xt
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-16T00:07:37Z
