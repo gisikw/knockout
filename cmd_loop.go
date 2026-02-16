@@ -15,6 +15,7 @@ func cmdLoop(args []string) int {
 	fs := flag.NewFlagSet("loop", flag.ContinueOnError)
 	maxTickets := fs.Int("max-tickets", 0, "max tickets to process (0 = unlimited)")
 	maxDuration := fs.String("max-duration", "", "max wall-clock duration (e.g. 30m, 2h)")
+	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
@@ -39,7 +40,7 @@ func cmdLoop(args []string) int {
 		return 1
 	}
 
-	config := LoopConfig{MaxTickets: *maxTickets}
+	config := LoopConfig{MaxTickets: *maxTickets, Quiet: *quiet}
 
 	if *maxDuration != "" {
 		d, err := time.ParseDuration(*maxDuration)
@@ -50,11 +51,19 @@ func cmdLoop(args []string) int {
 		config.MaxDuration = d
 	}
 
-	result := RunLoop(ticketsDir, p, config)
+	log := OpenEventLog()
+	defer log.Close()
+	result := RunLoop(ticketsDir, p, config, log)
+	log.LoopSummary(result)
 
-	fmt.Printf("\nloop complete: %d processed (%d succeeded, %d failed, %d blocked, %d decomposed)\n",
-		result.Processed, result.Succeeded, result.Failed, result.Blocked, result.Decomposed)
-	fmt.Printf("stopped: %s\n", result.Stopped)
+	summary := fmt.Sprintf("loop complete: %d processed (%d succeeded, %d failed, %d blocked, %d decomposed)\nstopped: %s",
+		result.Processed, result.Succeeded, result.Failed, result.Blocked, result.Decomposed, result.Stopped)
+	if *quiet {
+		if logPath := os.Getenv("KO_EVENT_LOG"); logPath != "" {
+			summary += fmt.Sprintf("\nSee %s for details", logPath)
+		}
+	}
+	fmt.Println(summary)
 
 	return 0
 }

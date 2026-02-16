@@ -51,7 +51,7 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 }
 
 // RunBuild executes the full build pipeline for a ticket.
-func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
+func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger) (Outcome, error) {
 	buildDir := createBuildDir(ticketsDir, t.ID)
 
 	// Save ticket snapshot
@@ -77,13 +77,16 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
 	visits := make(map[string]int)
 
 	// Execute starting from "main" workflow
-	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, buildDir)
+	log.WorkflowStart(t.ID, "main")
+	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, buildDir, log)
 	if err != nil {
+		log.WorkflowComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
 		return OutcomeFail, nil
 	}
 
 	if outcome != OutcomeSucceed {
+		log.WorkflowComplete(t.ID, outcomeString(outcome))
 		return outcome, nil
 	}
 
@@ -99,6 +102,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
 	// Close ticket
 	t.Status = "closed"
 	AddNote(t, "ko: SUCCEED")
+	log.WorkflowComplete(t.ID, "succeed")
 	if err := SaveTicket(ticketsDir, t); err != nil {
 		return OutcomeFail, err
 	}
@@ -111,7 +115,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline) (Outcome, error) {
 
 // runWorkflow executes a single workflow, following route dispositions to other
 // workflows. Returns the terminal outcome.
-func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, buildDir string) (Outcome, error) {
+func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, buildDir string, log *EventLogger) (Outcome, error) {
 	wf, ok := p.Workflows[wfName]
 	if !ok {
 		return OutcomeFail, fmt.Errorf("unknown workflow '%s'", wfName)
@@ -132,8 +136,10 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		model := resolveModel(p, wf, node)
 
 		// Execute the node
+		log.NodeStart(t.ID, wfName, node.Name)
 		output, err := runNode(ticketsDir, t, p, node, model, wsDir)
 		if err != nil {
+			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
 			return OutcomeFail, nil
 		}
@@ -146,6 +152,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 
 		// Action nodes: output isn't parsed, just continue
 		if node.Type == NodeAction {
+			log.NodeComplete(t.ID, wfName, node.Name, "done")
 			continue
 		}
 
@@ -153,11 +160,13 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		disp, err := extractDisposition(output)
 		if err != nil {
 			// Should not happen — retries already exhausted in runNode
+			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
 			return OutcomeFail, nil
 		}
+		log.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 
-		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, buildDir)
+		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, buildDir, log)
 		if err != nil {
 			return OutcomeFail, err
 		}
@@ -221,7 +230,7 @@ func extractDisposition(output string) (Disposition, error) {
 
 // applyDisposition handles a parsed disposition from a decision node.
 // Returns OutcomeSucceed for "continue" (advance to next node).
-func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, buildDir string) (Outcome, error) {
+func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, buildDir string, log *EventLogger) (Outcome, error) {
 	switch disp.Type {
 	case "continue":
 		return OutcomeSucceed, nil
@@ -243,7 +252,8 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 					node.Name, disp.Workflow, node.Routes))
 			return OutcomeFail, nil
 		}
-		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, buildDir)
+		log.WorkflowStart(t.ID, disp.Workflow)
+		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, buildDir, log)
 
 	default:
 		applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("unknown disposition '%s'", disp.Type))
@@ -476,6 +486,22 @@ func writeChangedFiles(buildDir, projectRoot string, before fileSnapshot) {
 	if len(changed) > 0 {
 		content := strings.Join(changed, "\n")
 		os.WriteFile(filepath.Join(buildDir, "changed_files.txt"), []byte(content), 0644)
+	}
+}
+
+// outcomeString returns a string representation of an Outcome.
+func outcomeString(o Outcome) string {
+	switch o {
+	case OutcomeSucceed:
+		return "succeed"
+	case OutcomeFail:
+		return "fail"
+	case OutcomeBlocked:
+		return "blocked"
+	case OutcomeDecompose:
+		return "decompose"
+	default:
+		return "unknown"
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -10,6 +11,7 @@ import (
 type LoopConfig struct {
 	MaxTickets  int           // max tickets to process (0 = unlimited)
 	MaxDuration time.Duration // max wall-clock duration (0 = unlimited)
+	Quiet       bool          // suppress per-ticket stdout output
 }
 
 // LoopResult summarizes the outcome of a loop run.
@@ -58,7 +60,7 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 
 // RunLoop burns down the ready queue, building one ticket at a time.
 // Sets KO_NO_CREATE to prevent spawned agents from creating tickets.
-func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig) LoopResult {
+func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger) LoopResult {
 	os.Setenv("KO_NO_CREATE", "1")
 	defer os.Unsetenv("KO_NO_CREATE")
 
@@ -90,9 +92,12 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig) LoopResult {
 			return result
 		}
 
-		fmt.Printf("loop: building %s — %s\n", id, t.Title)
+		if !config.Quiet {
+			fmt.Printf("loop: building %s — %s\n", id, t.Title)
+		}
+		log.LoopTicketStart(id, t.Title)
 
-		outcome, err := RunBuild(ticketsDir, t, p)
+		outcome, err := RunBuild(ticketsDir, t, p, log)
 		result.Processed++
 
 		if err != nil {
@@ -104,16 +109,18 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig) LoopResult {
 		switch outcome {
 		case OutcomeSucceed:
 			result.Succeeded++
-			fmt.Printf("loop: %s SUCCEED\n", id)
 		case OutcomeFail:
 			result.Failed++
-			fmt.Printf("loop: %s FAIL\n", id)
 		case OutcomeBlocked:
 			result.Blocked++
-			fmt.Printf("loop: %s BLOCKED\n", id)
 		case OutcomeDecompose:
 			result.Decomposed++
-			fmt.Printf("loop: %s DECOMPOSE\n", id)
 		}
+
+		outcomeStr := outcomeString(outcome)
+		if !config.Quiet {
+			fmt.Printf("loop: %s %s\n", id, strings.ToUpper(outcomeStr))
+		}
+		log.LoopTicketComplete(id, outcomeStr)
 	}
 }

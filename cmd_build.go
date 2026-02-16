@@ -1,12 +1,23 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 )
 
 func cmdBuild(args []string) int {
-	if len(args) < 1 {
+	args = reorderArgs(args, map[string]bool{})
+
+	fs := flag.NewFlagSet("build", flag.ContinueOnError)
+	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		return 1
+	}
+
+	if fs.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "ko build: ticket ID required")
 		return 1
 	}
@@ -18,7 +29,7 @@ func cmdBuild(args []string) int {
 	}
 
 	// Resolve ticket ID
-	id, err := ResolveID(ticketsDir, args[0])
+	id, err := ResolveID(ticketsDir, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
 		return 1
@@ -52,25 +63,36 @@ func cmdBuild(args []string) int {
 	}
 
 	// Run the build
-	outcome, err := RunBuild(ticketsDir, t, p)
+	log := OpenEventLog()
+	defer log.Close()
+	outcome, err := RunBuild(ticketsDir, t, p, log)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
 		return 1
 	}
 
+	if *quiet {
+		summary := fmt.Sprintf("build: %s %s", id, outcomeString(outcome))
+		if logPath := os.Getenv("KO_EVENT_LOG"); logPath != "" {
+			summary += fmt.Sprintf(". See %s for details", logPath)
+		}
+		fmt.Println(summary)
+	} else {
+		switch outcome {
+		case OutcomeSucceed:
+			fmt.Printf("SUCCEED: %s closed\n", id)
+		case OutcomeFail:
+			fmt.Printf("FAIL: %s blocked\n", id)
+		case OutcomeBlocked:
+			fmt.Printf("BLOCKED: %s has new dependencies\n", id)
+		case OutcomeDecompose:
+			fmt.Printf("DECOMPOSE: %s split into subtasks\n", id)
+		}
+	}
+
 	switch outcome {
-	case OutcomeSucceed:
-		fmt.Printf("SUCCEED: %s closed\n", id)
-		return 0
-	case OutcomeFail:
-		fmt.Printf("FAIL: %s blocked\n", id)
+	case OutcomeFail, OutcomeBlocked:
 		return 1
-	case OutcomeBlocked:
-		fmt.Printf("BLOCKED: %s has new dependencies\n", id)
-		return 1
-	case OutcomeDecompose:
-		fmt.Printf("DECOMPOSE: %s split into subtasks\n", id)
-		return 0
 	default:
 		return 0
 	}
