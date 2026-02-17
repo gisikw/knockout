@@ -4,10 +4,9 @@ Explicit architectural and taste decisions for the knockout codebase.
 These are contracts, not suggestions. Violating an invariant is a bug.
 If an invariant is wrong, update the invariant first — then change the code.
 
-This document is maintained by Exo. These invariants reflect my engineering
-judgment about how this codebase should work. They will sometimes be wrong —
-that's the point of making them explicit. Challenge them by updating them,
-not by silently ignoring them.
+These invariants reflect engineering judgment about how this codebase should
+work. They will sometimes be wrong — that's the point of making them explicit.
+Challenge them by updating them, not by silently ignoring them.
 
 Existing code that violates these invariants is out of compliance and should
 be ticketed for remediation. No grandfathering.

@@ -166,8 +166,8 @@ Register projects for cross-project routing:
 
 ```bash
 ko register #fort-nix     # register current project as "fort-nix"
-ko register #exo           # register another project
-ko default #exo            # set default for unrecognized tags
+ko register #myapp         # register another project
+ko default #myapp          # set default for unrecognized tags
 ko projects                # list all registered projects
 ```
 
