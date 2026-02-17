@@ -16,6 +16,8 @@ func cmdLoop(args []string) int {
 	maxTickets := fs.Int("max-tickets", 0, "max tickets to process (0 = unlimited)")
 	maxDuration := fs.String("max-duration", "", "max wall-clock duration (e.g. 30m, 2h)")
 	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
+	verbose := fs.Bool("verbose", false, "stream full agent output to stdout")
+	fs.BoolVar(verbose, "v", false, "stream full agent output to stdout")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
@@ -40,7 +42,7 @@ func cmdLoop(args []string) int {
 		return 1
 	}
 
-	config := LoopConfig{MaxTickets: *maxTickets, Quiet: *quiet}
+	config := LoopConfig{MaxTickets: *maxTickets, Quiet: *quiet, Verbose: *verbose}
 
 	if *maxDuration != "" {
 		d, err := time.ParseDuration(*maxDuration)

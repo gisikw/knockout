@@ -11,6 +11,8 @@ func cmdBuild(args []string) int {
 
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
+	verbose := fs.Bool("verbose", false, "stream full agent output to stdout")
+	fs.BoolVar(verbose, "v", false, "stream full agent output to stdout")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
@@ -65,7 +67,7 @@ func cmdBuild(args []string) int {
 	// Run the build
 	log := OpenEventLog()
 	defer log.Close()
-	outcome, err := RunBuild(ticketsDir, t, p, log)
+	outcome, err := RunBuild(ticketsDir, t, p, log, *verbose)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
 		return 1

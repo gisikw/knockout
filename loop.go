@@ -12,6 +12,7 @@ type LoopConfig struct {
 	MaxTickets  int           // max tickets to process (0 = unlimited)
 	MaxDuration time.Duration // max wall-clock duration (0 = unlimited)
 	Quiet       bool          // suppress per-ticket stdout output
+	Verbose     bool          // stream full agent output to stdout
 }
 
 // LoopResult summarizes the outcome of a loop run.
@@ -97,7 +98,7 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 		}
 		log.LoopTicketStart(id, t.Title)
 
-		outcome, err := RunBuild(ticketsDir, t, p, log)
+		outcome, err := RunBuild(ticketsDir, t, p, log, config.Verbose)
 		result.Processed++
 
 		if err != nil {

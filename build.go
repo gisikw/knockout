@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,7 +54,7 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 }
 
 // RunBuild executes the full build pipeline for a ticket.
-func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger) (Outcome, error) {
+func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbose bool) (Outcome, error) {
 	buildDir := createBuildDir(ticketsDir, t.ID)
 
 	// Save ticket snapshot
@@ -78,7 +81,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger) (Outc
 
 	// Execute starting from "main" workflow
 	log.WorkflowStart(t.ID, "main")
-	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, buildDir, log)
+	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, buildDir, log, verbose)
 	if err != nil {
 		log.WorkflowComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
@@ -115,7 +118,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger) (Outc
 
 // runWorkflow executes a single workflow, following route dispositions to other
 // workflows. Returns the terminal outcome.
-func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, buildDir string, log *EventLogger) (Outcome, error) {
+func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, buildDir string, log *EventLogger, verbose bool) (Outcome, error) {
 	wf, ok := p.Workflows[wfName]
 	if !ok {
 		return OutcomeFail, fmt.Errorf("unknown workflow '%s'", wfName)
@@ -137,7 +140,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, wsDir)
+		output, err := runNode(ticketsDir, t, p, node, model, wsDir, wfName, verbose)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
@@ -166,7 +169,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		}
 		log.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 
-		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, buildDir, log)
+		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, buildDir, log, verbose)
 		if err != nil {
 			return OutcomeFail, err
 		}
@@ -181,7 +184,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir string) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir, wfName string, verbose bool) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -189,9 +192,9 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir
 		var err error
 
 		if node.IsPromptNode() {
-			output, err = runPromptNode(ticketsDir, t, p, node, model, wsDir)
+			output, err = runPromptNode(ticketsDir, t, p, node, model, wsDir, wfName, verbose)
 		} else if node.IsRunNode() {
-			output, err = runRunNode(node, wsDir)
+			output, err = runRunNode(node, wsDir, wfName, verbose)
 		} else {
 			return "", fmt.Errorf("node '%s' has neither prompt nor run", node.Name)
 		}
@@ -230,7 +233,7 @@ func extractDisposition(output string) (Disposition, error) {
 
 // applyDisposition handles a parsed disposition from a decision node.
 // Returns OutcomeSucceed for "continue" (advance to next node).
-func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, buildDir string, log *EventLogger) (Outcome, error) {
+func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, buildDir string, log *EventLogger, verbose bool) (Outcome, error) {
 	switch disp.Type {
 	case "continue":
 		return OutcomeSucceed, nil
@@ -253,7 +256,7 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 			return OutcomeFail, nil
 		}
 		log.WorkflowStart(t.ID, disp.Workflow)
-		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, buildDir, log)
+		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, buildDir, log, verbose)
 
 	default:
 		applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("unknown disposition '%s'", disp.Type))
@@ -311,7 +314,7 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 }
 
 // runPromptNode invokes the configured command with ticket context.
-func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir string) (string, error) {
+func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir, wfName string, verbose bool) (string, error) {
 	promptContent, err := LoadPromptFile(ticketsDir, node.Prompt)
 	if err != nil {
 		return "", err
@@ -346,6 +349,10 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model,
 	cmd.Stdin = strings.NewReader(prompt.String())
 	cmd.Env = append(os.Environ(), "KO_TICKET_WORKSPACE="+wsDir)
 
+	if verbose {
+		return runCmdVerbose(cmd, wfName, node.Name)
+	}
+
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("command '%s' failed: %v", p.Command, err)
@@ -354,15 +361,93 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model,
 }
 
 // runRunNode executes a shell command.
-func runRunNode(node *Node, wsDir string) (string, error) {
+func runRunNode(node *Node, wsDir, wfName string, verbose bool) (string, error) {
 	cmd := exec.Command("sh", "-c", node.Run)
 	cmd.Env = append(os.Environ(), "KO_TICKET_WORKSPACE="+wsDir)
+
+	if verbose {
+		return runCmdVerbose(cmd, wfName, node.Name)
+	}
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("command failed: %s\n%s", err, string(out))
 	}
 	return string(out), nil
+}
+
+// runCmdVerbose runs a command, streaming its stdout/stderr to the terminal
+// with a "[node] " prefix on each line, while also capturing the full stdout
+// output for return.
+func runCmdVerbose(cmd *exec.Cmd, wfName, nodeName string) (string, error) {
+	prefix := fmt.Sprintf("[%s] ", nodeName)
+
+	var capture bytes.Buffer
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("stdout pipe: %v", err)
+	}
+
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("stderr pipe: %v", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("start: %v", err)
+	}
+
+	// Stream stderr with prefix in background
+	done := make(chan struct{})
+	go func() {
+		streamPrefixed(stderrPipe, os.Stderr, prefix)
+		done <- struct{}{}
+	}()
+
+	// Stream stdout with prefix, tee to capture buffer
+	tee := io.TeeReader(stdoutPipe, &capture)
+	streamPrefixed(tee, os.Stdout, prefix)
+
+	<-done // wait for stderr goroutine
+
+	if err := cmd.Wait(); err != nil {
+		return "", fmt.Errorf("command failed: %v", err)
+	}
+
+	return capture.String(), nil
+}
+
+// streamPrefixed reads from r line by line and writes each line to w
+// with the given prefix. Handles arbitrarily long lines.
+func streamPrefixed(r io.Reader, w io.Writer, prefix string) {
+	br := bufio.NewReaderSize(r, 64*1024)
+	for {
+		line, isPrefix, err := br.ReadLine()
+		if len(line) > 0 {
+			fmt.Fprintf(w, "%s%s", prefix, string(line))
+			if !isPrefix {
+				fmt.Fprintln(w)
+			}
+		}
+		if err != nil {
+			break
+		}
+		// If isPrefix is true, the line was too long; keep reading
+		// continuation chunks without adding a newline
+		for isPrefix {
+			line, isPrefix, err = br.ReadLine()
+			if len(line) > 0 {
+				fmt.Fprint(w, string(line))
+				if !isPrefix {
+					fmt.Fprintln(w)
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 // resolveModel returns the most specific model override for a node.
