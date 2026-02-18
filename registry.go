@@ -195,18 +195,9 @@ func detectPrefixFromDir(ticketsDir string) string {
 	return ""
 }
 
-// resolveTicketsDir returns the tickets directory for a project root,
-// checking .ko/tickets/ first, then legacy .tickets/, defaulting to .ko/tickets/.
+// resolveTicketsDir returns the tickets directory for a project root.
 func resolveTicketsDir(projectRoot string) string {
-	newPath := filepath.Join(projectRoot, ".ko", "tickets")
-	if info, err := os.Stat(newPath); err == nil && info.IsDir() {
-		return newPath
-	}
-	oldPath := filepath.Join(projectRoot, ".tickets")
-	if info, err := os.Stat(oldPath); err == nil && info.IsDir() {
-		return oldPath
-	}
-	return newPath
+	return filepath.Join(projectRoot, ".ko", "tickets")
 }
 
 // CrossProjectLookup returns a dep lookup function that checks the local

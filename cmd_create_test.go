@@ -34,19 +34,6 @@ func TestReadWritePrefix(t *testing.T) {
 	}
 }
 
-func TestReadWritePrefixLegacyLayout(t *testing.T) {
-	dir := t.TempDir()
-	ticketsDir := filepath.Join(dir, ".tickets")
-	os.MkdirAll(ticketsDir, 0755)
-
-	// Write and read back with legacy .tickets layout
-	if err := WritePrefix(ticketsDir, "leg"); err != nil {
-		t.Fatalf("WritePrefix: %v", err)
-	}
-	if got := ReadPrefix(ticketsDir); got != "leg" {
-		t.Errorf("ReadPrefix after write = %q, want %q", got, "leg")
-	}
-}
 
 func TestDetectPrefixPersists(t *testing.T) {
 	dir := t.TempDir()
@@ -91,52 +78,11 @@ func TestDetectPrefixPersistedWins(t *testing.T) {
 }
 
 func TestProjectRoot(t *testing.T) {
-	// New layout: .ko/tickets/
 	dir := t.TempDir()
 	ticketsDir := filepath.Join(dir, ".ko", "tickets")
 	os.MkdirAll(ticketsDir, 0755)
 	if got := ProjectRoot(ticketsDir); got != dir {
 		t.Errorf("ProjectRoot(.ko/tickets) = %q, want %q", got, dir)
-	}
-
-	// Legacy layout: .tickets/
-	dir2 := t.TempDir()
-	ticketsDir2 := filepath.Join(dir2, ".tickets")
-	os.MkdirAll(ticketsDir2, 0755)
-	if got := ProjectRoot(ticketsDir2); got != dir2 {
-		t.Errorf("ProjectRoot(.tickets) = %q, want %q", got, dir2)
-	}
-}
-
-func TestMigrateTicketsDir(t *testing.T) {
-	dir := t.TempDir()
-	oldPath := filepath.Join(dir, ".tickets")
-	os.MkdirAll(oldPath, 0755)
-	os.WriteFile(filepath.Join(oldPath, "test-0001.md"), []byte("# Test"), 0644)
-
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
-
-	// FindTicketsDir should migrate .tickets/ to .ko/tickets/
-	result, err := FindTicketsDir()
-	if err != nil {
-		t.Fatalf("FindTicketsDir: %v", err)
-	}
-
-	expected := filepath.Join(dir, ".ko", "tickets")
-	if result != expected {
-		t.Errorf("FindTicketsDir = %q, want %q", result, expected)
-	}
-
-	// Old path should be gone
-	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
-		t.Error(".tickets still exists after migration")
-	}
-
-	// Ticket file should be in new location
-	if _, err := os.Stat(filepath.Join(expected, "test-0001.md")); err != nil {
-		t.Error("ticket file not found in .ko/tickets/ after migration")
 	}
 }
 
