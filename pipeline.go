@@ -21,8 +21,7 @@ type Pipeline struct {
 
 // FindPipelineConfig walks up from the tickets directory looking for .ko/pipeline.yml.
 func FindPipelineConfig(ticketsDir string) (string, error) {
-	// .tickets is in the project root, so .ko is a sibling
-	projectRoot := filepath.Dir(ticketsDir)
+	projectRoot := ProjectRoot(ticketsDir)
 	candidate := filepath.Join(projectRoot, ".ko", "pipeline.yml")
 	if _, err := os.Stat(candidate); err == nil {
 		return candidate, nil
@@ -229,7 +228,7 @@ func countIndent(line string) int {
 
 // LoadPromptFile reads a prompt file from .ko/prompts/<name>.
 func LoadPromptFile(ticketsDir, name string) (string, error) {
-	projectRoot := filepath.Dir(ticketsDir)
+	projectRoot := ProjectRoot(ticketsDir)
 	path := filepath.Join(projectRoot, ".ko", "prompts", name)
 	data, err := os.ReadFile(path)
 	if err != nil {

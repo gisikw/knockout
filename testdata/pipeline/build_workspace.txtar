@@ -7,7 +7,7 @@ exec cat ws_verify.txt
 stdout 'workspace exists'
 stdout 'triage output found'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

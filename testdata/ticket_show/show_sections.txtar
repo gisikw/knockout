@@ -18,7 +18,7 @@ exec ko show show-003
 stdout '## Children'
 stdout 'show-003.a001'
 
--- .tickets/show-001.md --
+-- .ko/tickets/show-001.md --
 ---
 id: show-001
 status: open
@@ -29,7 +29,7 @@ type: task
 priority: 2
 ---
 # Blocked ticket
--- .tickets/show-002.md --
+-- .ko/tickets/show-002.md --
 ---
 id: show-002
 status: open
@@ -40,7 +40,7 @@ type: task
 priority: 2
 ---
 # Blocker ticket
--- .tickets/show-003.md --
+-- .ko/tickets/show-003.md --
 ---
 id: show-003
 status: open
@@ -51,7 +51,7 @@ type: task
 priority: 2
 ---
 # Parent ticket
--- .tickets/show-003.a001.md --
+-- .ko/tickets/show-003.a001.md --
 ---
 id: show-003.a001
 status: open

@@ -12,7 +12,7 @@ stdout 'priority: 2'
 ! exec ko show nonexistent
 stderr 'not found'
 
--- .tickets/show-001.md --
+-- .ko/tickets/show-001.md --
 ---
 id: show-001
 status: open

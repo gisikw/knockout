@@ -6,7 +6,7 @@ exec ko query
 stdout 'Fix the flaky test'
 stdout '"status":"open"'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

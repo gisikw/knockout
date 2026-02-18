@@ -18,7 +18,7 @@ exec ko block test-0001
 exec ko show test-0001
 stdout 'status: blocked'
 
--- .tickets/test-0001.md --
+-- .ko/tickets/test-0001.md --
 ---
 id: test-0001
 status: open

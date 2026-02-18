@@ -158,7 +158,7 @@ func backfillPrefixes(reg *Registry) bool {
 		if _, ok := reg.Prefixes[tag]; ok {
 			continue
 		}
-		ticketsDir := filepath.Join(path, ".tickets")
+		ticketsDir := resolveTicketsDir(path)
 		prefix := detectPrefixFromDir(ticketsDir)
 		if prefix != "" {
 			reg.Prefixes[tag] = prefix
@@ -168,10 +168,13 @@ func backfillPrefixes(reg *Registry) bool {
 	return changed
 }
 
-// detectPrefixFromDir scans a tickets directory for existing ticket files
-// and extracts the prefix from the first root-level ticket ID found.
-// Returns "" if no tickets exist.
+// detectPrefixFromDir checks .ko/prefix first, then scans a tickets directory
+// for existing ticket files and extracts the prefix from the first root-level
+// ticket ID found. Returns "" if no prefix can be determined.
 func detectPrefixFromDir(ticketsDir string) string {
+	if p := ReadPrefix(ticketsDir); p != "" {
+		return p
+	}
 	entries, err := os.ReadDir(ticketsDir)
 	if err != nil {
 		return ""
@@ -192,6 +195,20 @@ func detectPrefixFromDir(ticketsDir string) string {
 	return ""
 }
 
+// resolveTicketsDir returns the tickets directory for a project root,
+// checking .ko/tickets/ first, then legacy .tickets/, defaulting to .ko/tickets/.
+func resolveTicketsDir(projectRoot string) string {
+	newPath := filepath.Join(projectRoot, ".ko", "tickets")
+	if info, err := os.Stat(newPath); err == nil && info.IsDir() {
+		return newPath
+	}
+	oldPath := filepath.Join(projectRoot, ".tickets")
+	if info, err := os.Stat(oldPath); err == nil && info.IsDir() {
+		return oldPath
+	}
+	return newPath
+}
+
 // CrossProjectLookup returns a dep lookup function that checks the local
 // tickets directory first, then falls back to searching registered projects.
 // When prefixes are available, uses prefix-based routing for O(1) lookups.
@@ -200,7 +217,7 @@ func CrossProjectLookup(localTicketsDir string, reg *Registry) func(string) (str
 	prefixIndex := make(map[string]string)
 	for tag, prefix := range reg.Prefixes {
 		if path, ok := reg.Projects[tag]; ok {
-			prefixIndex[prefix] = filepath.Join(path, ".tickets")
+			prefixIndex[prefix] = resolveTicketsDir(path)
 		}
 	}
 
@@ -223,7 +240,7 @@ func CrossProjectLookup(localTicketsDir string, reg *Registry) func(string) (str
 
 		// Fallback: scan all registered projects
 		for _, path := range reg.Projects {
-			remoteDir := filepath.Join(path, ".tickets")
+			remoteDir := resolveTicketsDir(path)
 			t, err := LoadTicket(remoteDir, id)
 			if err == nil {
 				return t.Status, true

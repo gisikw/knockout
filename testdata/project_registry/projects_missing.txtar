@@ -5,4 +5,4 @@ mkdir $WORK/home
 stderr 'no project registry found'
 stderr 'knockout/projects.yml'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

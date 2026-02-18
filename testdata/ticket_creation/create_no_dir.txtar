@@ -4,4 +4,4 @@ mkdir myproject
 cd myproject
 exec ko create 'First ticket'
 stdout '^myp-[0-9a-f]{4}$'
-exists .tickets
+exists .ko/tickets

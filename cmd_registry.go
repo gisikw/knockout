@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 func cmdRegister(args []string) int {
@@ -40,7 +39,7 @@ func cmdRegister(args []string) int {
 	reg.Projects[tag] = projectRoot
 
 	// Detect and store ticket prefix
-	ticketsDir := filepath.Join(projectRoot, ".tickets")
+	ticketsDir := resolveTicketsDir(projectRoot)
 	if prefix := detectPrefixFromDir(ticketsDir); prefix != "" {
 		reg.Prefixes[tag] = prefix
 	}
@@ -167,8 +166,8 @@ func cmdAdd(args []string) int {
 
 	decision := RouteTicket(title, reg, localRoot)
 
-	// Ensure target .tickets directory exists
-	targetTicketsDir := filepath.Join(decision.TargetPath, ".tickets")
+	// Ensure target tickets directory exists
+	targetTicketsDir := resolveTicketsDir(decision.TargetPath)
 	if err := EnsureTicketsDir(targetTicketsDir); err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
@@ -196,7 +195,7 @@ func cmdAdd(args []string) int {
 
 	// If routed to a different project, create a closed audit ticket locally
 	if decision.IsRouted {
-		localTicketsDir := filepath.Join(localRoot, ".tickets")
+		localTicketsDir := resolveTicketsDir(localRoot)
 		if err := EnsureTicketsDir(localTicketsDir); err != nil {
 			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1
@@ -218,16 +217,12 @@ func cmdAdd(args []string) int {
 }
 
 // findProjectRoot returns the absolute path to the project root.
-// If a .tickets directory is found, the root is its parent.
+// If a tickets directory is found, derives root via ProjectRoot.
 // Otherwise, returns the current working directory.
 func findProjectRoot() (string, error) {
 	ticketsDir, err := FindTicketsDir()
 	if err == nil {
-		absTickets, err := filepath.Abs(ticketsDir)
-		if err != nil {
-			return "", err
-		}
-		return filepath.Dir(absTickets), nil
+		return ProjectRoot(ticketsDir), nil
 	}
 	return os.Getwd()
 }

@@ -16,7 +16,7 @@ stdout 'ready-001'
 # Ready excludes closed tickets
 ! stdout 'ready-002'
 
--- .tickets/ready-001.md --
+-- .ko/tickets/ready-001.md --
 ---
 id: ready-001
 status: open
@@ -27,7 +27,7 @@ type: task
 priority: 2
 ---
 # Ready ticket
--- .tickets/ready-002.md --
+-- .ko/tickets/ready-002.md --
 ---
 id: ready-002
 status: open

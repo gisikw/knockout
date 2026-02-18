@@ -7,7 +7,7 @@ stdout '"type":"task"'
 stdout '"deps":\[\]'
 stdout '"links":\[\]'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

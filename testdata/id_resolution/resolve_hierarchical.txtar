@@ -7,7 +7,7 @@ exec ko status b002 in_progress
 exec ko show b002
 stdout 'status: in_progress'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open
@@ -18,7 +18,7 @@ type: task
 priority: 2
 ---
 # Parent
--- .tickets/ko-a001.b002.md --
+-- .ko/tickets/ko-a001.b002.md --
 ---
 id: ko-a001.b002
 status: open

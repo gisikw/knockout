@@ -3,7 +3,7 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Register default project
-mkdir $WORK/default-proj/.tickets
+mkdir $WORK/default-proj/.ko/tickets
 cd $WORK/default-proj
 exec ko register '#catchall'
 exec ko default '#catchall'
@@ -13,13 +13,13 @@ cd $WORK
 exec ko add 'Build splash page #marketing-site'
 
 # Verify ticket in default project with status captured and tag preserved
-env TICKETS_DIR=$WORK/default-proj/.tickets
+env TICKETS_DIR=$WORK/default-proj/.ko/tickets
 exec ko query
 stdout 'Build splash page'
 stdout '"status":"captured"'
 stdout 'marketing-site'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

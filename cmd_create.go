@@ -44,8 +44,7 @@ func cmdCreate(args []string) int {
 
 	ticketsDir, err := FindTicketsDir()
 	if err != nil {
-		// Create .tickets in current directory
-		ticketsDir = ".tickets"
+		ticketsDir = filepath.Join(".ko", "tickets")
 	}
 	if err := EnsureTicketsDir(ticketsDir); err != nil {
 		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
@@ -105,37 +104,61 @@ func cmdCreate(args []string) int {
 	return 0
 }
 
+// ReadPrefix reads the persisted prefix from .ko/prefix.
+// Returns "" if the file doesn't exist.
+func ReadPrefix(ticketsDir string) string {
+	root := ProjectRoot(ticketsDir)
+	data, err := os.ReadFile(filepath.Join(root, ".ko", "prefix"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// WritePrefix persists the prefix to .ko/prefix.
+func WritePrefix(ticketsDir, prefix string) error {
+	root := ProjectRoot(ticketsDir)
+	koDir := filepath.Join(root, ".ko")
+	if err := os.MkdirAll(koDir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(koDir, "prefix"), []byte(prefix+"\n"), 0644)
+}
+
 // detectPrefix looks at existing ticket files to infer the project prefix.
 // Falls back to deriving from the project root directory name.
+// Persists the result to .ko/prefix for future stability.
 func detectPrefix(ticketsDir string) string {
-	entries, err := os.ReadDir(ticketsDir)
-	if err != nil {
-		absDir, absErr := filepath.Abs(ticketsDir)
-		if absErr != nil {
-			return DerivePrefix(filepath.Base(filepath.Dir(ticketsDir)))
-		}
-		return DerivePrefix(filepath.Base(filepath.Dir(absDir)))
+	// Check persisted prefix first
+	if p := ReadPrefix(ticketsDir); p != "" {
+		return p
 	}
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasSuffix(name, ".md") {
-			continue
-		}
-		id := strings.TrimSuffix(name, ".md")
-		// Root ticket: prefix-hash (no dots)
-		if !strings.Contains(id, ".") {
-			if idx := strings.Index(id, "-"); idx > 0 {
-				return id[:idx]
+
+	// Scan existing tickets
+	entries, err := os.ReadDir(ticketsDir)
+	if err == nil {
+		for _, e := range entries {
+			name := e.Name()
+			if !strings.HasSuffix(name, ".md") {
+				continue
+			}
+			id := strings.TrimSuffix(name, ".md")
+			// Root ticket: prefix-hash (no dots)
+			if !strings.Contains(id, ".") {
+				if idx := strings.Index(id, "-"); idx > 0 {
+					prefix := id[:idx]
+					WritePrefix(ticketsDir, prefix)
+					return prefix
+				}
 			}
 		}
 	}
-	// No existing root tickets — derive from directory name.
-	// Resolve to absolute path so relative paths like ".tickets" work correctly.
-	absDir, err := filepath.Abs(ticketsDir)
-	if err != nil {
-		return DerivePrefix(filepath.Base(filepath.Dir(ticketsDir)))
-	}
-	return DerivePrefix(filepath.Base(filepath.Dir(absDir)))
+
+	// No existing root tickets — derive from project root directory name.
+	root := ProjectRoot(ticketsDir)
+	prefix := DerivePrefix(filepath.Base(root))
+	WritePrefix(ticketsDir, prefix)
+	return prefix
 }
 
 // DerivePrefix generates a ticket prefix from a directory name.

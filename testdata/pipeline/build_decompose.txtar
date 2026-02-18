@@ -8,7 +8,7 @@ exec ko ready
 # Children should be on the ready queue
 stdout 'ko-a001\.'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

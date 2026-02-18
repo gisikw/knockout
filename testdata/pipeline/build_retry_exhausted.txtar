@@ -6,7 +6,7 @@ stdout 'status: blocked'
 stdout 'FAIL'
 stdout 'failed after 3 attempts'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

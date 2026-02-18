@@ -4,7 +4,7 @@ exec ko ls
 stdout 'other-0001'
 ! stdout 'parent-0001'
 
--- .tickets/parent-0001.md --
+-- .ko/tickets/parent-0001.md --
 ---
 id: parent-0001
 status: open

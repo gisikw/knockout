@@ -2,4 +2,4 @@
 exec ko query
 ! stdout '.'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

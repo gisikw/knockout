@@ -5,7 +5,7 @@ exec ko show ko-a001
 stdout 'deps:.*ko-b002'
 stdout 'BLOCKED'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open
@@ -16,7 +16,7 @@ type: task
 priority: 2
 ---
 # Add caching
--- .tickets/ko-b002.md --
+-- .ko/tickets/ko-b002.md --
 ---
 id: ko-b002
 status: open

@@ -17,4 +17,4 @@ stdout 'exo'
 ! exec ko default '#ghost'
 stderr 'not registered'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

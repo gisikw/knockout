@@ -3,7 +3,7 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Register target project
-mkdir $WORK/target/.tickets
+mkdir $WORK/target/.ko/tickets
 cd $WORK/target
 exec ko register '#target'
 cd $WORK
@@ -13,18 +13,18 @@ exec ko add 'Fix the thing #target'
 stdout '#target'
 
 # Verify ticket exists in target project with status routed
-env TICKETS_DIR=$WORK/target/.tickets
+env TICKETS_DIR=$WORK/target/.ko/tickets
 exec ko query
 stdout 'Fix the thing'
 stdout '"status":"routed"'
 
 # Verify audit ticket in local project is closed
-env TICKETS_DIR=$WORK/.tickets
+env TICKETS_DIR=$WORK/.ko/tickets
 exec ko query
 stdout 'Fix the thing'
 stdout '"status":"closed"'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

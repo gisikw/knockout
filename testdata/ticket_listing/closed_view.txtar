@@ -6,7 +6,7 @@ stdout 'done-0001'
 exec ko closed --limit=1
 stdout -count=1 'done-'
 
--- .tickets/done-0001.md --
+-- .ko/tickets/done-0001.md --
 ---
 id: done-0001
 status: closed
@@ -17,7 +17,7 @@ type: task
 priority: 2
 ---
 # First done
--- .tickets/done-0002.md --
+-- .ko/tickets/done-0002.md --
 ---
 id: done-0002
 status: closed

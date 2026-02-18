@@ -13,7 +13,7 @@ stdout 'stopped: empty'
 exec ko show ko-a001
 stdout 'status: closed'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

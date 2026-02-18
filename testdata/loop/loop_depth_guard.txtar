@@ -22,7 +22,7 @@ exec ko ls
 exec ko show ko-d004
 stdout 'status: closed'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: closed
@@ -33,7 +33,7 @@ type: task
 priority: 2
 ---
 # Root ticket
--- .tickets/ko-a001.b002.md --
+-- .ko/tickets/ko-a001.b002.md --
 ---
 id: ko-a001.b002
 status: closed
@@ -45,7 +45,7 @@ priority: 2
 parent: ko-a001
 ---
 # Depth 1 ticket
--- .tickets/ko-a001.b002.c003.md --
+-- .ko/tickets/ko-a001.b002.c003.md --
 ---
 id: ko-a001.b002.c003
 status: open
@@ -57,7 +57,7 @@ priority: 1
 parent: ko-a001.b002
 ---
 # Depth 2 ticket — too deep to decompose
--- .tickets/ko-d004.md --
+-- .ko/tickets/ko-d004.md --
 ---
 id: ko-d004
 status: open

@@ -73,7 +73,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	}
 
 	// Snapshot project files before stages run
-	projectRoot := filepath.Dir(ticketsDir)
+	projectRoot := ProjectRoot(ticketsDir)
 	beforeSnapshot := snapshotFiles(projectRoot)
 
 	// Visit counters: node name -> visit count
@@ -478,7 +478,7 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir stri
 		return nil
 	}
 
-	projectRoot := filepath.Dir(ticketsDir)
+	projectRoot := ProjectRoot(ticketsDir)
 
 	changedFiles := ""
 	cfPath := filepath.Join(buildDir, "changed_files.txt")
@@ -515,7 +515,7 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir stri
 
 // createBuildDir creates a timestamped build artifact directory.
 func createBuildDir(ticketsDir, ticketID string) string {
-	projectRoot := filepath.Dir(ticketsDir)
+	projectRoot := ProjectRoot(ticketsDir)
 	ts := time.Now().UTC().Format("20060102-150405")
 	dir := filepath.Join(projectRoot, ".ko", "builds", ts+"-"+ticketID)
 	os.MkdirAll(dir, 0755)
@@ -538,7 +538,7 @@ func snapshotFiles(projectRoot string) fileSnapshot {
 		}
 		if info.IsDir() {
 			base := filepath.Base(path)
-			if base == ".ko" || base == ".tickets" || base == ".git" {
+			if base == ".ko" || base == ".git" {
 				return filepath.SkipDir
 			}
 			return nil

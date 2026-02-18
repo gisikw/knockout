@@ -9,4 +9,4 @@ stderr 'runaway expansion'
 stderr 'disabled'
 stderr 'runaway expansion'
 
--- .tickets/.gitkeep --
+-- .ko/tickets/.gitkeep --

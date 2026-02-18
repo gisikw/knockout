@@ -16,7 +16,7 @@ stderr 'blocked'
 ! exec ko build ko-deps
 stderr 'unresolved dependencies'
 
--- .tickets/ko-inprog.md --
+-- .ko/tickets/ko-inprog.md --
 ---
 id: ko-inprog
 status: in_progress
@@ -27,7 +27,7 @@ type: task
 priority: 2
 ---
 # In progress ticket
--- .tickets/ko-closed.md --
+-- .ko/tickets/ko-closed.md --
 ---
 id: ko-closed
 status: closed
@@ -38,7 +38,7 @@ type: task
 priority: 2
 ---
 # Closed ticket
--- .tickets/ko-blocked.md --
+-- .ko/tickets/ko-blocked.md --
 ---
 id: ko-blocked
 status: blocked
@@ -49,7 +49,7 @@ type: task
 priority: 2
 ---
 # Blocked ticket
--- .tickets/ko-deps.md --
+-- .ko/tickets/ko-deps.md --
 ---
 id: ko-deps
 status: open
@@ -60,7 +60,7 @@ type: task
 priority: 2
 ---
 # Has unresolved deps
--- .tickets/ko-other.md --
+-- .ko/tickets/ko-other.md --
 ---
 id: ko-other
 status: open

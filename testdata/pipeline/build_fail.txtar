@@ -6,7 +6,7 @@ stdout 'status: blocked'
 stdout 'FAIL'
 stdout 'Missing API spec'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

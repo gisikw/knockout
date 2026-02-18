@@ -3,8 +3,8 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Set up project "alpha" with a ticket blocked on "beta-0001"
-mkdir $WORK/alpha/.tickets
-mkdir $WORK/beta/.tickets
+mkdir $WORK/alpha/.ko/tickets
+mkdir $WORK/beta/.ko/tickets
 
 # Register both projects
 cd $WORK/alpha
@@ -14,10 +14,10 @@ exec ko register '#beta'
 cd $WORK/alpha
 
 # beta-0001 is closed in beta
-cp $WORK/beta_ticket.txt $WORK/beta/.tickets/beta-0001.md
+cp $WORK/beta_ticket.txt $WORK/beta/.ko/tickets/beta-0001.md
 
 # alpha has a ticket blocked on beta-0001
-cp $WORK/alpha_blocked.txt $WORK/alpha/.tickets/alp-0001.md
+cp $WORK/alpha_blocked.txt $WORK/alpha/.ko/tickets/alp-0001.md
 
 # No locally ready tickets (alp-0001 dep not found locally)
 # but cross-project check finds beta-0001 is closed

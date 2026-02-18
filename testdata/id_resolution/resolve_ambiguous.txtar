@@ -6,7 +6,7 @@ stderr 'ambiguous'
 exec ko show xyz
 stdout 'id: xyz'
 
--- .tickets/abc-1234.md --
+-- .ko/tickets/abc-1234.md --
 ---
 id: abc-1234
 status: open
@@ -17,7 +17,7 @@ type: task
 priority: 2
 ---
 # First ticket
--- .tickets/abc-5678.md --
+-- .ko/tickets/abc-5678.md --
 ---
 id: abc-5678
 status: open
@@ -28,7 +28,7 @@ type: task
 priority: 2
 ---
 # Second ticket
--- .tickets/xyz.md --
+-- .ko/tickets/xyz.md --
 ---
 id: xyz
 status: open
@@ -39,7 +39,7 @@ type: task
 priority: 2
 ---
 # Short ID ticket
--- .tickets/xyz-1234.md --
+-- .ko/tickets/xyz-1234.md --
 ---
 id: xyz-1234
 status: open

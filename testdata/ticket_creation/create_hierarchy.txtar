@@ -6,7 +6,7 @@ cp stdout parent_id.txt
 exec ko create --parent ko-parent 'Child ticket'
 stdout '^ko-parent\.'
 
--- .tickets/ko-parent.md --
+-- .ko/tickets/ko-parent.md --
 ---
 id: ko-parent
 status: open

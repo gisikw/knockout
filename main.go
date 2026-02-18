@@ -57,6 +57,8 @@ func run(args []string) int {
 		return cmdQuery(rest)
 	case "build":
 		return cmdBuild(rest)
+	case "init":
+		return cmdInit(rest)
 	case "build-init":
 		return cmdBuildInit(rest)
 	case "loop":
@@ -136,6 +138,8 @@ Commands:
 
   add-note <id> <text>  Add a note to a ticket
   query                 Output all tickets as JSONL
+
+  init <prefix>      Initialize project with ticket prefix
 
   build <id>         Run build pipeline against ticket
   build-init         Initialize pipeline config in current project

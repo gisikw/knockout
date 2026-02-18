@@ -6,7 +6,7 @@ stdout 'task-0003'
 stdout '\[open\]'
 stdout 'Main task'
 
--- .tickets/task-0001.md --
+-- .ko/tickets/task-0001.md --
 ---
 id: task-0001
 status: open
@@ -17,7 +17,7 @@ type: task
 priority: 2
 ---
 # Main task
--- .tickets/task-0002.md --
+-- .ko/tickets/task-0002.md --
 ---
 id: task-0002
 status: open
@@ -28,7 +28,7 @@ type: task
 priority: 2
 ---
 # Dependency task
--- .tickets/task-0003.md --
+-- .ko/tickets/task-0003.md --
 ---
 id: task-0003
 status: open

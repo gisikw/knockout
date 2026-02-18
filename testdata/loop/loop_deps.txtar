@@ -8,7 +8,7 @@ stdout 'ko-b002 SUCCEED'
 stdout '2 processed'
 stdout 'stopped: empty'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open
@@ -19,7 +19,7 @@ type: task
 priority: 2
 ---
 # Dependency
--- .tickets/ko-b002.md --
+-- .ko/tickets/ko-b002.md --
 ---
 id: ko-b002
 status: open

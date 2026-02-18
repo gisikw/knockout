@@ -3,8 +3,8 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Set up two projects
-mkdir $WORK/alpha/.tickets
-mkdir $WORK/beta/.tickets
+mkdir $WORK/alpha/.ko/tickets
+mkdir $WORK/beta/.ko/tickets
 cd $WORK/alpha
 exec ko register '#alpha'
 cd $WORK/beta
@@ -12,11 +12,11 @@ exec ko register '#beta'
 cd $WORK/alpha
 
 # beta-0001 is closed
-cp $WORK/beta_ticket.txt $WORK/beta/.tickets/beta-0001.md
+cp $WORK/beta_ticket.txt $WORK/beta/.ko/tickets/beta-0001.md
 
 # alpha has a locally ready ticket AND one blocked on cross-project dep
-cp $WORK/alpha_ready.txt $WORK/alpha/.tickets/alp-0001.md
-cp $WORK/alpha_blocked.txt $WORK/alpha/.tickets/alp-0002.md
+cp $WORK/alpha_ready.txt $WORK/alpha/.ko/tickets/alp-0001.md
+cp $WORK/alpha_blocked.txt $WORK/alpha/.ko/tickets/alp-0002.md
 
 # Ready should show the local ticket
 exec ko ready

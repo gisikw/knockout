@@ -8,7 +8,7 @@ stdout 'status: closed'
 exists .triage_ran
 exists .implement_ran
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

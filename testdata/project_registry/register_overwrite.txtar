@@ -5,7 +5,7 @@ exec ko register '#myproj'
 stdout 'registered myproj'
 
 # Re-register from different directory overwrites path
-mkdir $WORK/other/.tickets
+mkdir $WORK/other/.ko/tickets
 cd $WORK/other
 exec ko register '#myproj'
 stdout 'registered myproj'
@@ -14,4 +14,4 @@ stdout 'registered myproj'
 exec ko projects
 stdout 'myproj'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

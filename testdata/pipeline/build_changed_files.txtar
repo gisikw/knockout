@@ -7,7 +7,7 @@ stdout 'SUCCEED'
 exec cat changed_output.txt
 stdout 'newfile.txt'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

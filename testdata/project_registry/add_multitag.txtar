@@ -3,7 +3,7 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Register target project
-mkdir $WORK/target/.tickets
+mkdir $WORK/target/.ko/tickets
 cd $WORK/target
 exec ko register '#target'
 cd $WORK
@@ -12,14 +12,14 @@ cd $WORK
 exec ko add 'Refactor auth #target #security #urgent'
 
 # Verify ticket in target has extra tags as labels
-env TICKETS_DIR=$WORK/target/.tickets
+env TICKETS_DIR=$WORK/target/.ko/tickets
 exec ko query
 stdout 'Refactor auth'
 stdout '"status":"routed"'
 stdout 'security'
 stdout 'urgent'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

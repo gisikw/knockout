@@ -18,7 +18,7 @@ stdout 'id: abc-1234'
 ! exec ko show nonexistent
 stderr 'not found'
 
--- .tickets/abc-1234.md --
+-- .ko/tickets/abc-1234.md --
 ---
 id: abc-1234
 status: open

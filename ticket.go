@@ -279,7 +279,9 @@ func ResolveID(ticketsDir, partial string) (string, error) {
 	}
 }
 
-// FindTicketsDir walks up from the current directory looking for .tickets/.
+// FindTicketsDir walks up from the current directory looking for the tickets
+// directory. Checks .ko/tickets/ first (new layout), then .tickets/ (legacy).
+// If only the legacy .tickets/ exists, it is migrated to .ko/tickets/.
 // Respects TICKETS_DIR env var.
 func FindTicketsDir() (string, error) {
 	if env := os.Getenv("TICKETS_DIR"); env != "" {
@@ -295,9 +297,19 @@ func FindTicketsDir() (string, error) {
 		return "", err
 	}
 	for {
-		candidate := filepath.Join(dir, ".tickets")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate, nil
+		// Prefer new layout
+		newPath := filepath.Join(dir, ".ko", "tickets")
+		if info, err := os.Stat(newPath); err == nil && info.IsDir() {
+			return newPath, nil
+		}
+		// Check legacy layout and migrate
+		oldPath := filepath.Join(dir, ".tickets")
+		if info, err := os.Stat(oldPath); err == nil && info.IsDir() {
+			if migrated, err := migrateTicketsDir(dir); err == nil {
+				return migrated, nil
+			}
+			// Migration failed — use legacy path
+			return oldPath, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -305,7 +317,40 @@ func FindTicketsDir() (string, error) {
 		}
 		dir = parent
 	}
-	return "", fmt.Errorf("no .tickets directory found")
+	return "", fmt.Errorf("no .ko/tickets directory found")
+}
+
+// migrateTicketsDir moves .tickets/ to .ko/tickets/ and returns the new path.
+func migrateTicketsDir(projectRoot string) (string, error) {
+	oldPath := filepath.Join(projectRoot, ".tickets")
+	newPath := filepath.Join(projectRoot, ".ko", "tickets")
+
+	// Ensure .ko/ exists
+	if err := os.MkdirAll(filepath.Join(projectRoot, ".ko"), 0755); err != nil {
+		return "", err
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return "", err
+	}
+
+	fmt.Fprintf(os.Stderr, "ko: migrated .tickets/ -> .ko/tickets/\n")
+	return newPath, nil
+}
+
+// ProjectRoot returns the project root directory for a given tickets directory.
+// Handles both .ko/tickets/ (new) and .tickets/ (legacy) layouts.
+func ProjectRoot(ticketsDir string) string {
+	abs, err := filepath.Abs(ticketsDir)
+	if err != nil {
+		return filepath.Dir(ticketsDir)
+	}
+	// .ko/tickets/ -> go up two levels
+	if filepath.Base(filepath.Dir(abs)) == ".ko" {
+		return filepath.Dir(filepath.Dir(abs))
+	}
+	// .tickets/ -> go up one level
+	return filepath.Dir(abs)
 }
 
 // EnsureTicketsDir creates the .tickets directory if it doesn't exist.

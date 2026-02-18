@@ -7,7 +7,7 @@ stdout 'status: closed'
 # Verify the feature workflow's implement node ran
 exists .feature_ran
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

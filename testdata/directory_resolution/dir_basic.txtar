@@ -12,7 +12,7 @@ stderr 'not a directory'
 env TICKETS_DIR=
 exec ko help
 
--- .tickets/test-0001.md --
+-- .ko/tickets/test-0001.md --
 ---
 id: test-0001
 status: open

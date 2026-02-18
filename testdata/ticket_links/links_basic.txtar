@@ -19,7 +19,7 @@ exec ko show link-0001
 ! exec ko link link-0001 nonexistent
 stderr 'not found'
 
--- .tickets/link-0001.md --
+-- .ko/tickets/link-0001.md --
 ---
 id: link-0001
 status: open
@@ -30,7 +30,7 @@ type: task
 priority: 2
 ---
 # First ticket
--- .tickets/link-0002.md --
+-- .ko/tickets/link-0002.md --
 ---
 id: link-0002
 status: open

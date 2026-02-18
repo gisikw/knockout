@@ -3,7 +3,7 @@ exec ko loop
 stdout 'stopped: empty'
 stdout '0 processed'
 
--- .tickets/.gitkeep --
+-- .ko/tickets/.gitkeep --
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0

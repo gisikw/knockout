@@ -4,4 +4,4 @@ mkdir $WORK/home
 ! exec ko register
 stderr 'usage: ko register #<tag>'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

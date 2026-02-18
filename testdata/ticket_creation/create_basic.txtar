@@ -12,7 +12,7 @@ stdout '^ko-[0-9a-f]{4}$'
 exec ko query
 stdout 'Untitled'
 
--- .tickets/ko-seed.md --
+-- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed
 status: closed

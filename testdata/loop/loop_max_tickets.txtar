@@ -11,7 +11,7 @@ stdout 'status: closed'
 exec ko show ko-b002
 stdout 'status: open'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open
@@ -22,7 +22,7 @@ type: task
 priority: 1
 ---
 # High priority
--- .tickets/ko-b002.md --
+-- .ko/tickets/ko-b002.md --
 ---
 id: ko-b002
 status: open

@@ -3,8 +3,8 @@ env HOME=$WORK/home
 mkdir $WORK/home
 
 # Create a project with existing tickets (prefix "fn")
-mkdir $WORK/fort-nix/.tickets
-cp $WORK/fn_ticket.txt $WORK/fort-nix/.tickets/fn-a001.md
+mkdir $WORK/fort-nix/.ko/tickets
+cp $WORK/fn_ticket.txt $WORK/fort-nix/.ko/tickets/fn-a001.md
 
 # Register it
 cd $WORK/fort-nix
@@ -27,4 +27,4 @@ type: task
 priority: 2
 ---
 # Fort Nix task
--- .tickets/.keep --
+-- .ko/tickets/.keep --

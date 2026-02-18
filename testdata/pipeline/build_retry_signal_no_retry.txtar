@@ -9,7 +9,7 @@ stdout 'Not retryable'
 exists .llm_call_1
 ! exists .llm_call_2
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

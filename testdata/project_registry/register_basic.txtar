@@ -13,7 +13,7 @@ stdout 'fort-nix'
 stdout $WORK
 
 # Register a second project
-mkdir $WORK/other-project/.tickets
+mkdir $WORK/other-project/.ko/tickets
 cd $WORK/other-project
 exec ko register '#exo'
 stdout 'registered exo'
@@ -23,4 +23,4 @@ exec ko projects
 stdout 'fort-nix'
 stdout 'exo'
 
--- .tickets/.keep --
+-- .ko/tickets/.keep --

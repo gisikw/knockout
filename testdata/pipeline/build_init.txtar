@@ -13,7 +13,7 @@ exists .ko/prompts/review.md
 ! exec ko build-init
 stderr 'already exists'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

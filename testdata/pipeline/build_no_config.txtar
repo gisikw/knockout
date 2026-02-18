@@ -2,7 +2,7 @@
 ! exec ko build ko-a001
 stderr 'no pipeline config found'
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

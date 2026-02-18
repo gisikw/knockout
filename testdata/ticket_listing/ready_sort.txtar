@@ -5,7 +5,7 @@ stdout -count=3 'ready-'
 stdout 'ready-001.*High priority'
 stdout 'ready-003.*Low priority'
 
--- .tickets/ready-003.md --
+-- .ko/tickets/ready-003.md --
 ---
 id: ready-003
 status: open
@@ -16,7 +16,7 @@ type: task
 priority: 3
 ---
 # Low priority
--- .tickets/ready-001.md --
+-- .ko/tickets/ready-001.md --
 ---
 id: ready-001
 status: open
@@ -27,7 +27,7 @@ type: task
 priority: 1
 ---
 # High priority
--- .tickets/ready-002.md --
+-- .ko/tickets/ready-002.md --
 ---
 id: ready-002
 status: open

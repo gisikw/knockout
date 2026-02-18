@@ -8,7 +8,7 @@ exists succeed_marker
 # Verify on_close ran (created marker file)
 exists close_marker
 
--- .tickets/ko-a001.md --
+-- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001
 status: open

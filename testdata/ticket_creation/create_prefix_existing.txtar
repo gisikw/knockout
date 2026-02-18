@@ -3,7 +3,7 @@ exec ko create 'New ticket'
 exec ko query
 stdout '"id":"myproj-[0-9a-f]{4}"'
 
--- .tickets/myproj-a001.md --
+-- .ko/tickets/myproj-a001.md --
 ---
 id: myproj-a001
 status: open
