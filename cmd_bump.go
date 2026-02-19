@@ -31,6 +31,8 @@ func cmdBump(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(ticketsDir, id, "bump", nil)
+
 	fmt.Println(id)
 	return 0
 }

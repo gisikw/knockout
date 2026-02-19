@@ -39,6 +39,8 @@ func cmdAddNote(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(ticketsDir, id, "note", nil)
+
 	fmt.Printf("Note added to %s\n", id)
 	return 0
 }

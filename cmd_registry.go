@@ -193,6 +193,10 @@ func cmdAdd(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(targetTicketsDir, t.ID, "create", map[string]interface{}{
+		"title": t.Title,
+	})
+
 	// If routed to a different project, create a closed audit ticket locally
 	if decision.IsRouted {
 		localTicketsDir := resolveTicketsDir(localRoot)

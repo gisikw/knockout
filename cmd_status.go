@@ -36,11 +36,17 @@ func cmdStatus(args []string) int {
 		return 1
 	}
 
+	oldStatus := t.Status
 	t.Status = newStatus
 	if err := SaveTicket(ticketsDir, t); err != nil {
 		fmt.Fprintf(os.Stderr, "ko status: %v\n", err)
 		return 1
 	}
+
+	EmitMutationEvent(ticketsDir, id, "status", map[string]interface{}{
+		"from": oldStatus,
+		"to":   newStatus,
+	})
 
 	fmt.Printf("%s -> %s\n", id, newStatus)
 	return 0

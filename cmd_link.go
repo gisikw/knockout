@@ -61,6 +61,10 @@ func cmdLink(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(ticketsDir, id1, "link", map[string]interface{}{
+		"linked": id2,
+	})
+
 	fmt.Printf("Linked %s <-> %s\n", id1, id2)
 	return 0
 }
@@ -112,6 +116,10 @@ func cmdUnlink(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko unlink: %v\n", err)
 		return 1
 	}
+
+	EmitMutationEvent(ticketsDir, id1, "unlink", map[string]interface{}{
+		"unlinked": id2,
+	})
 
 	fmt.Printf("Unlinked %s <-> %s\n", id1, id2)
 	return 0

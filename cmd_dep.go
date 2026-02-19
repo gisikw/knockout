@@ -64,6 +64,10 @@ func cmdDep(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(ticketsDir, ticketID, "dep", map[string]interface{}{
+		"dep": depID,
+	})
+
 	fmt.Printf("Added dependency: %s -> %s\n", ticketID, depID)
 	return 0
 }
@@ -118,6 +122,10 @@ func cmdUndep(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
 		return 1
 	}
+
+	EmitMutationEvent(ticketsDir, ticketID, "undep", map[string]interface{}{
+		"dep": depID,
+	})
 
 	fmt.Printf("Removed dependency: %s -> %s\n", ticketID, depID)
 	return 0

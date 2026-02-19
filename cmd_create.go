@@ -100,6 +100,10 @@ func cmdCreate(args []string) int {
 		return 1
 	}
 
+	EmitMutationEvent(ticketsDir, t.ID, "create", map[string]interface{}{
+		"title": t.Title,
+	})
+
 	fmt.Println(t.ID)
 	return 0
 }
