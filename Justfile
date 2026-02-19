@@ -8,4 +8,4 @@ test:
     go test ./...
 
 install:
-    go install -ldflags="-X main.version=$(git rev-parse --short HEAD)"
+    go build -ldflags="-X main.version=$(git rev-parse --short HEAD)" -o $(go env GOPATH)/bin/ko
