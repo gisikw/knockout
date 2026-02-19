@@ -66,7 +66,9 @@ func run(args []string) int {
 	case "loop":
 		return cmdLoop(rest)
 	case "add":
-		return cmdAdd(rest)
+		return cmdCreate(rest)
+	case "clear":
+		return cmdClear(rest)
 	case "register":
 		return cmdRegister(rest)
 	case "default":
@@ -118,7 +120,8 @@ func cmdHelp(args []string) int {
 Usage: ko <command> [arguments]
 
 Commands:
-  create [title]     Create a new ticket
+  create [title]     Create a new ticket (routes by #tag if registered)
+  add                Alias for create
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
@@ -141,6 +144,7 @@ Commands:
   add-note <id> <text>  Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL
+  clear --force         Remove all local tickets
 
   init <prefix>      Initialize project with ticket prefix
 
@@ -148,7 +152,6 @@ Commands:
   build-init         Initialize pipeline config in current project
   loop               Build all ready tickets until queue is empty
 
-  add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry
   default [#<tag>]   Show or set the default project for routing
   projects           List registered projects

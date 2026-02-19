@@ -42,10 +42,28 @@ func cmdCreate(args []string) int {
 		title = fs.Arg(0)
 	}
 
-	ticketsDir, err := FindTicketsDir()
+	// Find local project context
+	localRoot, err := findProjectRoot()
 	if err != nil {
-		ticketsDir = filepath.Join(".ko", "tickets")
+		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+		return 1
 	}
+
+	// Load registry (non-fatal if missing — just route locally)
+	regPath := RegistryPath()
+	reg := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
+	if regPath != "" {
+		loaded, loadErr := LoadRegistry(regPath)
+		if loadErr == nil {
+			reg = loaded
+		}
+	}
+
+	// Route based on hashtags in title
+	decision := RouteTicket(title, reg, localRoot)
+
+	// Ensure target tickets directory exists
+	ticketsDir := resolveTicketsDir(decision.TargetPath)
 	if err := EnsureTicketsDir(ticketsDir); err != nil {
 		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
 		return 1
@@ -56,16 +74,18 @@ func cmdCreate(args []string) int {
 
 	var t *Ticket
 	if *parent != "" {
-		// Resolve parent ID
+		// Resolve parent ID (only valid for local tickets)
 		parentID, err := ResolveID(ticketsDir, *parent)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
 			return 1
 		}
-		t = NewChildTicket(parentID, title)
+		t = NewChildTicket(parentID, decision.Title)
 	} else {
-		t = NewTicket(prefix, title)
+		t = NewTicket(prefix, decision.Title)
 	}
+
+	t.Status = decision.Status
 
 	if *desc != "" {
 		t.Body += "\n" + *desc + "\n"
@@ -88,11 +108,20 @@ func cmdCreate(args []string) int {
 	if *acceptance != "" {
 		t.Body += "\n## Acceptance Criteria\n\n" + *acceptance + "\n"
 	}
+
+	// Merge tags: routing tags + explicit -tags flag
+	var ticketTags []string
+	if decision.IsCaptured && decision.RoutingTag != "" {
+		ticketTags = append(ticketTags, decision.RoutingTag)
+	}
+	ticketTags = append(ticketTags, decision.ExtraTags...)
 	if *tags != "" {
-		t.Tags = strings.Split(*tags, ",")
-		for i, tag := range t.Tags {
-			t.Tags[i] = strings.TrimSpace(tag)
+		for _, tag := range strings.Split(*tags, ",") {
+			ticketTags = append(ticketTags, strings.TrimSpace(tag))
 		}
+	}
+	if len(ticketTags) > 0 {
+		t.Tags = ticketTags
 	}
 
 	if err := SaveTicket(ticketsDir, t); err != nil {
@@ -104,7 +133,26 @@ func cmdCreate(args []string) int {
 		"title": t.Title,
 	})
 
-	fmt.Println(t.ID)
+	// If routed to a different project, create a closed audit ticket locally
+	if decision.IsRouted {
+		localTicketsDir := resolveTicketsDir(localRoot)
+		if err := EnsureTicketsDir(localTicketsDir); err != nil {
+			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+			return 1
+		}
+		localPrefix := detectPrefix(localTicketsDir)
+		audit := NewTicket(localPrefix, decision.Title)
+		audit.Status = "closed"
+		AddNote(audit, fmt.Sprintf("routed to #%s as %s", decision.RoutingTag, t.ID))
+		if err := SaveTicket(localTicketsDir, audit); err != nil {
+			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+			return 1
+		}
+		fmt.Printf("%s -> #%s (%s)\n", audit.ID, decision.RoutingTag, t.ID)
+	} else {
+		fmt.Println(t.ID)
+	}
+
 	return 0
 }
 
