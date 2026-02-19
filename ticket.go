@@ -32,6 +32,8 @@ type Ticket struct {
 	Title string `yaml:"-"`
 	// Body is everything after the frontmatter and title.
 	Body string `yaml:"-"`
+	// ModTime is the file modification time, populated by ListTickets/LoadTicket.
+	ModTime time.Time `yaml:"-"`
 }
 
 // ValidStatus reports whether s is a valid ticket status.
@@ -200,11 +202,19 @@ func TicketPath(ticketsDir, id string) string {
 
 // LoadTicket reads and parses a ticket from disk.
 func LoadTicket(ticketsDir, id string) (*Ticket, error) {
-	data, err := os.ReadFile(TicketPath(ticketsDir, id))
+	path := TicketPath(ticketsDir, id)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("ticket '%s' not found", id)
 	}
-	return ParseTicket(string(data))
+	t, err := ParseTicket(string(data))
+	if err != nil {
+		return nil, err
+	}
+	if info, statErr := os.Stat(path); statErr == nil {
+		t.ModTime = info.ModTime()
+	}
+	return t, nil
 }
 
 // SaveTicket writes a ticket to disk.
@@ -226,13 +236,17 @@ func ListTickets(ticketsDir string) ([]*Ticket, error) {
 		if !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(ticketsDir, e.Name()))
+		path := filepath.Join(ticketsDir, e.Name())
+		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
 		t, err := ParseTicket(string(data))
 		if err != nil {
 			continue
+		}
+		if info, statErr := e.Info(); statErr == nil {
+			t.ModTime = info.ModTime()
 		}
 		tickets = append(tickets, t)
 	}
@@ -363,6 +377,16 @@ func SortByPriorityThenID(tickets []*Ticket) {
 			return tickets[i].Priority < tickets[j].Priority
 		}
 		return tickets[i].ID < tickets[j].ID
+	})
+}
+
+// SortByPriorityThenModified sorts tickets by priority (ascending) then ModTime (descending, newest first).
+func SortByPriorityThenModified(tickets []*Ticket) {
+	sort.Slice(tickets, func(i, j int) bool {
+		if tickets[i].Priority != tickets[j].Priority {
+			return tickets[i].Priority < tickets[j].Priority
+		}
+		return tickets[i].ModTime.After(tickets[j].ModTime)
 	})
 }
 

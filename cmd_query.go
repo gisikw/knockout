@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 type ticketJSON struct {
@@ -15,6 +16,7 @@ type ticketJSON struct {
 	Deps     []string `json:"deps"`
 	Links    []string `json:"links"`
 	Created  string   `json:"created"`
+	Modified string   `json:"modified"`
 	Assignee string   `json:"assignee,omitempty"`
 	Parent   string   `json:"parent,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -35,6 +37,10 @@ func cmdQuery(args []string) int {
 
 	enc := json.NewEncoder(os.Stdout)
 	for _, t := range tickets {
+		modified := ""
+		if !t.ModTime.IsZero() {
+			modified = t.ModTime.UTC().Format(time.RFC3339)
+		}
 		j := ticketJSON{
 			ID:       t.ID,
 			Title:    t.Title,
@@ -44,6 +50,7 @@ func cmdQuery(args []string) int {
 			Deps:     t.Deps,
 			Links:    t.Links,
 			Created:  t.Created,
+			Modified: modified,
 			Assignee: t.Assignee,
 			Parent:   t.Parent,
 			Tags:     t.Tags,

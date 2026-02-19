@@ -32,7 +32,10 @@ Commands:
   unlink <id1> <id2> Unlink two tickets
 
   add-note <id> <text>  Add a note to a ticket
+  bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL
+
+  init <prefix>      Initialize project with ticket prefix
 
   build <id>         Run build pipeline against ticket
   build-init         Initialize pipeline config in current project
@@ -84,6 +87,9 @@ at the limit, tickets get blocked for human review instead of further decomposed
 | `blocked` | Needs human attention |
 
 `ko ready` only returns `open` and `in_progress` tickets with all deps resolved.
+Within the same priority tier, tickets are sorted by file modification time
+(most recently touched first). Use `ko bump <id>` to move a ticket to the top
+of its priority tier without changing its content.
 
 ### Build Pipeline
 
@@ -247,5 +253,5 @@ on_close:
 
 ## Data Model
 
-Tickets are markdown files with YAML frontmatter in `.tickets/`. No database,
+Tickets are markdown files with YAML frontmatter in `.ko/tickets/`. No database,
 no index, no derived state. The file is the source of truth.

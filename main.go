@@ -53,6 +53,8 @@ func run(args []string) int {
 		return cmdUnlink(rest)
 	case "add-note":
 		return cmdAddNote(rest)
+	case "bump":
+		return cmdBump(rest)
 	case "query":
 		return cmdQuery(rest)
 	case "build":
@@ -137,6 +139,7 @@ Commands:
   unlink <id1> <id2> Unlink two tickets
 
   add-note <id> <text>  Add a note to a ticket
+  bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL
 
   init <prefix>      Initialize project with ticket prefix

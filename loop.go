@@ -50,7 +50,7 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 			ready = append(ready, t)
 		}
 	}
-	SortByPriorityThenID(ready)
+	SortByPriorityThenModified(ready)
 
 	ids := make([]string, len(ready))
 	for i, t := range ready {

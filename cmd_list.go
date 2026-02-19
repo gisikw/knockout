@@ -69,7 +69,7 @@ func cmdReady(args []string) int {
 
 	// If local queue is non-empty, return it without cross-project checks
 	if len(ready) > 0 {
-		SortByPriorityThenID(ready)
+		SortByPriorityThenModified(ready)
 		for _, t := range ready {
 			fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
 		}
