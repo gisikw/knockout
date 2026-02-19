@@ -1,6 +1,6 @@
 ---
 id: ko-b2b0
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-19T23:22:45Z
