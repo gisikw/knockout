@@ -59,7 +59,9 @@ func (a *CursorAdapter) BuildCommand(prompt, model, systemPrompt string, allowAl
 	if allowAll {
 		args = append(args, "--force")
 	}
-	// Cursor agent doesn't support --model; skip.
+	if model != "" {
+		args = append(args, "--model", model)
+	}
 
 	bin := resolveCursorBin()
 	cmd := exec.Command(bin, args...)
