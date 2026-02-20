@@ -1,7 +1,7 @@
-# Register requires a tag argument
+# Register with no args shows current project is not registered
 env HOME=$WORK/home
 mkdir $WORK/home
 ! exec ko register
-stderr 'usage: ko register #<tag>'
+stderr 'current project is not registered'
 
 -- .ko/tickets/.keep --

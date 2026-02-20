@@ -9,7 +9,9 @@ import (
 
 // Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
-	Command    string                // command to invoke for prompt nodes (default: "claude")
+	Agent      string                // agent adapter name: claude | cursor (default: "claude")
+	Command    string                // raw command override (mutually exclusive with agent)
+	AllowAll   bool                  // maps to --dangerously-skip-permissions, --force, etc.
 	Model      string                // default model for prompt nodes
 	MaxRetries int                   // max retries per node (default: 2)
 	MaxDepth   int                   // max decomposition depth (default: 2)
@@ -17,6 +19,23 @@ type Pipeline struct {
 	Workflows  map[string]*Workflow  // named workflows; "main" is the entry point
 	OnSucceed  []string              // shell commands to run after all stages pass
 	OnClose    []string              // shell commands to run after ticket is closed
+
+	agentExplicit bool              // true if agent: was explicitly set in config
+}
+
+// Adapter returns the AgentAdapter for this pipeline config.
+// If command: is set, returns a RawCommandAdapter.
+// Otherwise, looks up the agent by name.
+func (p *Pipeline) Adapter() AgentAdapter {
+	if p.Command != "" {
+		return &RawCommandAdapter{Command: p.Command}
+	}
+	adapter := LookupAdapter(p.Agent)
+	if adapter == nil {
+		// Shouldn't happen after validation, but fallback to raw
+		return &RawCommandAdapter{Command: p.Agent}
+	}
+	return adapter
 }
 
 // FindPipelineConfig walks up from the tickets directory looking for .ko/pipeline.yml.
@@ -42,7 +61,7 @@ func LoadPipeline(path string) (*Pipeline, error) {
 // Uses the same minimal YAML approach as ticket parsing — no external deps.
 func ParsePipeline(content string) (*Pipeline, error) {
 	p := &Pipeline{
-		Command:    "claude",
+		Agent:      "claude",
 		MaxRetries: 2,
 		MaxDepth:   2,
 		Discretion: "medium",
@@ -89,8 +108,13 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				continue
 			}
 			switch key {
+			case "agent":
+				p.Agent = val
+				p.agentExplicit = true
 			case "command":
 				p.Command = val
+			case "allow_all_tool_calls":
+				p.AllowAll = val == "true"
 			case "model":
 				p.Model = val
 			case "max_retries":
@@ -185,7 +209,14 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	flushNode(&currentNode, currentWF)
 	flushWorkflow(&currentWF, p)
 
-	// Validate
+	// Validate: agent and command are mutually exclusive.
+	// If command: is set without an explicit agent:, clear the default agent.
+	if p.Command != "" && p.Agent == "claude" && !p.agentExplicit {
+		p.Agent = ""
+	}
+	if p.Agent != "" && p.Command != "" {
+		return nil, fmt.Errorf("pipeline config cannot set both 'agent' and 'command'")
+	}
 	if err := ValidateWorkflows(p.Workflows); err != nil {
 		return nil, err
 	}

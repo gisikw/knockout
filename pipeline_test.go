@@ -175,6 +175,89 @@ workflows:
 	}
 }
 
+func TestParsePipelineAgent(t *testing.T) {
+	config := `
+agent: cursor
+allow_all_tool_calls: true
+model: gpt-4
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if p.Agent != "cursor" {
+		t.Errorf("Agent = %q, want %q", p.Agent, "cursor")
+	}
+	if !p.AllowAll {
+		t.Error("AllowAll = false, want true")
+	}
+	if p.Command != "" {
+		t.Errorf("Command = %q, want empty", p.Command)
+	}
+}
+
+func TestParsePipelineDefaultAgent(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if p.Agent != "claude" {
+		t.Errorf("Agent = %q, want %q", p.Agent, "claude")
+	}
+}
+
+func TestParsePipelineCommandClearsDefaultAgent(t *testing.T) {
+	config := `
+command: ./fake-llm
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if p.Agent != "" {
+		t.Errorf("Agent = %q, want empty (command should clear default)", p.Agent)
+	}
+	if p.Command != "./fake-llm" {
+		t.Errorf("Command = %q, want %q", p.Command, "./fake-llm")
+	}
+}
+
+func TestParsePipelineAgentAndCommandConflict(t *testing.T) {
+	config := `
+agent: cursor
+command: ./fake-llm
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	_, err := ParsePipeline(config)
+	if err == nil {
+		t.Fatal("expected error for agent + command conflict")
+	}
+	if !containsStr(err.Error(), "both 'agent' and 'command'") {
+		t.Errorf("error = %q, want substring about agent/command conflict", err.Error())
+	}
+}
+
 func TestParsePipelineValidationErrors(t *testing.T) {
 	tests := []struct {
 		name   string

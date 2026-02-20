@@ -226,8 +226,10 @@ on_close:
 
 | Key | Default | Description |
 |-----|---------|-------------|
+| `agent` | `claude` | Agent adapter: `claude` \| `cursor` |
+| `command` | — | Raw command override (mutually exclusive with `agent`) |
+| `allow_all_tool_calls` | `false` | Maps to `--dangerously-skip-permissions` (claude), `--force` (cursor) |
 | `model` | — | Default model for all prompt nodes |
-| `command` | `claude` | CLI command for prompt nodes |
 | `max_retries` | `2` | Retry attempts per node |
 | `max_depth` | `2` | Max decomposition depth |
 | `discretion` | `medium` | `low` \| `medium` \| `high` — passed to prompt nodes |

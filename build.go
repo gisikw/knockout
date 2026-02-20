@@ -335,18 +335,14 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model,
 	prompt.WriteString("## Instructions\n\n")
 	prompt.WriteString(promptContent)
 
-	args := []string{"-p", "--output-format", "text"}
-	if model != "" {
-		args = append(args, "--model", model)
-	}
-
-	// Decision nodes get the disposition schema injected
+	// Decision nodes get the disposition schema as system prompt
+	var systemPrompt string
 	if node.Type == NodeDecision {
-		args = append(args, "--append-system-prompt", DispositionSchema)
+		systemPrompt = DispositionSchema
 	}
 
-	cmd := exec.Command(p.Command, args...)
-	cmd.Stdin = strings.NewReader(prompt.String())
+	adapter := p.Adapter()
+	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, p.AllowAll)
 	cmd.Env = append(os.Environ(), "KO_TICKET_WORKSPACE="+wsDir)
 
 	if verbose {
@@ -355,7 +351,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model,
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("command '%s' failed: %v", p.Command, err)
+		return "", fmt.Errorf("agent command failed: %v", err)
 	}
 	return string(out), nil
 }
