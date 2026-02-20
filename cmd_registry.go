@@ -6,17 +6,6 @@ import (
 )
 
 func cmdRegister(args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: ko register #<tag>")
-		return 1
-	}
-
-	tag := CleanTag(args[0])
-	if tag == "" {
-		fmt.Fprintln(os.Stderr, "usage: ko register #<tag>")
-		return 1
-	}
-
 	regPath := RegistryPath()
 	if regPath == "" {
 		fmt.Fprintln(os.Stderr, "ko register: cannot determine config directory")
@@ -33,6 +22,24 @@ func cmdRegister(args []string) int {
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko register: %v\n", err)
+		return 1
+	}
+
+	// No args: show current registration for this project
+	if len(args) == 0 {
+		for tag, path := range reg.Projects {
+			if path == projectRoot {
+				fmt.Println(tag)
+				return 0
+			}
+		}
+		fmt.Fprintln(os.Stderr, "ko register: current project is not registered")
+		return 1
+	}
+
+	tag := CleanTag(args[0])
+	if tag == "" {
+		fmt.Fprintln(os.Stderr, "usage: ko register [#<tag>]")
 		return 1
 	}
 
