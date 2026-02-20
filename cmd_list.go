@@ -7,18 +7,57 @@ import (
 	"strings"
 )
 
+// resolveProjectTicketsDir checks args for a #project tag and resolves it
+// to that project's tickets directory via the registry. Returns the tickets
+// dir and the remaining args (with the tag removed).
+// If no tag is found, returns the local tickets directory.
+func resolveProjectTicketsDir(args []string) (string, []string, error) {
+	var tag string
+	var remaining []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "#") && len(a) > 1 && tag == "" {
+			tag = CleanTag(a)
+		} else {
+			remaining = append(remaining, a)
+		}
+	}
+
+	if tag == "" {
+		ticketsDir, err := FindTicketsDir()
+		return ticketsDir, remaining, err
+	}
+
+	regPath := RegistryPath()
+	if regPath == "" {
+		return "", remaining, fmt.Errorf("cannot determine config directory")
+	}
+	reg, err := LoadRegistry(regPath)
+	if err != nil {
+		return "", remaining, err
+	}
+	projectPath, ok := reg.Projects[tag]
+	if !ok {
+		return "", remaining, fmt.Errorf("unknown project '#%s'", tag)
+	}
+	ticketsDir := resolveTicketsDir(projectPath)
+	if _, err := os.Stat(ticketsDir); os.IsNotExist(err) {
+		return "", remaining, fmt.Errorf("no tickets directory for '#%s' (%s)", tag, ticketsDir)
+	}
+	return ticketsDir, remaining, nil
+}
+
 func cmdLs(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
+		return 1
+	}
+
 	args = reorderArgs(args, map[string]bool{"status": true})
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
 	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
-		return 1
-	}
-
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
@@ -47,7 +86,7 @@ func cmdLs(args []string) int {
 }
 
 func cmdReady(args []string) int {
-	ticketsDir, err := FindTicketsDir()
+	ticketsDir, _, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
@@ -98,7 +137,7 @@ func cmdReady(args []string) int {
 }
 
 func cmdBlocked(args []string) int {
-	ticketsDir, err := FindTicketsDir()
+	ticketsDir, _, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
 		return 1
@@ -127,17 +166,17 @@ func cmdBlocked(args []string) int {
 }
 
 func cmdClosed(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko closed: %v\n", err)
+		return 1
+	}
+
 	args = reorderArgs(args, map[string]bool{"limit": true})
 
 	fs := flag.NewFlagSet("closed", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
 	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "ko closed: %v\n", err)
-		return 1
-	}
-
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko closed: %v\n", err)
 		return 1
 	}
