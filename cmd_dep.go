@@ -12,18 +12,20 @@ func cmdDep(args []string) int {
 		return 1
 	}
 
+	// Check for tree subcommand before resolving project tag
+	// (tree args may also contain a #project tag)
 	if args[0] == "tree" {
 		return cmdDepTree(args[1:])
 	}
 
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "ko dep: two ticket IDs required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko dep: two ticket IDs required")
 		return 1
 	}
 
@@ -73,14 +75,14 @@ func cmdDep(args []string) int {
 }
 
 func cmdUndep(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "ko undep: two ticket IDs required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko undep: two ticket IDs required")
 		return 1
 	}
 
@@ -132,14 +134,14 @@ func cmdUndep(args []string) int {
 }
 
 func cmdDepTree(args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "ko dep tree: ticket ID required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko dep tree: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko dep tree: %v\n", err)
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "ko dep tree: ticket ID required")
 		return 1
 	}
 

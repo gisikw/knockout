@@ -7,14 +7,14 @@ import (
 )
 
 func cmdStatus(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "ko status: ticket ID and status required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko status: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko status: %v\n", err)
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko status: ticket ID and status required")
 		return 1
 	}
 
@@ -57,7 +57,7 @@ func cmdStart(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko start: ticket ID required")
 		return 1
 	}
-	return cmdStatus([]string{args[0], "in_progress"})
+	return cmdStatus(append(args, "in_progress"))
 }
 
 func cmdClose(args []string) int {
@@ -65,7 +65,7 @@ func cmdClose(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko close: ticket ID required")
 		return 1
 	}
-	return cmdStatus([]string{args[0], "closed"})
+	return cmdStatus(append(args, "closed"))
 }
 
 func cmdReopen(args []string) int {
@@ -73,7 +73,7 @@ func cmdReopen(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko reopen: ticket ID required")
 		return 1
 	}
-	return cmdStatus([]string{args[0], "open"})
+	return cmdStatus(append(args, "open"))
 }
 
 func cmdBlock(args []string) int {
@@ -81,5 +81,5 @@ func cmdBlock(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko block: ticket ID required")
 		return 1
 	}
-	return cmdStatus([]string{args[0], "blocked"})
+	return cmdStatus(append(args, "blocked"))
 }

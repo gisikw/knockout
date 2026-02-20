@@ -7,14 +7,14 @@ import (
 )
 
 func cmdShow(args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "ko show: ticket ID required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "ko show: ticket ID required")
 		return 1
 	}
 

@@ -7,14 +7,14 @@ import (
 )
 
 func cmdBump(args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: ko bump <id>")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko bump: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko bump: %v\n", err)
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: ko bump <id>")
 		return 1
 	}
 

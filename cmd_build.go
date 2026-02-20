@@ -7,6 +7,12 @@ import (
 )
 
 func cmdBuild(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		return 1
+	}
+
 	args = reorderArgs(args, map[string]bool{})
 
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
@@ -21,12 +27,6 @@ func cmdBuild(args []string) int {
 
 	if fs.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "ko build: ticket ID required")
-		return 1
-	}
-
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
 		return 1
 	}
 

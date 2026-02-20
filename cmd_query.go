@@ -23,7 +23,7 @@ type ticketJSON struct {
 }
 
 func cmdQuery(args []string) int {
-	ticketsDir, err := FindTicketsDir()
+	ticketsDir, _, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko query: %v\n", err)
 		return 1

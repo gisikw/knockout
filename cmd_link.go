@@ -6,14 +6,14 @@ import (
 )
 
 func cmdLink(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "ko link: two ticket IDs required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko link: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko link: %v\n", err)
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko link: two ticket IDs required")
 		return 1
 	}
 
@@ -70,14 +70,14 @@ func cmdLink(args []string) int {
 }
 
 func cmdUnlink(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintln(os.Stderr, "ko unlink: two ticket IDs required")
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko unlink: %v\n", err)
 		return 1
 	}
 
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko unlink: %v\n", err)
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko unlink: two ticket IDs required")
 		return 1
 	}
 

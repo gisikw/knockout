@@ -1,6 +1,6 @@
 ---
 id: ko-c3c1
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-20T06:33:36Z
