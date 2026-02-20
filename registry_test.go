@@ -131,6 +131,9 @@ func TestParseTags(t *testing.T) {
 		{"Refactor #fort-nix #security #urgent", "Refactor", []string{"fort-nix", "security", "urgent"}},
 		{"No tags here", "No tags here", nil},
 		{"#solo", "", []string{"solo"}},
+		{"Escaping \\#project in title", "Escaping #project in title", nil},
+		{"Mixed \\#literal #real", "Mixed #literal", []string{"real"}},
+		{"\\#all \\#escaped", "#all #escaped", nil},
 	}
 	for _, tt := range tests {
 		title, tags := ParseTags(tt.input)

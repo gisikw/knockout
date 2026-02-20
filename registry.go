@@ -269,12 +269,16 @@ type RoutingDecision struct {
 
 // ParseTags extracts #tags from a title string.
 // Returns the cleaned title and the list of tags (without #).
+// Words starting with \# are treated as literal hashtags (escape is stripped).
 func ParseTags(title string) (string, []string) {
 	words := strings.Fields(title)
 	var clean []string
 	var tags []string
 	for _, w := range words {
-		if strings.HasPrefix(w, "#") && len(w) > 1 {
+		if strings.HasPrefix(w, "\\#") {
+			// Escaped hashtag — literal, strip the backslash
+			clean = append(clean, w[1:])
+		} else if strings.HasPrefix(w, "#") && len(w) > 1 {
 			tags = append(tags, CleanTag(w))
 		} else {
 			clean = append(clean, w)
