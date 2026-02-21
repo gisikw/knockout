@@ -33,6 +33,8 @@ workflows:
       prompt: recommend.md
 on_succeed:
   - git add -A
+on_fail:
+  - git checkout -- .
 on_close:
   - echo done
 `
@@ -104,6 +106,9 @@ on_close:
 	// Hooks
 	if len(p.OnSucceed) != 1 || p.OnSucceed[0] != "git add -A" {
 		t.Errorf("OnSucceed = %v", p.OnSucceed)
+	}
+	if len(p.OnFail) != 1 || p.OnFail[0] != "git checkout -- ." {
+		t.Errorf("OnFail = %v", p.OnFail)
 	}
 	if len(p.OnClose) != 1 || p.OnClose[0] != "echo done" {
 		t.Errorf("OnClose = %v", p.OnClose)

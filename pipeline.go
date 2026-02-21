@@ -18,6 +18,7 @@ type Pipeline struct {
 	Discretion string                // low | medium | high (default: "medium")
 	Workflows  map[string]*Workflow  // named workflows; "main" is the entry point
 	OnSucceed  []string              // shell commands to run after all stages pass
+	OnFail     []string              // shell commands to run on build failure
 	OnClose    []string              // shell commands to run after ticket is closed
 
 	agentExplicit bool              // true if agent: was explicitly set in config
@@ -69,7 +70,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	}
 
 	lines := strings.Split(content, "\n")
-	var section string        // "", "workflows", "on_succeed", "on_close"
+	var section string        // "", "workflows", "on_succeed", "on_fail", "on_close"
 	var currentWF *Workflow    // current workflow being parsed
 	var currentNode *Node      // current node being parsed
 	var inRoutes bool          // parsing routes list for current node
@@ -95,6 +96,10 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			}
 			if trimmed == "on_succeed:" {
 				section = "on_succeed"
+				continue
+			}
+			if trimmed == "on_fail:" {
+				section = "on_fail"
 				continue
 			}
 			if trimmed == "on_close:" {
@@ -203,6 +208,11 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			if strings.HasPrefix(trimmed, "- ") {
 				cmd := strings.TrimPrefix(trimmed, "- ")
 				p.OnSucceed = append(p.OnSucceed, cmd)
+			}
+		case "on_fail":
+			if strings.HasPrefix(trimmed, "- ") {
+				cmd := strings.TrimPrefix(trimmed, "- ")
+				p.OnFail = append(p.OnFail, cmd)
 			}
 		case "on_close":
 			if strings.HasPrefix(trimmed, "- ") {

@@ -85,6 +85,13 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	if err != nil {
 		log.WorkflowComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
+		return OutcomeFail, nil
+	}
+
+	if outcome == OutcomeFail {
+		log.WorkflowComplete(t.ID, "fail")
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
 		return OutcomeFail, nil
 	}
 
@@ -99,6 +106,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// All workflows passed — run on_succeed hooks
 	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir); err != nil {
 		applyFailOutcome(ticketsDir, t, "on_succeed", "on_succeed failed: "+err.Error())
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
 		return OutcomeFail, fmt.Errorf("on_succeed failed")
 	}
 

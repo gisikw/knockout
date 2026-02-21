@@ -97,6 +97,10 @@ workflows:
 #   - git add -A
 #   - git commit -m "ko: implement ${TICKET_ID}"
 
+# Commands to run on build failure (cleanup worktree, reset state, etc.).
+# on_fail:
+#   - git checkout -- .
+
 # Commands to run after ticket is closed (safe for deploys).
 # on_close:
 #   - git push

@@ -1,0 +1,34 @@
+# on_fail hook runs when build fails
+chmod 755 fake-llm
+! exec ko agent build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+# Verify on_fail ran (created marker file)
+exists fail_marker
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Fail hook test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+on_fail:
+  - touch fail_marker
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "no json here, should fail disposition extraction"

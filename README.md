@@ -269,6 +269,8 @@ on_close:
 
 - **`on_succeed`** runs after all workflows pass, before the ticket is closed.
   Available env: `$TICKET_ID`, `$CHANGED_FILES`, `$KO_TICKET_WORKSPACE`.
+- **`on_fail`** runs when a build fails (worktree cleanup, reset state, etc.).
+  Best-effort — errors are not propagated. Same env vars available.
 - **`on_close`** runs after the ticket is closed. Safe for deploys — if the
   hook kills the process, the ticket is already closed.
 
