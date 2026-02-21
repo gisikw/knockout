@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,6 +49,11 @@ Commands:
 // agentPidPath returns the path to .ko/agent.pid for the given tickets dir.
 func agentPidPath(ticketsDir string) string {
 	return filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.pid")
+}
+
+// agentLogPath returns the path to .ko/agent.log for the given tickets dir.
+func agentLogPath(ticketsDir string) string {
+	return filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.log")
 }
 
 // readAgentPid reads the PID from the agent.pid file.
@@ -100,27 +106,35 @@ func cmdAgentStart(args []string) int {
 		return 1
 	}
 
+	logPath := agentLogPath(ticketsDir)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent start: cannot open log file: %v\n", err)
+		return 1
+	}
+
 	loopArgs := append([]string{"agent", "loop"}, args...)
 	cmd := exec.Command(self, loopArgs...)
 	cmd.Dir = ProjectRoot(ticketsDir)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	if err := cmd.Start(); err != nil {
+		logFile.Close()
 		fmt.Fprintf(os.Stderr, "ko agent start: %v\n", err)
 		return 1
 	}
+	logFile.Close() // parent doesn't need the fd after fork
 
 	// Write PID file
 	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent start: failed to write pid file: %v\n", err)
-		// Kill the child since we can't track it
 		cmd.Process.Kill()
 		return 1
 	}
 
-	fmt.Printf("agent started (pid %d)\n", cmd.Process.Pid)
+	fmt.Printf("agent started (pid %d), logging to %s\n", cmd.Process.Pid, logPath)
 	return 0
 }
 
@@ -176,9 +190,31 @@ func cmdAgentStatus(args []string) int {
 
 	if isProcessAlive(pid) {
 		fmt.Printf("running (pid %d)\n", pid)
+		logPath := agentLogPath(ticketsDir)
+		if last := lastLogLine(logPath); last != "" {
+			fmt.Printf("  last: %s\n", last)
+		}
 	} else {
 		os.Remove(pidPath)
 		fmt.Println("not running (stale pid file removed)")
 	}
 	return 0
+}
+
+// lastLogLine returns the last non-empty line from the log file.
+func lastLogLine(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	var last string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if line := strings.TrimSpace(scanner.Text()); line != "" {
+			last = line
+		}
+	}
+	return last
 }

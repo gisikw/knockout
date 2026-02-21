@@ -172,12 +172,14 @@ affected ticket is removed from the ready queue and the loop continues.
 ### Agent Daemon
 
 `ko agent start` daemonizes a loop as a background process, tracking it via
-`.ko/agent.pid`. Use `ko agent stop` to terminate and `ko agent status` to check.
+`.ko/agent.pid`. Output is appended to `.ko/agent.log`. Use `ko agent stop` to
+terminate and `ko agent status` to check — status includes the last log line
+for a quick read on what the agent is doing.
 
 ```bash
 ko agent start                    # background loop for current project
 ko agent start '#myapp'           # background loop for a registered project
-ko agent status                   # "running (pid 12345)" or "not running"
+ko agent status                   # "running (pid 12345)" + last log line
 ko agent stop                     # SIGTERM + cleanup
 ```
 
