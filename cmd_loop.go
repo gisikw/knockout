@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -53,9 +55,24 @@ func cmdAgentLoop(args []string) int {
 		config.MaxDuration = d
 	}
 
+	// Trap SIGTERM for graceful shutdown
+	stop := make(chan struct{})
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-sigCh
+		close(stop)
+	}()
+
 	log := OpenEventLog()
 	defer log.Close()
-	result := RunLoop(ticketsDir, p, config, log)
+	result := RunLoop(ticketsDir, p, config, log, stop)
+
+	// Graceful shutdown: reset any in_progress ticket and run on_fail hooks
+	if result.Stopped == "signal" {
+		gracefulShutdown(ticketsDir, p)
+	}
+
 	log.LoopSummary(result)
 
 	summary := fmt.Sprintf("loop complete: %d processed (%d succeeded, %d failed, %d blocked, %d decomposed)\nstopped: %s",

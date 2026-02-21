@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func cmdAgent(args []string) int {
@@ -167,6 +168,20 @@ func cmdAgentStop(args []string) int {
 	if err := proc.Signal(syscall.SIGTERM); err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent stop: failed to signal process: %v\n", err)
 		return 1
+	}
+
+	// Wait for process to exit (graceful shutdown needs time for on_fail hooks)
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if !isProcessAlive(pid) {
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+
+	if isProcessAlive(pid) {
+		fmt.Fprintf(os.Stderr, "ko agent stop: process %d did not exit after 30s, sending SIGKILL\n", pid)
+		proc.Signal(syscall.SIGKILL)
 	}
 
 	os.Remove(pidPath)

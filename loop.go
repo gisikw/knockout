@@ -61,7 +61,9 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 
 // RunLoop burns down the ready queue, building one ticket at a time.
 // Sets KO_NO_CREATE to prevent spawned agents from creating tickets.
-func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger) LoopResult {
+// If stop is non-nil, the loop checks it between builds and exits with
+// "signal" when closed.
+func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger, stop <-chan struct{}) LoopResult {
 	os.Setenv("KO_NO_CREATE", "1")
 	defer os.Unsetenv("KO_NO_CREATE")
 
@@ -69,6 +71,16 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 	result := LoopResult{}
 
 	for {
+		// Check for stop signal
+		if stop != nil {
+			select {
+			case <-stop:
+				result.Stopped = "signal"
+				return result
+			default:
+			}
+		}
+
 		// Check limits
 		if ok, reason := config.ShouldContinue(result.Processed, time.Since(start)); !ok {
 			result.Stopped = reason

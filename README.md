@@ -185,6 +185,11 @@ ko agent stop                     # SIGTERM + cleanup
 
 Stale PID files (process died) are automatically cleaned up on `start` and `status`.
 
+`ko agent stop` sends SIGTERM and waits up to 30 seconds for the loop to
+finish gracefully. On shutdown, any in-progress ticket is reset to `open`
+and `on_fail` hooks run (worktree cleanup). If the process doesn't exit
+within 30 seconds, SIGKILL is sent.
+
 ### Project Registry
 
 Register projects for cross-project routing:

@@ -607,6 +607,30 @@ func outcomeString(o Outcome) string {
 	}
 }
 
+// gracefulShutdown finds any in_progress ticket, runs on_fail hooks, and
+// resets it to open. Called when the loop receives SIGTERM.
+func gracefulShutdown(ticketsDir string, p *Pipeline) {
+	tickets, err := ListTickets(ticketsDir)
+	if err != nil {
+		return
+	}
+	for _, t := range tickets {
+		if t.Status != "in_progress" {
+			continue
+		}
+		fmt.Printf("graceful shutdown: resetting %s to open\n", t.ID)
+
+		// Best-effort on_fail hooks — build dir may not exist for a clean
+		// workspace path, but hooks that only need $TICKET_ID still work.
+		projectRoot := ProjectRoot(ticketsDir)
+		runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot)
+
+		t.Status = "open"
+		AddNote(t, "ko: reset to open (graceful shutdown)")
+		SaveTicket(ticketsDir, t)
+	}
+}
+
 // contains checks if a slice contains a string.
 func contains(ss []string, s string) bool {
 	for _, v := range ss {
