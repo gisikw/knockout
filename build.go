@@ -135,12 +135,13 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 			return OutcomeFail, nil
 		}
 
-		// Resolve model: node > workflow > pipeline
+		// Resolve overrides: node > workflow > pipeline
 		model := resolveModel(p, wf, node)
+		allowAll := resolveAllowAll(p, wf, node)
 
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, wsDir, wfName, verbose)
+		output, err := runNode(ticketsDir, t, p, node, model, allowAll, wsDir, wfName, verbose)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
@@ -184,7 +185,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir, wfName string, verbose bool) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, wfName string, verbose bool) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -192,7 +193,7 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir
 		var err error
 
 		if node.IsPromptNode() {
-			output, err = runPromptNode(ticketsDir, t, p, node, model, wsDir, wfName, verbose)
+			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, wsDir, wfName, verbose)
 		} else if node.IsRunNode() {
 			output, err = runRunNode(node, wsDir, wfName, verbose)
 		} else {
@@ -314,7 +315,7 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 }
 
 // runPromptNode invokes the configured command with ticket context.
-func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model, wsDir, wfName string, verbose bool) (string, error) {
+func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, wfName string, verbose bool) (string, error) {
 	promptContent, err := LoadPromptFile(ticketsDir, node.Prompt)
 	if err != nil {
 		return "", err
@@ -342,7 +343,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model,
 	}
 
 	adapter := p.Adapter()
-	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, p.AllowAll)
+	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, allowAll)
 	cmd.Env = append(os.Environ(), "KO_TICKET_WORKSPACE="+wsDir)
 
 	if verbose {
@@ -455,6 +456,18 @@ func resolveModel(p *Pipeline, wf *Workflow, node *Node) string {
 		return wf.Model
 	}
 	return p.Model
+}
+
+// resolveAllowAll returns the most specific allow_all_tool_calls override.
+// Precedence: node > workflow > pipeline.
+func resolveAllowAll(p *Pipeline, wf *Workflow, node *Node) bool {
+	if node.AllowAll != nil {
+		return *node.AllowAll
+	}
+	if wf.AllowAll != nil {
+		return *wf.AllowAll
+	}
+	return p.AllowAll
 }
 
 // applyFailOutcome marks a ticket as blocked with a failure note.

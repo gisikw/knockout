@@ -17,6 +17,7 @@ type Node struct {
 	Prompt    string   // prompt file reference (mutually exclusive with Run)
 	Run       string   // shell command (mutually exclusive with Prompt)
 	Model     string   // optional model override
+	AllowAll  *bool    // per-node allow_all_tool_calls override (nil = inherit)
 	Routes    []string // workflows this decision node can route to
 	MaxVisits int      // max times this node can be entered per build (default: 1)
 }
@@ -33,9 +34,10 @@ func (n *Node) IsRunNode() bool {
 
 // Workflow is a named sequence of nodes.
 type Workflow struct {
-	Name  string // workflow identifier
-	Model string // optional model override for all nodes in this workflow
-	Nodes []Node // ordered list of nodes
+	Name     string // workflow identifier
+	Model    string // optional model override for all nodes in this workflow
+	AllowAll *bool  // per-workflow allow_all_tool_calls override (nil = inherit)
+	Nodes    []Node // ordered list of nodes
 }
 
 // ValidateWorkflows checks the workflow graph for structural errors.

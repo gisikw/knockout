@@ -147,8 +147,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				if !ok {
 					continue
 				}
-				if key == "model" {
+				switch key {
+				case "model":
 					currentWF.Model = val
+				case "allow_all_tool_calls":
+					v := val == "true"
+					currentWF.AllowAll = &v
 				}
 
 			case strings.HasPrefix(trimmed, "- name:") && currentWF != nil:
@@ -180,6 +184,9 @@ func ParsePipeline(content string) (*Pipeline, error) {
 					currentNode.Run = val
 				case "model":
 					currentNode.Model = val
+				case "allow_all_tool_calls":
+					v := val == "true"
+					currentNode.AllowAll = &v
 				case "max_visits":
 					fmt.Sscanf(val, "%d", &currentNode.MaxVisits)
 				case "routes":

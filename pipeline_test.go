@@ -258,6 +258,90 @@ workflows:
 	}
 }
 
+func TestParsePipelinePerNodeAllowAll(t *testing.T) {
+	config := `
+allow_all_tool_calls: true
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+      allow_all_tool_calls: false
+      routes: [feature]
+  feature:
+    allow_all_tool_calls: false
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: review
+      type: action
+      prompt: review.md
+      allow_all_tool_calls: true
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	if !p.AllowAll {
+		t.Error("pipeline AllowAll = false, want true")
+	}
+
+	// Node-level override: triage explicitly false
+	triage := p.Workflows["main"].Nodes[0]
+	if triage.AllowAll == nil || *triage.AllowAll != false {
+		t.Errorf("triage.AllowAll = %v, want false", triage.AllowAll)
+	}
+	if resolveAllowAll(p, p.Workflows["main"], &triage) != false {
+		t.Error("resolveAllowAll(triage) = true, want false")
+	}
+
+	// Workflow-level override: feature workflow false
+	featureWF := p.Workflows["feature"]
+	if featureWF.AllowAll == nil || *featureWF.AllowAll != false {
+		t.Errorf("feature.AllowAll = %v, want false", featureWF.AllowAll)
+	}
+
+	// implement inherits from workflow (false)
+	implement := featureWF.Nodes[0]
+	if implement.AllowAll != nil {
+		t.Errorf("implement.AllowAll = %v, want nil (inherit)", implement.AllowAll)
+	}
+	if resolveAllowAll(p, featureWF, &implement) != false {
+		t.Error("resolveAllowAll(implement) = true, want false (inherits from workflow)")
+	}
+
+	// review has node-level override to true
+	review := featureWF.Nodes[1]
+	if review.AllowAll == nil || *review.AllowAll != true {
+		t.Errorf("review.AllowAll = %v, want true", review.AllowAll)
+	}
+	if resolveAllowAll(p, featureWF, &review) != true {
+		t.Error("resolveAllowAll(review) = false, want true (node overrides workflow)")
+	}
+}
+
+func TestResolveAllowAllInheritsPipeline(t *testing.T) {
+	config := `
+allow_all_tool_calls: true
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	wf := p.Workflows["main"]
+	node := wf.Nodes[0]
+	if resolveAllowAll(p, wf, &node) != true {
+		t.Error("resolveAllowAll should inherit pipeline-level true")
+	}
+}
+
 func TestParsePipelineValidationErrors(t *testing.T) {
 	tests := []struct {
 		name   string
