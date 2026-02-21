@@ -196,6 +196,12 @@ func cmdAgentStatus(args []string) int {
 		return 1
 	}
 
+	// Check if pipeline config exists
+	if _, err := FindPipelineConfig(ticketsDir); err != nil {
+		fmt.Println("not provisioned (no .ko/pipeline.yml)")
+		return 0
+	}
+
 	pidPath := agentPidPath(ticketsDir)
 	pid, err := readAgentPid(pidPath)
 	if err != nil {
