@@ -37,9 +37,12 @@ Commands:
 
   init <prefix>      Initialize project with ticket prefix
 
-  build <id>         Run build pipeline against ticket
-  build-init         Initialize pipeline config in current project
-  loop               Build all ready tickets until queue is empty
+  agent build <id>   Run build pipeline against a single ticket
+  agent loop         Build all ready tickets until queue is empty
+  agent init         Initialize pipeline config in current project
+  agent start        Daemonize a loop (background agent)
+  agent stop         Stop a running background agent
+  agent status       Check if an agent is running
 
   add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry
@@ -93,7 +96,7 @@ of its priority tier without changing its content.
 
 ### Build Pipeline
 
-`ko build <ticket-id>` runs a workflow-based pipeline against a ticket. The
+`ko agent build <ticket-id>` runs a workflow-based pipeline against a ticket. The
 pipeline config lives in `.ko/pipeline.yml` and declares named **workflows**
 containing typed **nodes**. Every ticket enters the `main` workflow.
 
@@ -143,14 +146,14 @@ is available to all nodes and hooks as `$KO_TICKET_WORKSPACE`.
 
 ### Build Loop
 
-`ko loop` burns down the entire ready queue without human intervention. It
+`ko agent loop` burns down the entire ready queue without human intervention. It
 builds one ticket at a time, re-querying after each build so that newly
 unblocked tickets (from closed deps or decomposition) get picked up.
 
 ```bash
-ko loop                    # run until queue is empty
-ko loop --max-tickets 5    # stop after 5 tickets
-ko loop --max-duration 30m # stop after 30 minutes
+ko agent loop                    # run until queue is empty
+ko agent loop --max-tickets 5    # stop after 5 tickets
+ko agent loop --max-duration 30m # stop after 30 minutes
 ```
 
 **Scope containment:** During a loop, `ko create` and `ko add` are disabled
@@ -165,6 +168,20 @@ The loop stops when:
 
 Outcome signals (FAIL, BLOCKED, DECOMPOSE) do **not** stop the loop — the
 affected ticket is removed from the ready queue and the loop continues.
+
+### Agent Daemon
+
+`ko agent start` daemonizes a loop as a background process, tracking it via
+`.ko/agent.pid`. Use `ko agent stop` to terminate and `ko agent status` to check.
+
+```bash
+ko agent start                    # background loop for current project
+ko agent start '#myapp'           # background loop for a registered project
+ko agent status                   # "running (pid 12345)" or "not running"
+ko agent stop                     # SIGTERM + cleanup
+```
+
+Stale PID files (process died) are automatically cleaned up on `start` and `status`.
 
 ### Project Registry
 
@@ -182,7 +199,7 @@ Registry lives at `~/.config/knockout/projects.yml`.
 ## Pipeline Configuration
 
 Pipeline config lives in `.ko/pipeline.yml`, prompts in `.ko/prompts/`.
-Run `ko build-init` to scaffold a starter pipeline, or see `examples/` for
+Run `ko agent init` to scaffold a starter pipeline, or see `examples/` for
 templates.
 
 ```yaml

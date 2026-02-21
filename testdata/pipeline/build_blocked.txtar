@@ -1,6 +1,6 @@
 # BLOCKED: decision node returns blocked disposition, dependency wired
 chmod 755 fake-llm
-! exec ko build ko-a001
+! exec ko agent build ko-a001
 exec ko show ko-a001
 stdout 'deps:.*ko-b002'
 stdout 'BLOCKED'

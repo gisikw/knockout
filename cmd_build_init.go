@@ -6,12 +6,18 @@ import (
 	"path/filepath"
 )
 
-func cmdBuildInit(args []string) int {
-	// Find project root via .tickets dir, or use cwd if no .tickets yet
-	projectRoot, err := findProjectRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build-init: %v\n", err)
-		return 1
+func cmdAgentInit(args []string) int {
+	// Resolve project from #tag or fall back to local project root
+	var projectRoot string
+	ticketsDir, _, err := resolveProjectTicketsDir(args)
+	if err == nil {
+		projectRoot = ProjectRoot(ticketsDir)
+	} else {
+		projectRoot, err = findProjectRoot()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
+			return 1
+		}
 	}
 
 	koDir := filepath.Join(projectRoot, ".ko")
@@ -19,19 +25,19 @@ func cmdBuildInit(args []string) int {
 
 	// Don't overwrite existing config
 	if _, err := os.Stat(configPath); err == nil {
-		fmt.Fprintf(os.Stderr, "ko build-init: %s already exists\n", configPath)
+		fmt.Fprintf(os.Stderr, "ko agent init: %s already exists\n", configPath)
 		return 1
 	}
 
 	promptsDir := filepath.Join(koDir, "prompts")
 	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "ko build-init: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
 		return 1
 	}
 
 	// Write pipeline config
 	if err := os.WriteFile(configPath, []byte(defaultPipelineYML), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "ko build-init: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
 		return 1
 	}
 
@@ -44,7 +50,7 @@ func cmdBuildInit(args []string) int {
 	for name, content := range prompts {
 		path := filepath.Join(promptsDir, name)
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "ko build-init: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
 			return 1
 		}
 	}

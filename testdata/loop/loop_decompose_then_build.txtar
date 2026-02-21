@@ -1,7 +1,7 @@
 # Loop decomposes a ticket, then builds the children, completing the full graph
 chmod 755 fake-llm
 
-exec ko loop
+exec ko agent loop
 # Parent should decompose first
 stdout 'loop: building ko-a001'
 stdout 'ko-a001 DECOMPOSE'

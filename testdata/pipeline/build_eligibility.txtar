@@ -1,19 +1,19 @@
 # Only open tickets can be built
 
 # in_progress: not eligible
-! exec ko build ko-inprog
+! exec ko agent build ko-inprog
 stderr 'not eligible'
 
 # closed: not eligible
-! exec ko build ko-closed
+! exec ko agent build ko-closed
 stderr 'already closed'
 
 # blocked: not eligible
-! exec ko build ko-blocked
+! exec ko agent build ko-blocked
 stderr 'blocked'
 
 # unresolved deps: not eligible
-! exec ko build ko-deps
+! exec ko agent build ko-deps
 stderr 'unresolved dependencies'
 
 -- .ko/tickets/ko-inprog.md --

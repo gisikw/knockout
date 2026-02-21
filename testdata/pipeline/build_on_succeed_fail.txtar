@@ -1,6 +1,6 @@
 # on_succeed failure prevents ticket close
 chmod 755 fake-llm
-! exec ko build ko-a001
+! exec ko agent build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
 stdout 'on_succeed failed'

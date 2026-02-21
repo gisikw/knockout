@@ -1,5 +1,5 @@
 # Run action node failure blocks the ticket
-! exec ko build ko-a001
+! exec ko agent build ko-a001
 exec ko show ko-a001
 stdout 'status: blocked'
 stdout 'FAIL'

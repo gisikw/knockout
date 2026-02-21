@@ -57,14 +57,10 @@ func run(args []string) int {
 		return cmdBump(rest)
 	case "query":
 		return cmdQuery(rest)
-	case "build":
-		return cmdBuild(rest)
+	case "agent":
+		return cmdAgent(rest)
 	case "init":
 		return cmdInit(rest)
-	case "build-init":
-		return cmdBuildInit(rest)
-	case "loop":
-		return cmdLoop(rest)
 	case "add":
 		return cmdCreate(rest)
 	case "clear":
@@ -148,9 +144,12 @@ Commands:
 
   init <prefix>      Initialize project with ticket prefix
 
-  build <id>         Run build pipeline against ticket
-  build-init         Initialize pipeline config in current project
-  loop               Build all ready tickets until queue is empty
+  agent build <id>   Run build pipeline against a single ticket
+  agent loop         Build all ready tickets until queue is empty
+  agent init         Initialize pipeline config in current project
+  agent start        Daemonize a loop (background agent)
+  agent stop         Stop a running background agent
+  agent status       Check if an agent is running
 
   register #<tag>    Register current project in the global registry
   default [#<tag>]   Show or set the default project for routing

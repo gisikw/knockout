@@ -1,5 +1,5 @@
 # Loop with no ready tickets exits immediately
-exec ko loop
+exec ko agent loop
 stdout 'stopped: empty'
 stdout '0 processed'
 

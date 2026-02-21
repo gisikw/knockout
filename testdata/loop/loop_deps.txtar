@@ -1,6 +1,6 @@
 # Loop respects dependency ordering — builds unblocked first
 chmod 755 fake-llm
-exec ko loop
+exec ko agent loop
 stdout 'loop: building ko-a001'
 stdout 'ko-a001 SUCCEED'
 stdout 'loop: building ko-b002'

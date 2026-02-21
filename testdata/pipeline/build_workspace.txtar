@@ -1,6 +1,6 @@
 # Workspace: stage outputs tee'd to workspace directory
 chmod 755 fake-llm
-exec ko build ko-a001
+exec ko agent build ko-a001
 stdout 'SUCCEED'
 # The on_succeed hook reads from the workspace to prove it exists
 exec cat ws_verify.txt

@@ -1,5 +1,5 @@
 # Missing pipeline config is a fatal error
-! exec ko build ko-a001
+! exec ko agent build ko-a001
 stderr 'no pipeline config found'
 
 -- .ko/tickets/ko-a001.md --

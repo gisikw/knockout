@@ -1,6 +1,6 @@
 # A FAIL outcome doesn't stop the loop — it marks the ticket blocked and continues
 chmod 755 fake-llm
-exec ko loop
+exec ko agent loop
 stdout 'ko-a001 FAIL'
 stdout 'ko-b002 SUCCEED'
 stdout '2 processed'

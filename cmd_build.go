@@ -6,10 +6,10 @@ import (
 	"os"
 )
 
-func cmdBuild(args []string) int {
+func cmdAgentBuild(args []string) int {
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
@@ -21,46 +21,46 @@ func cmdBuild(args []string) int {
 	fs.BoolVar(verbose, "v", false, "stream full agent output to stdout")
 
 	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
 	if fs.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "ko build: ticket ID required")
+		fmt.Fprintln(os.Stderr, "ko agent build: ticket ID required")
 		return 1
 	}
 
 	// Resolve ticket ID
 	id, err := ResolveID(ticketsDir, fs.Arg(0))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
 	// Load ticket
 	t, err := LoadTicket(ticketsDir, id)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
 	// Check eligibility
 	depsResolved := AllDepsResolved(ticketsDir, t.Deps)
 	if msg := BuildEligibility(t, depsResolved); msg != "" {
-		fmt.Fprintf(os.Stderr, "ko build: %s\n", msg)
+		fmt.Fprintf(os.Stderr, "ko agent build: %s\n", msg)
 		return 1
 	}
 
 	// Load pipeline config
 	configPath, err := FindPipelineConfig(ticketsDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
 	p, err := LoadPipeline(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 
@@ -69,7 +69,7 @@ func cmdBuild(args []string) int {
 	defer log.Close()
 	outcome, err := RunBuild(ticketsDir, t, p, log, *verbose)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko build: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1
 	}
 

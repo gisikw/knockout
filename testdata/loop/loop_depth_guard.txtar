@@ -1,7 +1,7 @@
 # Loop handles depth guard: decompose denied at max depth marks ticket blocked, loop continues
 chmod 755 fake-llm
 
-exec ko loop
+exec ko agent loop
 # The deep ticket should hit the depth guard and get blocked
 stdout 'ko-a001.b002.c003 FAIL'
 # The shallow ticket should succeed normally

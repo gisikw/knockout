@@ -1,6 +1,6 @@
 # CHANGED_FILES: tracks files modified during build and passes to hooks
 chmod 755 fake-llm
-exec ko build ko-a001
+exec ko agent build ko-a001
 stdout 'SUCCEED'
 
 # Verify the on_succeed hook received CHANGED_FILES

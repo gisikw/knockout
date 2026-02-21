@@ -17,7 +17,7 @@ func TestCmdBuildInit_createsFiles(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(orig)
 
-	code := cmdBuildInit(nil)
+	code := cmdAgentInit(nil)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
@@ -56,7 +56,7 @@ func TestCmdBuildInit_refusesOverwrite(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(orig)
 
-	code := cmdBuildInit(nil)
+	code := cmdAgentInit(nil)
 	if code != 1 {
 		t.Fatalf("expected exit 1 (already exists), got %d", code)
 	}
@@ -76,7 +76,7 @@ func TestCmdBuildInit_worksWithoutTicketsDir(t *testing.T) {
 	os.Chdir(dir)
 	defer os.Chdir(orig)
 
-	code := cmdBuildInit(nil)
+	code := cmdAgentInit(nil)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}

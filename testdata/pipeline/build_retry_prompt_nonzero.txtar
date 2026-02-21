@@ -1,7 +1,7 @@
 # Action node that exits non-zero gets retried
 # fake-llm fails on first call, succeeds on second
 chmod 755 fake-llm
-exec ko build ko-a001
+exec ko agent build ko-a001
 stdout 'SUCCEED'
 exec ko show ko-a001
 stdout 'status: closed'

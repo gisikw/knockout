@@ -1,6 +1,6 @@
 # Loop processes all ready tickets to completion
 chmod 755 fake-llm
-exec ko loop
+exec ko agent loop
 stdout 'SUCCEED'
 stdout '2 processed'
 stdout '2 succeeded'

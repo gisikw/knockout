@@ -1,6 +1,6 @@
 # Lifecycle hooks: on_succeed runs before close, on_close runs after
 chmod 755 fake-llm
-exec ko build ko-a001
+exec ko agent build ko-a001
 exec ko show ko-a001
 stdout 'status: closed'
 # Verify on_succeed ran (created marker file)

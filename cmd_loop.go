@@ -7,12 +7,18 @@ import (
 	"time"
 )
 
-func cmdLoop(args []string) int {
+func cmdAgentLoop(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
+		return 1
+	}
+
 	args = reorderArgs(args, map[string]bool{
 		"max-tickets": true, "max-duration": true,
 	})
 
-	fs := flag.NewFlagSet("loop", flag.ContinueOnError)
+	fs := flag.NewFlagSet("agent loop", flag.ContinueOnError)
 	maxTickets := fs.Int("max-tickets", 0, "max tickets to process (0 = unlimited)")
 	maxDuration := fs.String("max-duration", "", "max wall-clock duration (e.g. 30m, 2h)")
 	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
@@ -20,25 +26,19 @@ func cmdLoop(args []string) int {
 	fs.BoolVar(verbose, "v", false, "stream full agent output to stdout")
 
 	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
-		return 1
-	}
-
-	ticketsDir, err := FindTicketsDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
 	}
 
 	configPath, err := FindPipelineConfig(ticketsDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
 	}
 
 	p, err := LoadPipeline(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko loop: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
 	}
 
@@ -47,7 +47,7 @@ func cmdLoop(args []string) int {
 	if *maxDuration != "" {
 		d, err := time.ParseDuration(*maxDuration)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ko loop: invalid duration %q: %v\n", *maxDuration, err)
+			fmt.Fprintf(os.Stderr, "ko agent loop: invalid duration %q: %v\n", *maxDuration, err)
 			return 1
 		}
 		config.MaxDuration = d

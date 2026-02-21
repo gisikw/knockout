@@ -1,5 +1,5 @@
 # build-init scaffolds pipeline config and prompt files
-exec ko build-init
+exec ko agent init
 stdout 'initialized .ko/pipeline.yml'
 stdout 'triage.md'
 stdout 'implement.md'
@@ -10,7 +10,7 @@ exists .ko/prompts/implement.md
 exists .ko/prompts/review.md
 
 # Running again refuses to overwrite
-! exec ko build-init
+! exec ko agent init
 stderr 'already exists'
 
 -- .ko/tickets/ko-a001.md --

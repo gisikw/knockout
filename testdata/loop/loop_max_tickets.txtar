@@ -1,6 +1,6 @@
 # Loop stops after --max-tickets
 chmod 755 fake-llm
-exec ko loop --max-tickets 1
+exec ko agent loop --max-tickets 1
 stdout '1 processed'
 stdout 'stopped: max_tickets'
 

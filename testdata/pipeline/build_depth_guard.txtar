@@ -1,6 +1,6 @@
 # Decomposition denied at max depth
 chmod 755 fake-llm
-! exec ko build ko-a001.b002
+! exec ko agent build ko-a001.b002
 exec ko show ko-a001.b002
 stdout 'status: blocked'
 stdout 'max decomposition depth'
