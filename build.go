@@ -67,10 +67,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	}
 
 	// Mark ticket as in_progress
-	t.Status = "in_progress"
-	if err := SaveTicket(ticketsDir, t); err != nil {
-		return OutcomeFail, err
-	}
+	setStatus(ticketsDir, t, "in_progress")
 
 	// Snapshot project files before stages run
 	projectRoot := ProjectRoot(ticketsDir)
@@ -111,12 +108,9 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	}
 
 	// Close ticket
-	t.Status = "closed"
 	AddNote(t, "ko: SUCCEED")
 	log.WorkflowComplete(t.ID, "succeed")
-	if err := SaveTicket(ticketsDir, t); err != nil {
-		return OutcomeFail, err
-	}
+	setStatus(ticketsDir, t, "closed")
 
 	// Run on_close hooks (ticket already closed)
 	runHooks(ticketsDir, t, p.OnClose, buildDir, wsDir)
@@ -284,13 +278,12 @@ func applyBlockedDisposition(ticketsDir string, t *Ticket, node *Node, disp Disp
 		}
 		t.Deps = append(t.Deps, blockID)
 	}
-	t.Status = "open"
 	note := fmt.Sprintf("ko: BLOCKED at node '%s'", node.Name)
 	if disp.Reason != "" {
 		note += " — " + disp.Reason
 	}
 	AddNote(t, note)
-	SaveTicket(ticketsDir, t)
+	setStatus(ticketsDir, t, "open")
 	return OutcomeBlocked, nil
 }
 
@@ -298,9 +291,8 @@ func applyBlockedDisposition(ticketsDir string, t *Ticket, node *Node, disp Disp
 func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, disp Disposition) (Outcome, error) {
 	depth := Depth(t.ID)
 	if depth >= p.MaxDepth {
-		t.Status = "blocked"
 		AddNote(t, fmt.Sprintf("ko: DECOMPOSE denied — max decomposition depth (%d) reached", p.MaxDepth))
-		SaveTicket(ticketsDir, t)
+		setStatus(ticketsDir, t, "blocked")
 		return OutcomeFail, nil
 	}
 
@@ -315,9 +307,8 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 	}
 
 	t.Deps = append(t.Deps, childIDs...)
-	t.Status = "open"
 	AddNote(t, fmt.Sprintf("ko: DECOMPOSE — created %d children: %s", len(childIDs), strings.Join(childIDs, ", ")))
-	SaveTicket(ticketsDir, t)
+	setStatus(ticketsDir, t, "open")
 
 	return OutcomeDecompose, nil
 }
@@ -478,15 +469,25 @@ func resolveAllowAll(p *Pipeline, wf *Workflow, node *Node) bool {
 	return p.AllowAll
 }
 
+// setStatus changes a ticket's status, saves it, and emits a mutation event.
+func setStatus(ticketsDir string, t *Ticket, newStatus string) {
+	from := t.Status
+	t.Status = newStatus
+	SaveTicket(ticketsDir, t)
+	EmitMutationEvent(ticketsDir, t.ID, "status", map[string]interface{}{
+		"from": from,
+		"to":   newStatus,
+	})
+}
+
 // applyFailOutcome marks a ticket as blocked with a failure note.
 func applyFailOutcome(ticketsDir string, t *Ticket, nodeName, reason string) {
-	t.Status = "blocked"
 	note := fmt.Sprintf("ko: FAIL at node '%s'", nodeName)
 	if reason != "" {
 		note += " — " + reason
 	}
 	AddNote(t, note)
-	SaveTicket(ticketsDir, t)
+	setStatus(ticketsDir, t, "blocked")
 }
 
 // runHooks executes a list of shell commands with env vars set.
@@ -625,9 +626,8 @@ func gracefulShutdown(ticketsDir string, p *Pipeline) {
 		projectRoot := ProjectRoot(ticketsDir)
 		runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot)
 
-		t.Status = "open"
 		AddNote(t, "ko: reset to open (graceful shutdown)")
-		SaveTicket(ticketsDir, t)
+		setStatus(ticketsDir, t, "open")
 	}
 }
 
