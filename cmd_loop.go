@@ -5,9 +5,33 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
+
+// agentLockPath returns the path to .ko/agent.lock for the given tickets dir.
+func agentLockPath(ticketsDir string) string {
+	return filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.lock")
+}
+
+// acquireAgentLock tries to get an exclusive flock on .ko/agent.lock.
+// Returns the lock file (caller must defer Close) or an error if another
+// agent loop already holds it. The lock is released automatically on
+// process exit, including SIGKILL.
+func acquireAgentLock(ticketsDir string) (*os.File, error) {
+	lockPath := agentLockPath(ticketsDir)
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open lock file: %v", err)
+	}
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		f.Close()
+		return nil, fmt.Errorf("another agent loop is already running")
+	}
+	return f, nil
+}
 
 func cmdAgentLoop(args []string) int {
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
@@ -15,6 +39,14 @@ func cmdAgentLoop(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
 	}
+
+	// Acquire exclusive lock — only one loop per project
+	lockFile, err := acquireAgentLock(ticketsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
+		return 1
+	}
+	defer lockFile.Close()
 
 	args = reorderArgs(args, map[string]bool{
 		"max-tickets": true, "max-duration": true,
@@ -64,14 +96,18 @@ func cmdAgentLoop(args []string) int {
 		close(stop)
 	}()
 
+	// On any exit (panic, signal, normal), reset in_progress tickets and
+	// run on_fail hooks so tickets don't get stuck.
+	defer cleanupAfterStop(ticketsDir, p)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "loop: panic: %v\n", r)
+		}
+	}()
+
 	log := OpenEventLog()
 	defer log.Close()
 	result := RunLoop(ticketsDir, p, config, log, stop)
-
-	// Graceful shutdown: reset any in_progress ticket and run on_fail hooks
-	if result.Stopped == "signal" {
-		gracefulShutdown(ticketsDir, p)
-	}
 
 	log.LoopSummary(result)
 

@@ -380,14 +380,34 @@ func SortByPriorityThenID(tickets []*Ticket) {
 	})
 }
 
-// SortByPriorityThenModified sorts tickets by priority (ascending) then ModTime (descending, newest first).
+// SortByPriorityThenModified sorts tickets by priority (ascending),
+// then status (open before blocked), then ModTime (descending, newest first).
 func SortByPriorityThenModified(tickets []*Ticket) {
 	sort.Slice(tickets, func(i, j int) bool {
 		if tickets[i].Priority != tickets[j].Priority {
 			return tickets[i].Priority < tickets[j].Priority
 		}
+		oi := statusOrder(tickets[i].Status)
+		oj := statusOrder(tickets[j].Status)
+		if oi != oj {
+			return oi < oj
+		}
 		return tickets[i].ModTime.After(tickets[j].ModTime)
 	})
+}
+
+// statusOrder returns a sort rank: in_progress < open < everything else < closed.
+func statusOrder(status string) int {
+	switch status {
+	case "in_progress":
+		return 0
+	case "open":
+		return 1
+	case "closed":
+		return 3
+	default:
+		return 2
+	}
 }
 
 // AllDepsResolved checks if all deps of a ticket are closed.

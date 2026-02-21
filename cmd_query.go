@@ -34,6 +34,7 @@ func cmdQuery(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko query: %v\n", err)
 		return 1
 	}
+	SortByPriorityThenModified(tickets)
 
 	enc := json.NewEncoder(os.Stdout)
 	for _, t := range tickets {

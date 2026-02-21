@@ -180,15 +180,13 @@ for a quick read on what the agent is doing.
 ko agent start                    # background loop for current project
 ko agent start '#myapp'           # background loop for a registered project
 ko agent status                   # "running (pid 12345)" + last log line
-ko agent stop                     # SIGTERM + cleanup
+ko agent stop                     # kill + cleanup
 ```
 
 Stale PID files (process died) are automatically cleaned up on `start` and `status`.
 
-`ko agent stop` sends SIGTERM and waits up to 30 seconds for the loop to
-finish gracefully. On shutdown, any in-progress ticket is reset to `open`
-and `on_fail` hooks run (worktree cleanup). If the process doesn't exit
-within 30 seconds, SIGKILL is sent.
+`ko agent stop` kills the agent process immediately (SIGKILL), then resets
+any in-progress ticket to `open` and runs `on_fail` hooks (worktree cleanup).
 
 ### Project Registry
 

@@ -67,6 +67,7 @@ func cmdLs(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
+	SortByPriorityThenModified(tickets)
 
 	for _, t := range tickets {
 		if *statusFilter != "" && t.Status != *statusFilter {

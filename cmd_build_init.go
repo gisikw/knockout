@@ -35,6 +35,14 @@ func cmdAgentInit(args []string) int {
 		return 1
 	}
 
+	// Ensure builds dir is gitignored
+	buildsDir := filepath.Join(koDir, "builds")
+	if err := os.MkdirAll(buildsDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
+		return 1
+	}
+	os.WriteFile(filepath.Join(buildsDir, ".gitignore"), []byte("*\n!.gitignore\n"), 0644)
+
 	// Write pipeline config
 	if err := os.WriteFile(configPath, []byte(defaultPipelineYML), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)

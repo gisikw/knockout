@@ -55,6 +55,12 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 
 // RunBuild executes the full build pipeline for a ticket.
 func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbose bool) (Outcome, error) {
+	// Gate: re-check eligibility in case status changed since queue was read
+	depsResolved := AllDepsResolved(ticketsDir, t.Deps)
+	if msg := BuildEligibility(t, depsResolved); msg != "" {
+		return OutcomeFail, fmt.Errorf("%s", msg)
+	}
+
 	buildDir := createBuildDir(ticketsDir, t.ID)
 
 	// Save ticket snapshot
@@ -100,19 +106,23 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// Compute changed files
 	writeChangedFiles(buildDir, projectRoot, beforeSnapshot)
 
-	// All workflows passed — run on_succeed hooks
-	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir); err != nil {
-		applyFailOutcome(ticketsDir, t, "on_succeed", "on_succeed failed: "+err.Error())
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
-		return OutcomeFail, fmt.Errorf("on_succeed failed")
-	}
-
-	// Close ticket
+	// Close ticket first — if the process is killed during on_succeed hooks,
+	// the ticket should stay closed rather than being reset to open with
+	// committed but untracked changes.
 	AddNote(t, "ko: SUCCEED")
 	log.WorkflowComplete(t.ID, "succeed")
 	setStatus(ticketsDir, t, "closed")
 
-	// Run on_close hooks (ticket already closed)
+	// Run on_succeed hooks (ticket already closed)
+	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir); err != nil {
+		// Reopen — the succeed hooks failed, so this isn't actually done
+		AddNote(t, fmt.Sprintf("ko: on_succeed failed — %s", err.Error()))
+		setStatus(ticketsDir, t, "blocked")
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
+		return OutcomeFail, nil
+	}
+
+	// Run on_close hooks
 	runHooks(ticketsDir, t, p.OnClose, buildDir, wsDir)
 
 	return OutcomeSucceed, nil
@@ -605,29 +615,6 @@ func outcomeString(o Outcome) string {
 		return "decompose"
 	default:
 		return "unknown"
-	}
-}
-
-// gracefulShutdown finds any in_progress ticket, runs on_fail hooks, and
-// resets it to open. Called when the loop receives SIGTERM.
-func gracefulShutdown(ticketsDir string, p *Pipeline) {
-	tickets, err := ListTickets(ticketsDir)
-	if err != nil {
-		return
-	}
-	for _, t := range tickets {
-		if t.Status != "in_progress" {
-			continue
-		}
-		fmt.Printf("graceful shutdown: resetting %s to open\n", t.ID)
-
-		// Best-effort on_fail hooks — build dir may not exist for a clean
-		// workspace path, but hooks that only need $TICKET_ID still work.
-		projectRoot := ProjectRoot(ticketsDir)
-		runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot)
-
-		AddNote(t, "ko: reset to open (graceful shutdown)")
-		setStatus(ticketsDir, t, "open")
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 func cmdAgent(args []string) int {
@@ -81,6 +80,23 @@ func isProcessAlive(pid int) bool {
 	return err == nil
 }
 
+// isAgentLocked checks whether the agent lock file is held by another process.
+func isAgentLocked(ticketsDir string) bool {
+	lockPath := filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.lock")
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		return true // lock is held
+	}
+	// We got the lock — release it, nobody is running
+	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return false
+}
+
 func cmdAgentStart(args []string) int {
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
@@ -90,7 +106,18 @@ func cmdAgentStart(args []string) int {
 
 	pidPath := agentPidPath(ticketsDir)
 
-	// Check for existing agent
+	// Check for existing agent — lock is authoritative, PID file is secondary
+	if isAgentLocked(ticketsDir) {
+		pid, _ := readAgentPid(pidPath)
+		if pid > 0 {
+			fmt.Fprintf(os.Stderr, "ko agent start: agent already running (pid %d)\n", pid)
+		} else {
+			fmt.Fprintln(os.Stderr, "ko agent start: agent already running (lock held)")
+		}
+		return 1
+	}
+
+	// Check for existing agent via PID file (belt + suspenders)
 	if pid, err := readAgentPid(pidPath); err == nil {
 		if isProcessAlive(pid) {
 			fmt.Fprintf(os.Stderr, "ko agent start: agent already running (pid %d)\n", pid)
@@ -159,34 +186,54 @@ func cmdAgentStop(args []string) int {
 		return 1
 	}
 
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent stop: %v\n", err)
-		return 1
-	}
-
-	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent stop: failed to signal process: %v\n", err)
-		return 1
-	}
-
-	// Wait for process to exit (graceful shutdown needs time for on_fail hooks)
-	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) {
-		if !isProcessAlive(pid) {
-			break
-		}
-		time.Sleep(250 * time.Millisecond)
-	}
-
-	if isProcessAlive(pid) {
-		fmt.Fprintf(os.Stderr, "ko agent stop: process %d did not exit after 30s, sending SIGKILL\n", pid)
-		proc.Signal(syscall.SIGKILL)
-	}
-
+	// Kill immediately — don't wait for the current build to finish
+	killProcessGroup(pid)
 	os.Remove(pidPath)
 	fmt.Printf("agent stopped (pid %d)\n", pid)
+
+	// Clean up: reset any in_progress ticket and run on_fail hooks
+	var p *Pipeline
+	if configPath, err := FindPipelineConfig(ticketsDir); err == nil {
+		p, _ = LoadPipeline(configPath)
+	}
+	cleanupAfterStop(ticketsDir, p)
 	return 0
+}
+
+// killProcessGroup sends SIGKILL to the process group led by pid, killing
+// the agent loop and any child processes (claude, sh hooks, etc).
+func killProcessGroup(pid int) {
+	// Try process group kill first (negative pid = kill the group)
+	syscall.Kill(-pid, syscall.SIGKILL)
+	// Also kill the process directly in case setsid didn't work
+	if proc, err := os.FindProcess(pid); err == nil {
+		proc.Kill()
+	}
+}
+
+// cleanupAfterStop finds any in_progress ticket, resets it to open,
+// and runs on_fail hooks. Called by ko agent stop after killing the process.
+// Pipeline may be nil if config couldn't be loaded — hooks are skipped but
+// ticket reset still happens.
+func cleanupAfterStop(ticketsDir string, p *Pipeline) {
+	tickets, err := ListTickets(ticketsDir)
+	if err != nil {
+		return
+	}
+	for _, t := range tickets {
+		if t.Status != "in_progress" {
+			continue
+		}
+		fmt.Printf("cleanup: resetting %s to open\n", t.ID)
+
+		if p != nil && len(p.OnFail) > 0 {
+			projectRoot := ProjectRoot(ticketsDir)
+			runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot)
+		}
+
+		AddNote(t, "ko: reset to open (agent stopped)")
+		setStatus(ticketsDir, t, "open")
+	}
 }
 
 func cmdAgentStatus(args []string) int {
@@ -205,7 +252,12 @@ func cmdAgentStatus(args []string) int {
 	pidPath := agentPidPath(ticketsDir)
 	pid, err := readAgentPid(pidPath)
 	if err != nil {
-		fmt.Println("not running")
+		// No PID file — check if a lock is held (orphaned agent)
+		if isAgentLocked(ticketsDir) {
+			fmt.Println("running (pid unknown — lock held, pid file missing)")
+		} else {
+			fmt.Println("not running")
+		}
 		return 0
 	}
 
