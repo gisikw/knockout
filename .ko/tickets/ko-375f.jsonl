@@ -1,0 +1,10 @@
+{"event":"build_start","ticket":"ko-375f","ts":"2026-02-24T20:00:56Z"}
+{"event":"workflow_start","ticket":"ko-375f","ts":"2026-02-24T20:00:56Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-375f","ts":"2026-02-24T20:00:56Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-375f","ts":"2026-02-24T20:01:03Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-375f","ts":"2026-02-24T20:01:03Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-375f","ts":"2026-02-24T20:01:03Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-375f","ts":"2026-02-24T20:03:23Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-375f","ts":"2026-02-24T20:03:23Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"fail","ticket":"ko-375f","ts":"2026-02-24T20:03:43Z","workflow":"task"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-375f","ts":"2026-02-24T20:03:43Z"}
