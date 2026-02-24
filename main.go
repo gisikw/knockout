@@ -90,6 +90,17 @@ func reorderArgs(args []string, valueFlags map[string]bool) []string {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if strings.HasPrefix(a, "-") {
+			// Detect shorthand syntax like "-p1" and transform to "-p=1"
+			// Only applies to single-dash, single-char flags with immediate values
+			if len(a) > 2 && a[0] == '-' && a[1] != '-' && !strings.Contains(a, "=") {
+				flagChar := string(a[1])
+				if valueFlags[flagChar] {
+					// Transform "-p1" to "-p=1"
+					flags = append(flags, "-"+flagChar+"="+a[2:])
+					continue
+				}
+			}
+
 			flags = append(flags, a)
 			// Check if this flag consumes the next arg as a value.
 			// Handles both "-p 0" and "--parent ko-a001" forms.

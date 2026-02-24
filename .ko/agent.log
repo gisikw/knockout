@@ -21,3 +21,9 @@ loop: ko-0a01 SUCCEED
 loop: building ko-4afc — ko blocked: surface unblock reasons for blocked tickets
 loop: ko-4afc SUCCEED
 loop: building ko-1390 — Should agent.lock and agent.pid be .gitignored? And if so, should we be writing that local gitignore on ko agent init?
+loop: ko-1390 SUCCEED
+loop: building ko-698a — Support granular tool permissions in pipeline config
+loop: ko-698a FAIL
+loop: building ko-bfc5 — JSONL append on every ticket touch and build step transition
+loop: ko-bfc5 FAIL
+loop: building ko-9f8f — Support priority flag on create: ko create -p1 "title"

@@ -33,6 +33,11 @@ Feature: Ticket Creation
     Then the command should succeed
     And the created ticket should have field "priority" with value "0"
 
+  Scenario: Create a ticket with shorthand priority flag
+    When I run "ko create 'Shorthand priority' -p1"
+    Then the command should succeed
+    And the created ticket should have field "priority" with value "1"
+
   Scenario: Create a ticket with assignee
     When I run "ko create 'Assigned ticket' -a 'John Doe'"
     Then the command should succeed
