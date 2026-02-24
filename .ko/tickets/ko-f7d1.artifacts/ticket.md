@@ -33,3 +33,7 @@ The loop retried successfully, but the retry was also invisible in the log.
 - [ ] Retries emit a `node_retry` event with the attempt number
 - [ ] Build-level errors (hook failures, etc.) emit a `build_error` event
 - [ ] The event log is a complete record — no silent gaps between events
+
+## Notes
+
+**2026-02-24 13:07:18 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field
