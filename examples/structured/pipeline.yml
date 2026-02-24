@@ -7,6 +7,7 @@
 # Research workflow: investigate → close with findings
 # Bug workflow: diagnose → assess (fixable? route to task or close with findings)
 model: claude-sonnet-4-5-20250929
+allow_all_tool_calls: true
 max_retries: 2
 max_depth: 2
 discretion: medium

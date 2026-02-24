@@ -91,8 +91,8 @@ be ticketed for remediation. No grandfathering.
   `.ko/tickets/<id>.artifacts/workspace/`. Stage outputs are tee'd to
   `<workflow>.<node>.md`. Exposed as `$KO_TICKET_WORKSPACE` (the workspace
   path) and `$KO_ARTIFACT_DIR` (the parent artifact directory). The artifact
-  directory persists across builds and is cleaned on ticket close. This
-  replaces single-stage-back output threading.
+  directory persists across builds and after ticket close. This replaces
+  single-stage-back output threading.
 - **Invalid disposition JSON is retry-eligible.** If a decision node produces
   output without a valid fenced JSON block, or the JSON doesn't parse, the
   node is retried (up to `max_retries`). Valid dispositions (even `fail`) are

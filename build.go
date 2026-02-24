@@ -60,7 +60,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		return OutcomeFail, fmt.Errorf("%s", msg)
 	}
 
-	// Ensure artifact directory exists (persists across builds, cleaned on close)
+	// Ensure artifact directory exists (persists across builds and after close)
 	artifactDir, err := EnsureArtifactDir(ticketsDir, t.ID)
 	if err != nil {
 		return OutcomeFail, fmt.Errorf("failed to create artifact directory: %v", err)
