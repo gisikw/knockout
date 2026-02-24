@@ -16,16 +16,17 @@ var Statuses = []string{"captured", "routed", "open", "in_progress", "closed", "
 
 // Ticket represents a ticket parsed from a markdown file with YAML frontmatter.
 type Ticket struct {
-	ID          string   `yaml:"id"`
-	Status      string   `yaml:"status"`
-	Deps        []string `yaml:"deps"`
-	Created     string   `yaml:"created"`
-	Type        string   `yaml:"type"`
-	Priority    int      `yaml:"priority"`
-	Assignee    string   `yaml:"assignee,omitempty"`
-	Parent      string   `yaml:"parent,omitempty"`
-	ExternalRef string   `yaml:"external-ref,omitempty"`
-	Tags        []string `yaml:"tags,omitempty"`
+	ID            string         `yaml:"id"`
+	Status        string         `yaml:"status"`
+	Deps          []string       `yaml:"deps"`
+	Created       string         `yaml:"created"`
+	Type          string         `yaml:"type"`
+	Priority      int            `yaml:"priority"`
+	Assignee      string         `yaml:"assignee,omitempty"`
+	Parent        string         `yaml:"parent,omitempty"`
+	ExternalRef   string         `yaml:"external-ref,omitempty"`
+	Tags          []string       `yaml:"tags,omitempty"`
+	PlanQuestions []PlanQuestion `yaml:"plan-questions,omitempty"`
 
 	// Title is extracted from the first markdown heading.
 	Title string `yaml:"-"`
@@ -33,6 +34,21 @@ type Ticket struct {
 	Body string `yaml:"-"`
 	// ModTime is the file modification time, populated by ListTickets/LoadTicket.
 	ModTime time.Time `yaml:"-"`
+}
+
+// PlanQuestion represents a question that needs to be answered before implementing a ticket.
+type PlanQuestion struct {
+	ID       string           `yaml:"id"`
+	Question string           `yaml:"question"`
+	Context  string           `yaml:"context,omitempty"`
+	Options  []QuestionOption `yaml:"options"`
+}
+
+// QuestionOption represents a possible answer to a plan question.
+type QuestionOption struct {
+	Label       string `yaml:"label"`
+	Value       string `yaml:"value"`
+	Description string `yaml:"description,omitempty"`
 }
 
 // ValidStatus reports whether s is a valid ticket status.
@@ -92,6 +108,24 @@ func FormatTicket(t *Ticket) string {
 	if len(t.Tags) > 0 {
 		b.WriteString(fmt.Sprintf("tags: [%s]\n", strings.Join(t.Tags, ", ")))
 	}
+	if len(t.PlanQuestions) > 0 {
+		b.WriteString("plan-questions:\n")
+		for _, q := range t.PlanQuestions {
+			b.WriteString(fmt.Sprintf("  - id: %s\n", q.ID))
+			b.WriteString(fmt.Sprintf("    question: \"%s\"\n", q.Question))
+			if q.Context != "" {
+				b.WriteString(fmt.Sprintf("    context: \"%s\"\n", q.Context))
+			}
+			b.WriteString("    options:\n")
+			for _, opt := range q.Options {
+				b.WriteString(fmt.Sprintf("      - label: \"%s\"\n", opt.Label))
+				b.WriteString(fmt.Sprintf("        value: %s\n", opt.Value))
+				if opt.Description != "" {
+					b.WriteString(fmt.Sprintf("        description: \"%s\"\n", opt.Description))
+				}
+			}
+		}
+	}
 	b.WriteString("---\n")
 	b.WriteString(fmt.Sprintf("# %s\n", t.Title))
 	if t.Body != "" {
@@ -117,7 +151,115 @@ func ParseTicket(content string) (*Ticket, error) {
 		Deps: []string{},
 	}
 
-	for _, line := range strings.Split(frontmatter, "\n") {
+	lines := strings.Split(frontmatter, "\n")
+	var inPlanQuestions bool
+	var currentQuestion *PlanQuestion
+	var currentOption *QuestionOption
+	var inOptions bool
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		indent := countIndent(line)
+
+		// Detect plan-questions section
+		if indent == 0 && trimmed == "plan-questions:" {
+			inPlanQuestions = true
+			continue
+		}
+
+		// Exit plan-questions when we hit another top-level key
+		if indent == 0 && inPlanQuestions && !strings.HasPrefix(trimmed, "-") {
+			inPlanQuestions = false
+			currentQuestion = nil
+			currentOption = nil
+			inOptions = false
+		}
+
+		if inPlanQuestions {
+			switch {
+			case indent == 2 && strings.HasPrefix(trimmed, "- "):
+				// New question item
+				if currentQuestion != nil {
+					if currentOption != nil {
+						currentQuestion.Options = append(currentQuestion.Options, *currentOption)
+						currentOption = nil
+					}
+					t.PlanQuestions = append(t.PlanQuestions, *currentQuestion)
+				}
+				currentQuestion = &PlanQuestion{}
+				inOptions = false
+				// Parse inline key-value if present (e.g., "- id: q1")
+				rest := strings.TrimPrefix(trimmed, "- ")
+				if key, val, ok := parseYAMLLine(rest); ok {
+					switch key {
+					case "id":
+						currentQuestion.ID = unquote(val)
+					case "question":
+						currentQuestion.Question = unquote(val)
+					case "context":
+						currentQuestion.Context = unquote(val)
+					}
+				}
+
+			case indent == 4 && currentQuestion != nil && !inOptions:
+				// Question properties
+				key, val, ok := parseYAMLLine(trimmed)
+				if !ok {
+					continue
+				}
+				switch key {
+				case "id":
+					currentQuestion.ID = unquote(val)
+				case "question":
+					currentQuestion.Question = unquote(val)
+				case "context":
+					currentQuestion.Context = unquote(val)
+				case "options":
+					inOptions = true
+				}
+
+			case indent == 6 && inOptions && strings.HasPrefix(trimmed, "- "):
+				// New option item
+				if currentOption != nil {
+					currentQuestion.Options = append(currentQuestion.Options, *currentOption)
+				}
+				currentOption = &QuestionOption{}
+				// Parse inline key-value if present
+				rest := strings.TrimPrefix(trimmed, "- ")
+				if key, val, ok := parseYAMLLine(rest); ok {
+					switch key {
+					case "label":
+						currentOption.Label = unquote(val)
+					case "value":
+						currentOption.Value = unquote(val)
+					case "description":
+						currentOption.Description = unquote(val)
+					}
+				}
+
+			case indent == 8 && currentOption != nil:
+				// Option properties
+				key, val, ok := parseYAMLLine(trimmed)
+				if !ok {
+					continue
+				}
+				switch key {
+				case "label":
+					currentOption.Label = unquote(val)
+				case "value":
+					currentOption.Value = unquote(val)
+				case "description":
+					currentOption.Description = unquote(val)
+				}
+			}
+			continue
+		}
+
+		// Standard frontmatter parsing
 		key, val, ok := parseYAMLLine(line)
 		if !ok {
 			continue
@@ -146,12 +288,20 @@ func ParseTicket(content string) (*Ticket, error) {
 		}
 	}
 
+	// Flush any pending question/option
+	if currentOption != nil && currentQuestion != nil {
+		currentQuestion.Options = append(currentQuestion.Options, *currentOption)
+	}
+	if currentQuestion != nil {
+		t.PlanQuestions = append(t.PlanQuestions, *currentQuestion)
+	}
+
 	// Extract title from first heading
-	lines := strings.SplitN(body, "\n", 2)
-	if len(lines) > 0 && strings.HasPrefix(lines[0], "# ") {
-		t.Title = strings.TrimPrefix(lines[0], "# ")
-		if len(lines) > 1 {
-			t.Body = lines[1]
+	bodyLines := strings.SplitN(body, "\n", 2)
+	if len(bodyLines) > 0 && strings.HasPrefix(bodyLines[0], "# ") {
+		t.Title = strings.TrimPrefix(bodyLines[0], "# ")
+		if len(bodyLines) > 1 {
+			t.Body = bodyLines[1]
 		}
 	} else {
 		t.Body = body
@@ -190,6 +340,15 @@ func parseYAMLList(s string) []string {
 		}
 	}
 	return result
+}
+
+// unquote removes surrounding quotes from a string if present.
+func unquote(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	return s
 }
 
 // TicketPath returns the file path for a ticket given the tickets directory.

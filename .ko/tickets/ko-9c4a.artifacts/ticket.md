@@ -1,6 +1,6 @@
 ---
 id: ko-9c4a
-status: closed
+status: open
 deps: []
 created: 2026-02-24T23:13:23Z
 type: task
@@ -33,7 +33,3 @@ plan-questions:
 
 Fields: `id` (required), `question` (required), `context` (optional),
 `options` (required, array of `{label, value, description?}`).
-
-## Notes
-
-**2026-02-24 23:47:37 UTC:** ko: SUCCEED

@@ -62,3 +62,5 @@ loop complete: 2 processed (1 succeeded, 1 failed, 0 blocked, 0 decomposed)
 stopped: empty
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":719.930582652,"stop_reason":"empty","succeeded":1,"tickets_processed":2,"ts":"2026-02-24T20:03:43Z"}
 loop: building ko-f7d1 — Retry transitions and build failures should emit events to the event log
+loop: ko-f7d1 SUCCEED
+loop: building ko-9c4a — Add plan-questions to frontmatter schema and ko block --questions flag

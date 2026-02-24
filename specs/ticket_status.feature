@@ -49,6 +49,48 @@ Feature: Ticket Status Management
     Then the command should succeed
     And ticket "test-0001" should have field "status" with value "blocked"
 
+  Scenario: Block with valid questions JSON
+    When I run "ko block test-0001 --questions '[{\"id\":\"q1\",\"question\":\"Which approach?\",\"options\":[{\"label\":\"Option A\",\"value\":\"a\"},{\"label\":\"Option B\",\"value\":\"b\"}]}]'"
+    Then the command should succeed
+    And ticket "test-0001" should have field "status" with value "blocked"
+    And ticket "test-0001" should have plan-questions with 1 question
+
+  Scenario: Block without questions flag
+    When I run "ko block test-0001"
+    Then the command should succeed
+    And ticket "test-0001" should have field "status" with value "blocked"
+    And ticket "test-0001" should not have plan-questions
+
+  Scenario: Block with invalid questions JSON
+    When I run "ko block test-0001 --questions 'not valid json'"
+    Then the command should fail
+    And the error should contain "invalid JSON"
+
+  Scenario: Block with questions missing required field id
+    When I run "ko block test-0001 --questions '[{\"question\":\"Test?\",\"options\":[{\"label\":\"A\",\"value\":\"a\"}]}]'"
+    Then the command should fail
+    And the error should contain "missing required field 'id'"
+
+  Scenario: Block with questions missing required field question
+    When I run "ko block test-0001 --questions '[{\"id\":\"q1\",\"options\":[{\"label\":\"A\",\"value\":\"a\"}]}]'"
+    Then the command should fail
+    And the error should contain "missing required field 'question'"
+
+  Scenario: Block with questions missing options
+    When I run "ko block test-0001 --questions '[{\"id\":\"q1\",\"question\":\"Test?\",\"options\":[]}]'"
+    Then the command should fail
+    And the error should contain "missing required field 'options'"
+
+  Scenario: Block with option missing label
+    When I run "ko block test-0001 --questions '[{\"id\":\"q1\",\"question\":\"Test?\",\"options\":[{\"value\":\"a\"}]}]'"
+    Then the command should fail
+    And the error should contain "missing required field 'label'"
+
+  Scenario: Block with option missing value
+    When I run "ko block test-0001 --questions '[{\"id\":\"q1\",\"question\":\"Test?\",\"options\":[{\"label\":\"A\"}]}]'"
+    Then the command should fail
+    And the error should contain "missing required field 'value'"
+
   Scenario: Valid statuses are a closed set
     When I run "ko status test-0001 invalid"
     Then the command should fail
