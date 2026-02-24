@@ -52,10 +52,10 @@ be ticketed for remediation. No grandfathering.
   and dep resolution require knowing where projects live. This mapping is
   explicit and lives in a config file, not inferred from directory structure.
 - **Statuses are a closed set.** `captured | routed | open | in_progress |
-  closed | blocked`. No other statuses. `ready` is a computed query (open +
-  deps resolved), not a status.
-- **`ready` never returns tickets in `captured`, `routed`, or `blocked`
-  status.** Only `open` and `in_progress` with all deps resolved.
+  closed | blocked | resolved`. No other statuses. `ready` is a computed query
+  (open + deps resolved), not a status.
+- **`ready` never returns tickets in `captured`, `routed`, `blocked`, `resolved`,
+  or `closed` status.** Only `open` and `in_progress` with all deps resolved.
 
 ## Pipeline (build subsystem)
 

@@ -2,6 +2,67 @@ package main
 
 import "testing"
 
+func TestIsReady(t *testing.T) {
+	tests := []struct {
+		name            string
+		status          string
+		allDepsResolved bool
+		want            bool
+	}{
+		{
+			name:            "open with deps resolved",
+			status:          "open",
+			allDepsResolved: true,
+			want:            true,
+		},
+		{
+			name:            "open with deps unresolved",
+			status:          "open",
+			allDepsResolved: false,
+			want:            false,
+		},
+		{
+			name:            "in_progress with deps resolved",
+			status:          "in_progress",
+			allDepsResolved: true,
+			want:            true,
+		},
+		{
+			name:            "in_progress with deps unresolved",
+			status:          "in_progress",
+			allDepsResolved: false,
+			want:            false,
+		},
+		{
+			name:            "resolved is never ready",
+			status:          "resolved",
+			allDepsResolved: true,
+			want:            false,
+		},
+		{
+			name:            "closed is never ready",
+			status:          "closed",
+			allDepsResolved: true,
+			want:            false,
+		},
+		{
+			name:            "blocked is never ready",
+			status:          "blocked",
+			allDepsResolved: true,
+			want:            false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsReady(tt.status, tt.allDepsResolved)
+			if got != tt.want {
+				t.Errorf("IsReady(%q, %v) = %v, want %v", tt.status, tt.allDepsResolved, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtractBlockReason(t *testing.T) {
 	tests := []struct {
 		name string

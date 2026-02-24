@@ -12,7 +12,7 @@ import (
 )
 
 // Statuses is the closed set of valid ticket statuses.
-var Statuses = []string{"captured", "routed", "open", "in_progress", "closed", "blocked"}
+var Statuses = []string{"captured", "routed", "open", "in_progress", "closed", "blocked", "resolved"}
 
 // Ticket represents a ticket parsed from a markdown file with YAML frontmatter.
 type Ticket struct {
@@ -63,6 +63,8 @@ func IsReady(status string, allDepsResolved bool) bool {
 	switch status {
 	case "open", "in_progress":
 		return allDepsResolved
+	case "resolved", "closed":
+		return false
 	default:
 		return false
 	}
@@ -408,7 +410,7 @@ func SortByPriorityThenModified(tickets []*Ticket) {
 	})
 }
 
-// statusOrder returns a sort rank: in_progress < open < blocked/etc < closed.
+// statusOrder returns a sort rank: in_progress < open < blocked/etc < resolved < closed.
 // Tickets with status "open" but unresolved deps are still "open" here —
 // they sort with other open tickets, not with explicitly blocked ones.
 func statusOrder(status string) int {
@@ -417,10 +419,12 @@ func statusOrder(status string) int {
 		return 0
 	case "open":
 		return 1
+	case "resolved":
+		return 2
 	case "closed":
 		return 3
 	default:
-		return 2
+		return 4
 	}
 }
 

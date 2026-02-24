@@ -397,3 +397,72 @@ func cmdClosed(args []string) int {
 	}
 	return 0
 }
+
+func cmdResolved(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko resolved: %v\n", err)
+		return 1
+	}
+
+	args = reorderArgs(args, map[string]bool{"limit": true})
+
+	fs := flag.NewFlagSet("resolved", flag.ContinueOnError)
+	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko resolved: %v\n", err)
+		return 1
+	}
+
+	tickets, err := ListTickets(ticketsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko resolved: %v\n", err)
+		return 1
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		count := 0
+		for _, t := range tickets {
+			if t.Status != "resolved" {
+				continue
+			}
+			modified := ""
+			if !t.ModTime.IsZero() {
+				modified = t.ModTime.UTC().Format(time.RFC3339)
+			}
+			j := ticketJSON{
+				ID:       t.ID,
+				Title:    t.Title,
+				Status:   t.Status,
+				Type:     t.Type,
+				Priority: t.Priority,
+				Deps:     t.Deps,
+				Created:  t.Created,
+				Modified: modified,
+				Assignee: t.Assignee,
+				Parent:   t.Parent,
+				Tags:     t.Tags,
+			}
+			enc.Encode(j)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
+		}
+	} else {
+		count := 0
+		for _, t := range tickets {
+			if t.Status != "resolved" {
+				continue
+			}
+			fmt.Printf("%s [resolved] (p%d) %s\n", t.ID, t.Priority, t.Title)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
+		}
+	}
+	return 0
+}

@@ -1,6 +1,6 @@
 ---
 id: ko-dd51
-status: open
+status: closed
 deps: []
 created: 2026-02-24T12:47:30Z
 type: task
@@ -25,3 +25,5 @@ and bug-wontfix workflows.
 ## Notes
 
 **2026-02-24 13:06:38 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field
+
+**2026-02-24 15:00:08 UTC:** ko: SUCCEED
