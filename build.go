@@ -103,14 +103,20 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		log.WorkflowComplete(t.ID, "fail")
 		hist.BuildComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
-		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
+		if hookErr := runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()); hookErr != nil {
+			log.BuildError(t.ID, "on_fail_hook", hookErr.Error())
+			hist.BuildError(t.ID, "on_fail_hook", hookErr.Error())
+		}
 		return OutcomeFail, nil
 	}
 
 	if outcome == OutcomeFail {
 		log.WorkflowComplete(t.ID, "fail")
 		hist.BuildComplete(t.ID, "fail")
-		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
+		if hookErr := runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()); hookErr != nil {
+			log.BuildError(t.ID, "on_fail_hook", hookErr.Error())
+			hist.BuildError(t.ID, "on_fail_hook", hookErr.Error())
+		}
 		return OutcomeFail, nil
 	}
 
@@ -143,6 +149,8 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	if err := runHooks(ticketsDir, t, p.OnSucceed, changedFiles, wsDir, hist.Path()); err != nil {
 		// Reopen — the succeed hooks failed, so this isn't actually done
 		AddNote(t, fmt.Sprintf("ko: on_succeed failed — %s", err.Error()))
+		log.BuildError(t.ID, "on_succeed_hook", err.Error())
+		hist.BuildError(t.ID, "on_succeed_hook", err.Error())
 		setStatus(ticketsDir, t, "blocked")
 		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
@@ -188,7 +196,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
 		hist.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, allowAll, allowedTools, timeout, wsDir, artifactDir, wfName, hist.Path(), verbose)
+		output, err := runNode(ticketsDir, t, p, node, model, allowAll, allowedTools, timeout, wsDir, artifactDir, wfName, hist.Path(), verbose, log, hist)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
@@ -233,7 +241,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, allowedTools []string, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, allowedTools []string, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool, log *EventLogger, hist *BuildHistoryLogger) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -249,7 +257,14 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string
 		}
 
 		if err != nil {
+			// Emit node_fail event with attempt number (1-indexed)
+			log.NodeFail(t.ID, wfName, node.Name, err.Error(), attempt+1)
+			hist.NodeFail(t.ID, wfName, node.Name, err.Error(), attempt+1)
+
 			if attempt+1 < maxAttempts {
+				// Emit node_retry event with next attempt number
+				log.NodeRetry(t.ID, wfName, node.Name, attempt+2)
+				hist.NodeRetry(t.ID, wfName, node.Name, attempt+2)
 				continue
 			}
 			return "", fmt.Errorf("node '%s' failed after %d attempts: %v", node.Name, maxAttempts, err)
@@ -258,7 +273,14 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string
 		// For decision nodes, validate disposition extraction
 		if node.Type == NodeDecision {
 			if _, extractErr := extractDisposition(output); extractErr != nil {
+				// Emit node_fail event with attempt number (1-indexed)
+				log.NodeFail(t.ID, wfName, node.Name, extractErr.Error(), attempt+1)
+				hist.NodeFail(t.ID, wfName, node.Name, extractErr.Error(), attempt+1)
+
 				if attempt+1 < maxAttempts {
+					// Emit node_retry event with next attempt number
+					log.NodeRetry(t.ID, wfName, node.Name, attempt+2)
+					hist.NodeRetry(t.ID, wfName, node.Name, attempt+2)
 					continue // retry on invalid disposition
 				}
 				return "", fmt.Errorf("node '%s' failed after %d attempts: %v", node.Name, maxAttempts, extractErr)

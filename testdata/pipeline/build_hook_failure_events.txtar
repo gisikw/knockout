@@ -1,0 +1,41 @@
+# on_succeed hook failure emits build_error and blocks ticket
+chmod 755 fake-llm
+! exec ko agent build ko-a001
+
+# Verify ticket is blocked (hook failed after workflow succeeded)
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'on_succeed failed'
+
+# Verify JSONL contains build_error event with stage "on_succeed_hook"
+exec grep '"event":"build_error"' .ko/tickets/ko-a001.jsonl
+stdout '"stage":"on_succeed_hook"'
+
+# Verify build_complete is "succeed" (workflow finished, ticket closed before hook ran)
+exec grep '"event":"build_complete"' .ko/tickets/ko-a001.jsonl
+stdout '"outcome":"succeed"'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Hook failure test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+on_succeed:
+  - exit 1
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

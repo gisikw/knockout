@@ -122,3 +122,36 @@ func (l *EventLogger) LoopSummary(result LoopResult) {
 		"stop_reason": result.Stopped,
 	})
 }
+
+// NodeFail logs a node execution failure with the error reason and attempt number.
+func (l *EventLogger) NodeFail(ticket, workflow, node, reason string, attempt int) {
+	l.emit(map[string]interface{}{
+		"event":    "node_fail",
+		"ticket":   ticket,
+		"workflow": workflow,
+		"node":     node,
+		"reason":   reason,
+		"attempt":  attempt,
+	})
+}
+
+// NodeRetry logs that a failed node is being retried with the next attempt number.
+func (l *EventLogger) NodeRetry(ticket, workflow, node string, attempt int) {
+	l.emit(map[string]interface{}{
+		"event":    "node_retry",
+		"ticket":   ticket,
+		"workflow": workflow,
+		"node":     node,
+		"attempt":  attempt,
+	})
+}
+
+// BuildError logs a build-level error such as hook failure.
+func (l *EventLogger) BuildError(ticket, stage, reason string) {
+	l.emit(map[string]interface{}{
+		"event":  "build_error",
+		"ticket": ticket,
+		"stage":  stage,
+		"reason": reason,
+	})
+}

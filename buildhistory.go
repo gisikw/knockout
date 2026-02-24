@@ -107,3 +107,36 @@ func (h *BuildHistoryLogger) WorkflowStart(ticket, workflow string) {
 		"workflow": workflow,
 	})
 }
+
+// NodeFail records a node execution failure with the error reason and attempt number.
+func (h *BuildHistoryLogger) NodeFail(ticket, workflow, node, reason string, attempt int) {
+	h.emit(map[string]interface{}{
+		"event":    "node_fail",
+		"ticket":   ticket,
+		"workflow": workflow,
+		"node":     node,
+		"reason":   reason,
+		"attempt":  attempt,
+	})
+}
+
+// NodeRetry records that a failed node is being retried with the next attempt number.
+func (h *BuildHistoryLogger) NodeRetry(ticket, workflow, node string, attempt int) {
+	h.emit(map[string]interface{}{
+		"event":    "node_retry",
+		"ticket":   ticket,
+		"workflow": workflow,
+		"node":     node,
+		"attempt":  attempt,
+	})
+}
+
+// BuildError records a build-level error such as hook failure.
+func (h *BuildHistoryLogger) BuildError(ticket, stage, reason string) {
+	h.emit(map[string]interface{}{
+		"event":  "build_error",
+		"ticket": ticket,
+		"stage":  stage,
+		"reason": reason,
+	})
+}

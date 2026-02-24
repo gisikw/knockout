@@ -1,0 +1,37 @@
+# Node fails twice then succeeds - verify node_fail and node_retry events
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+# Verify build succeeded
+exec ko show ko-a001
+stdout 'status: closed'
+
+# Verify JSONL contains node_fail events with attempt numbers
+exec grep -c '"event":"node_fail"' .ko/tickets/ko-a001.jsonl
+stdout '^2$'
+
+# Verify JSONL contains node_retry events with attempt numbers
+exec grep -c '"event":"node_retry"' .ko/tickets/ko-a001.jsonl
+stdout '^2$'
+
+# Verify node_complete event exists
+exec grep '"event":"node_complete"' .ko/tickets/ko-a001.jsonl
+stdout 'implement'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Retry test
+-- .ko/pipeline.yml --
+max_retries: 2
+workflows:
+  main:
+    - name: implement
+      type: action
+      run: sh -c 'if [ ! -f .attempt1 ]; then touch .attempt1; exit 1; elif [ ! -f .attempt2 ]; then touch .attempt2; exit 1; else echo "Success on third attempt"; exit 0; fi'

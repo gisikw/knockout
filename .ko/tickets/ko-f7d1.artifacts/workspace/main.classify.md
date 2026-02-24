@@ -1,32 +1,22 @@
-I'll analyze this ticket to classify it.
+I'll analyze this ticket to determine its classification.
 
 ## Analysis
 
-**Ticket Summary:**
-The ticket describes missing event logging when build steps fail and are retried. Specifically:
-- When a step fails and ko retries it, no event is logged
-- When a step is killed (e.g., hung process), the failure is not logged
-- This makes diagnostics impossible from the event log alone
+The ticket describes a clear problem with missing event logging:
+- **What's broken**: Build step failures and retries don't emit events to the event log, creating "silent gaps"
+- **Evidence provided**: Specific observed incident (6-hour hung implement step killed externally, invisible in log)
+- **Expected behavior defined**: Lists specific events that should be emitted (`node_fail`, `node_retry`, `build_error`)
+- **Acceptance criteria included**: Clear requirements for what needs to be fixed
 
-**What's described:**
-- **Current state (problem):** Step failures and retries produce "silent gaps" in the event log
-- **Expected state (solution):** Three new event types should be emitted: `node_fail`, `node_retry`, and `build_error`
+The ticket includes:
+- Problem description with concrete examples
+- Expected events (the "what to build" part)
+- Acceptance criteria (the definition of success)
 
-**Key indicators:**
-1. The ticket explicitly states "Expected events" with specific event types that should be emitted
-2. It includes "Acceptance Criteria" that describe concrete implementation requirements
-3. It's not asking "should we do this?" or "is this a problem?" — it's asserting the problem exists (with a concrete example: 6-hour hung implement step) and prescribing the solution
-4. The expected output is implemented event logging in the codebase
+This is **not** pure diagnosis (which would be a bug) - it clearly specifies *what events need to be added* to the system. It's asking for code changes to emit these missing events.
 
-**Classification reasoning:**
-This falls between **task** and **bug**:
-- It describes *what's broken* (missing event logs) → suggests **bug**
-- It also describes *what to build* (new event types) → suggests **task**
-- The presence of acceptance criteria and specific implementation details leans toward **task**
-- However, the core issue is "events aren't being emitted when they should be" which is a malfunction
-
-This is fundamentally a **bug** — the build system is not behaving correctly (missing critical diagnostics). The "fix" happens to involve adding code for missing events, but the classification should reflect that this is a functional defect being reported, not a feature request.
+This falls into the **task** category: it describes what needs to be built (event emissions at specific points in the retry/failure flow) rather than asking "is this a problem?" or "why is this happening?" The solution involves adding event emissions at failure and retry transition points.
 
 ```json
-{"disposition": "route", "workflow": "bug"}
+{"disposition": "route", "workflow": "task"}
 ```

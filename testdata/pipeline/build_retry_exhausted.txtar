@@ -6,6 +6,18 @@ stdout 'status: blocked'
 stdout 'FAIL'
 stdout 'failed after 3 attempts'
 
+# Verify JSONL contains 3 node_fail events (one for each attempt)
+exec grep -c '"event":"node_fail"' .ko/tickets/ko-a001.jsonl
+stdout '^3$'
+
+# Verify JSONL contains 2 node_retry events (after attempts 1 and 2, not after final failure)
+exec grep -c '"event":"node_retry"' .ko/tickets/ko-a001.jsonl
+stdout '^2$'
+
+# Verify final node_complete has result "error"
+exec grep '"event":"node_complete".*"node":"implement"' .ko/tickets/ko-a001.jsonl
+stdout '"result":"error"'
+
 -- .ko/tickets/ko-a001.md --
 ---
 id: ko-a001

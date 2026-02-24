@@ -37,3 +37,5 @@ The loop retried successfully, but the retry was also invisible in the log.
 ## Notes
 
 **2026-02-24 13:07:18 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field
+
+**2026-02-24 14:52:29 UTC:** ko: FAIL at node 'assess' — node 'assess' failed after 3 attempts: 'route' disposition missing required 'workflow' field
