@@ -1,6 +1,6 @@
 ---
 id: ko-dd51
-status: blocked
+status: open
 deps: []
 created: 2026-02-24T12:47:30Z
 type: task
@@ -21,7 +21,3 @@ Use cases:
 `ko ls --status resolved`) should list them. The agent loop should
 transition tickets to `resolved` instead of `closed` for research
 and bug-wontfix workflows.
-
-## Notes
-
-**2026-02-24 13:06:38 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field

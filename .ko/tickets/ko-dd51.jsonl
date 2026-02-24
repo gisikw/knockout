@@ -1,0 +1,5 @@
+{"event":"build_start","ticket":"ko-dd51","ts":"2026-02-24T13:06:20Z"}
+{"event":"workflow_start","ticket":"ko-dd51","ts":"2026-02-24T13:06:20Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-dd51","ts":"2026-02-24T13:06:20Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"error","ticket":"ko-dd51","ts":"2026-02-24T13:06:38Z","workflow":"main"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-dd51","ts":"2026-02-24T13:06:38Z"}
