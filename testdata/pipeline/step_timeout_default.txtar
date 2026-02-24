@@ -1,0 +1,29 @@
+# Default 15-minute timeout is applied when not specified
+# We can't test the full 15 minutes, so verify the mechanism with a quick command
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test default timeout
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: quick
+      type: action
+      prompt: quick.md
+-- .ko/prompts/quick.md --
+Quick task.
+-- fake-llm --
+#!/bin/sh
+echo "Done quickly."

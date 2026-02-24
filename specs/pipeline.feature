@@ -383,3 +383,37 @@ Feature: Build Pipeline
     Then the command should fail
     And the error should contain "already exists"
     And the existing .ko/pipeline.yml should be unchanged
+
+  # Step timeouts
+
+  Scenario: Pipeline-level step_timeout sets default for all nodes
+    Given a pipeline with step_timeout: "10m"
+    And a workflow with a prompt node "implement"
+    When the implement node runs
+    Then the node uses a 10-minute timeout by default
+
+  Scenario: Per-node timeout overrides the pipeline default
+    Given a pipeline with step_timeout: "10m"
+    And a node with timeout: "5m"
+    When the node runs
+    Then the node uses a 5-minute timeout (not the pipeline default)
+
+  Scenario: Default timeout is 15 minutes when not specified
+    Given a pipeline with no step_timeout
+    And a node with no timeout
+    When the node runs
+    Then the node uses a 15-minute timeout
+
+  Scenario: Timed-out steps fail with clear error message
+    Given a node with timeout: "2s"
+    And the node runs for longer than 2 seconds
+    When the timeout expires
+    Then the step is killed
+    And the error message contains "timed out after 2s"
+
+  Scenario: Both prompt nodes and run nodes respect timeout
+    Given a pipeline with step_timeout: "3s"
+    And a prompt node "implement" with no timeout override
+    And a run node "verify" with no timeout override
+    When both nodes run
+    Then both nodes use the 3-second timeout

@@ -48,7 +48,3 @@ fails with a clear error ("step timed out after 15m").
 - [ ] Timed-out steps kill the agent process and report a clear error
 - [ ] `run:` nodes (shell commands) also respect the timeout
 - [ ] Timeout is logged so it's diagnosable in the event log
-
-## Notes
-
-**2026-02-24 12:39:35 UTC:** ko: reset to open (agent stopped)

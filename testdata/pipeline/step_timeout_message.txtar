@@ -1,0 +1,32 @@
+# Timeout error message is clear and contains duration
+chmod 755 fake-llm
+! exec ko agent build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'timed out after'
+stdout '3s'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test timeout error message
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+step_timeout: 3s
+workflows:
+  main:
+    - name: slow
+      type: action
+      prompt: slow.md
+-- .ko/prompts/slow.md --
+Slow task.
+-- fake-llm --
+#!/bin/sh
+exec sleep 10

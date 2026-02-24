@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Outcome represents the result of a build pipeline.
@@ -166,11 +168,18 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Resolve overrides: node > workflow > pipeline
 		model := resolveModel(p, wf, node)
 		allowAll := resolveAllowAll(p, wf, node)
+		timeout, err := resolveTimeout(p, node)
+		if err != nil {
+			log.NodeComplete(t.ID, wfName, node.Name, "error")
+			hist.NodeComplete(t.ID, wfName, node.Name, "error")
+			applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("invalid timeout: %v", err))
+			return OutcomeFail, nil
+		}
 
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
 		hist.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, hist.Path(), verbose)
+		output, err := runNode(ticketsDir, t, p, node, model, allowAll, timeout, wsDir, artifactDir, wfName, hist.Path(), verbose)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
@@ -215,7 +224,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -223,9 +232,9 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string
 		var err error
 
 		if node.IsPromptNode() {
-			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, histPath, verbose)
+			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, timeout, wsDir, artifactDir, wfName, histPath, verbose)
 		} else if node.IsRunNode() {
-			output, err = runRunNode(node, wsDir, artifactDir, histPath, wfName, verbose)
+			output, err = runRunNode(node, timeout, wsDir, artifactDir, histPath, wfName, verbose)
 		} else {
 			return "", fmt.Errorf("node '%s' has neither prompt nor run", node.Name)
 		}
@@ -343,7 +352,7 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 }
 
 // runPromptNode invokes the configured command with ticket context.
-func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	// Skill invocation is not yet supported by Claude adapter
 	// This will be implemented in ko-1930 (multi-agent harness)
 	if node.Skill != "" {
@@ -388,26 +397,43 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 
 	adapter := p.Adapter()
 	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, allowAll)
-	cmd.Env = append(os.Environ(),
+
+	// Create a new context-aware command with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Replace the command with a context-aware version
+	// cmd.Args[0] is the program name, cmd.Args[1:] are the arguments
+	cmdCtx := exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
+	cmdCtx.Stdin = cmd.Stdin
+	cmdCtx.Stdout = cmd.Stdout
+	cmdCtx.Stderr = cmd.Stderr
+	cmdCtx.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,
 		"KO_BUILD_HISTORY="+histPath,
 	)
 
 	if verbose {
-		return runCmdVerbose(cmd, wfName, node.Name)
+		return runCmdVerbose(cmdCtx, wfName, node.Name)
 	}
 
-	out, err := cmd.Output()
+	out, err := cmdCtx.Output()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("step timed out after %v", timeout)
+		}
 		return "", fmt.Errorf("agent command failed: %v", err)
 	}
 	return string(out), nil
 }
 
 // runRunNode executes a shell command.
-func runRunNode(node *Node, wsDir, artifactDir, histPath, wfName string, verbose bool) (string, error) {
-	cmd := exec.Command("sh", "-c", node.Run)
+func runRunNode(node *Node, timeout time.Duration, wsDir, artifactDir, histPath, wfName string, verbose bool) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", node.Run)
 	cmd.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,
@@ -420,6 +446,9 @@ func runRunNode(node *Node, wsDir, artifactDir, histPath, wfName string, verbose
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("step timed out after %v", timeout)
+		}
 		return "", fmt.Errorf("command failed: %s\n%s", err, string(out))
 	}
 	return string(out), nil
@@ -520,6 +549,15 @@ func resolveAllowAll(p *Pipeline, wf *Workflow, node *Node) bool {
 		return *wf.AllowAll
 	}
 	return p.AllowAll
+}
+
+// resolveTimeout returns the effective timeout for a node.
+// Precedence: node > pipeline > 15-minute default.
+func resolveTimeout(p *Pipeline, node *Node) (time.Duration, error) {
+	if node.Timeout != "" {
+		return parseTimeout(node.Timeout)
+	}
+	return parseTimeout(p.StepTimeout)
 }
 
 // setStatus changes a ticket's status, saves it, and emits a mutation event.

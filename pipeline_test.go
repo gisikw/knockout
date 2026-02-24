@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestParsePipelineV2(t *testing.T) {
 	config := `
@@ -484,5 +487,100 @@ workflows:
 				t.Errorf("error = %q, want substring %q", err.Error(), tt.errMsg)
 			}
 		})
+	}
+}
+
+func TestParseTimeout(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		want     time.Duration
+		wantErr  bool
+	}{
+		{
+			name:  "empty string returns 15 minutes",
+			input: "",
+			want:  15 * time.Minute,
+		},
+		{
+			name:  "5 minutes",
+			input: "5m",
+			want:  5 * time.Minute,
+		},
+		{
+			name:  "1 hour 30 minutes",
+			input: "1h30m",
+			want:  90 * time.Minute,
+		},
+		{
+			name:  "2 hours",
+			input: "2h",
+			want:  2 * time.Hour,
+		},
+		{
+			name:  "30 seconds",
+			input: "30s",
+			want:  30 * time.Second,
+		},
+		{
+			name:    "invalid format",
+			input:   "not-a-duration",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseTimeout(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("parseTimeout(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParsePipelineStepTimeout(t *testing.T) {
+	config := `
+step_timeout: 20m
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	if p.StepTimeout != "20m" {
+		t.Errorf("StepTimeout = %q, want %q", p.StepTimeout, "20m")
+	}
+}
+
+func TestParsePipelineNodeTimeout(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+      timeout: 5m
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	node := p.Workflows["main"].Nodes[0]
+	if node.Timeout != "5m" {
+		t.Errorf("Node.Timeout = %q, want %q", node.Timeout, "5m")
 	}
 }

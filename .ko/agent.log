@@ -27,3 +27,5 @@ loop: ko-698a FAIL
 loop: building ko-bfc5 — JSONL append on every ticket touch and build step transition
 loop: ko-bfc5 FAIL
 loop: building ko-9f8f — Support priority flag on create: ko create -p1 "title"
+loop: ko-9f8f SUCCEED
+loop: building ko-20d5 — Step timeout — enforce max duration per pipeline node with configurable default

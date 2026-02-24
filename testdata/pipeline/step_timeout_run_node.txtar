@@ -1,0 +1,25 @@
+# Run nodes (shell commands) respect timeout
+! exec ko agent build ko-a001
+exec ko show ko-a001
+stdout 'status: blocked'
+stdout 'timed out after'
+stdout '2s'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test run node timeout
+-- .ko/pipeline.yml --
+max_retries: 0
+step_timeout: 2s
+workflows:
+  main:
+    - name: slow_run
+      type: action
+      run: exec sleep 10

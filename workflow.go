@@ -20,6 +20,7 @@ type Node struct {
 	AllowAll  *bool    // per-node allow_all_tool_calls override (nil = inherit)
 	Routes    []string // workflows this decision node can route to
 	MaxVisits int      // max times this node can be entered per build (default: 1)
+	Timeout   string   // optional timeout override (e.g., "5m", "1h30m")
 	Skills    []string // skill directories to make available (future multi-agent harness support)
 	Skill     string   // specific skill to invoke (future multi-agent harness support; mutually exclusive with Prompt/Run)
 }

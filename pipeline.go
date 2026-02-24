@@ -5,21 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
-	Agent      string                // agent adapter name: claude | cursor (default: "claude")
-	Command    string                // raw command override (mutually exclusive with agent)
-	AllowAll   bool                  // maps to --dangerously-skip-permissions, --force, etc.
-	Model      string                // default model for prompt nodes
-	MaxRetries int                   // max retries per node (default: 2)
-	MaxDepth   int                   // max decomposition depth (default: 2)
-	Discretion string                // low | medium | high (default: "medium")
-	Workflows  map[string]*Workflow  // named workflows; "main" is the entry point
-	OnSucceed  []string              // shell commands to run after all stages pass
-	OnFail     []string              // shell commands to run on build failure
-	OnClose    []string              // shell commands to run after ticket is closed
+	Agent       string                // agent adapter name: claude | cursor (default: "claude")
+	Command     string                // raw command override (mutually exclusive with agent)
+	AllowAll    bool                  // maps to --dangerously-skip-permissions, --force, etc.
+	Model       string                // default model for prompt nodes
+	MaxRetries  int                   // max retries per node (default: 2)
+	MaxDepth    int                   // max decomposition depth (default: 2)
+	Discretion  string                // low | medium | high (default: "medium")
+	StepTimeout string                // default timeout for all nodes (e.g., "15m", "1h30m")
+	Workflows   map[string]*Workflow  // named workflows; "main" is the entry point
+	OnSucceed   []string              // shell commands to run after all stages pass
+	OnFail      []string              // shell commands to run on build failure
+	OnClose     []string              // shell commands to run after ticket is closed
 
 	agentExplicit bool              // true if agent: was explicitly set in config
 }
@@ -139,6 +141,8 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				fmt.Sscanf(val, "%d", &p.MaxDepth)
 			case "discretion":
 				p.Discretion = val
+			case "step_timeout":
+				p.StepTimeout = val
 			}
 			section = ""
 			continue
@@ -297,6 +301,8 @@ func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bo
 		node.AllowAll = &v
 	case "max_visits":
 		fmt.Sscanf(val, "%d", &node.MaxVisits)
+	case "timeout":
+		node.Timeout = val
 	case "routes":
 		*inRoutes = true
 		// Handle inline list: routes: [a, b, c]
@@ -375,4 +381,14 @@ func DiscretionGuidance(level string) string {
 		return "You have MEDIUM discretion. Investigate the codebase before flagging issues. " +
 			"Make assumptions for obvious choices, but flag genuine architectural decisions."
 	}
+}
+
+// parseTimeout parses a duration string and returns the corresponding time.Duration.
+// Returns 15 minutes if the input is empty.
+// Returns an error if the format is invalid.
+func parseTimeout(durationStr string) (time.Duration, error) {
+	if durationStr == "" {
+		return 15 * time.Minute, nil
+	}
+	return time.ParseDuration(durationStr)
 }
