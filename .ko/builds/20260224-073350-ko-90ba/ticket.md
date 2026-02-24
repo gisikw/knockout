@@ -1,6 +1,6 @@
 ---
 id: ko-90ba
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -11,7 +11,3 @@ priority: 2
 
 `ko add "title"` is shorter and more natural. Keep `create` as a hidden
 alias for backward compat during transition.
-
-## Notes
-
-**2026-02-24 07:38:38 UTC:** ko: SUCCEED

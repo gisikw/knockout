@@ -11,7 +11,7 @@ ko - knockout task tracker
 Usage: ko <command> [arguments]
 
 Commands:
-  create [title]     Create a new ticket
+  add [title]        Create a new ticket
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
@@ -44,7 +44,6 @@ Commands:
   agent stop         Stop a running background agent
   agent status       Check if an agent is running
 
-  add '<title> [#tag]'  Capture a task, route by tag if registered
   register #<tag>    Register current project in the global registry
   default [#<tag>]   Show or set the default project for routing
   projects           List registered projects
@@ -53,13 +52,13 @@ Commands:
   version            Show version
 ```
 
-### Create options
+### Add options
 
 ```
-ko create [title] [-d description] [-t type] [-p priority] [-a assignee]
-                  [--parent id] [--external-ref ref]
-                  [--design notes] [--acceptance criteria]
-                  [--tags tag1,tag2]
+ko add [title] [-d description] [-t type] [-p priority] [-a assignee]
+               [--parent id] [--external-ref ref]
+               [--design notes] [--acceptance criteria]
+               [--tags tag1,tag2]
 ```
 
 ## Concepts
@@ -156,9 +155,9 @@ ko agent loop --max-tickets 5    # stop after 5 tickets
 ko agent loop --max-duration 30m # stop after 30 minutes
 ```
 
-**Scope containment:** During a loop, `ko create` and `ko add` are disabled
-via the `KO_NO_CREATE` environment variable. This prevents spawned agents from
-creating new tickets, which would cause runaway expansion.
+**Scope containment:** During a loop, `ko add` (and the legacy `ko create` alias)
+is disabled via the `KO_NO_CREATE` environment variable. This prevents spawned
+agents from creating new tickets, which would cause runaway expansion.
 
 The loop stops when:
 - The ready queue is empty (`stopped: empty`)

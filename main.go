@@ -21,6 +21,8 @@ func run(args []string) int {
 	rest := args[1:]
 
 	switch cmd {
+	case "add":
+		return cmdCreate(rest)
 	case "create":
 		return cmdCreate(rest)
 	case "show":
@@ -61,8 +63,6 @@ func run(args []string) int {
 		return cmdAgent(rest)
 	case "init":
 		return cmdInit(rest)
-	case "add":
-		return cmdCreate(rest)
 	case "clear":
 		return cmdClear(rest)
 	case "register":
@@ -116,8 +116,7 @@ func cmdHelp(args []string) int {
 Usage: ko <command> [arguments]
 
 Commands:
-  create [title]     Create a new ticket (routes by #tag if registered)
-  add                Alias for create
+  add [title]        Create a new ticket (routes by #tag if registered)
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
