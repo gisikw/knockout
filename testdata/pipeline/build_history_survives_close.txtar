@@ -1,4 +1,4 @@
-# Build history survives ticket close (unlike artifact dir)
+# Build history and artifacts persist after ticket close
 chmod 755 fake-llm
 exec ko agent build ko-a001
 stdout 'SUCCEED'
@@ -7,8 +7,8 @@ stdout 'SUCCEED'
 exec cat .ko/tickets/ko-a001.jsonl
 stdout '"event":"build_complete"'
 
-# Artifact directory should be gone
-! exists .ko/tickets/ko-a001.artifacts
+# Artifact directory should also persist
+exists .ko/tickets/ko-a001.artifacts
 
 -- .ko/tickets/ko-a001.md --
 ---

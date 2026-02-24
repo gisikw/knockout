@@ -515,10 +515,6 @@ func setStatus(ticketsDir string, t *Ticket, newStatus string) {
 		"from": from,
 		"to":   newStatus,
 	})
-	// Clean up artifact directory when ticket is closed
-	if newStatus == "closed" {
-		RemoveArtifactDir(ticketsDir, t.ID)
-	}
 }
 
 // applyFailOutcome marks a ticket as blocked with a failure note.

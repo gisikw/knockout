@@ -1,9 +1,11 @@
-# Artifact directory: cleaned up when ticket is closed
+# Artifact directory: persists after ticket is closed
 chmod 755 fake-llm
 exec ko agent build ko-a001
 stdout 'SUCCEED'
-# After successful build, ticket is closed and artifacts should be gone
-! exists .ko/tickets/ko-a001.artifacts
+# After successful build, ticket is closed but artifacts persist
+exists .ko/tickets/ko-a001.artifacts
+exec cat .ko/tickets/ko-a001.artifacts/plan.md
+stdout 'plan content'
 
 -- .ko/tickets/ko-a001.md --
 ---
@@ -15,7 +17,7 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# Artifact cleanup test
+# Artifact persistence test
 -- .ko/pipeline.yml --
 command: ./fake-llm
 max_retries: 0

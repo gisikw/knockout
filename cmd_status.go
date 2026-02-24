@@ -48,11 +48,6 @@ func cmdStatus(args []string) int {
 		"to":   newStatus,
 	})
 
-	// Clean up artifact directory when ticket is closed
-	if newStatus == "closed" {
-		RemoveArtifactDir(ticketsDir, id)
-	}
-
 	fmt.Printf("%s -> %s\n", id, newStatus)
 	return 0
 }

@@ -1,11 +1,13 @@
-# Artifact directory: cleaned up when ticket is closed via CLI
+# Artifact directory: persists when ticket is closed via CLI
 mkdir -p .ko/tickets/ko-a001.artifacts
 cp plan.md .ko/tickets/ko-a001.artifacts/plan.md
 exists .ko/tickets/ko-a001.artifacts/plan.md
 exec ko close ko-a001
 stdout 'ko-a001 -> closed'
-# Artifact dir should be removed
-! exists .ko/tickets/ko-a001.artifacts
+# Artifact dir should persist
+exists .ko/tickets/ko-a001.artifacts
+exec cat .ko/tickets/ko-a001.artifacts/plan.md
+stdout 'some plan content'
 
 -- .ko/tickets/ko-a001.md --
 ---
@@ -17,6 +19,6 @@ created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
 ---
-# CLI close cleanup test
+# CLI close persistence test
 -- plan.md --
 some plan content
