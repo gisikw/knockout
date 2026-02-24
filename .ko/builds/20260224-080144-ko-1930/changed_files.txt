@@ -1,0 +1,10 @@
+README.md
+adapter.go
+agent-harnesses/claude.yaml
+agent-harnesses/cursor.yaml
+go.mod
+go.sum
+harness.go
+harness_test.go
+knockout
+specs/pipeline.feature

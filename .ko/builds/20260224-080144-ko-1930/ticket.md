@@ -1,6 +1,6 @@
 ---
 id: ko-1930
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -28,7 +28,3 @@ and user-supplied harnesses.
 
 Consider prereq: ko-f65e (consolidate .ko/ config) — where do harness
 overrides live in the project config?
-
-## Notes
-
-**2026-02-24 08:14:55 UTC:** ko: SUCCEED

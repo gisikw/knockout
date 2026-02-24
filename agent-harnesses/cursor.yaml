@@ -1,0 +1,13 @@
+# Built-in harness for Cursor agent CLI
+# System prompt is inlined into the prompt, not a separate flag
+# Binary resolution tries cursor-agent first, then agent
+binary_fallbacks:
+  - cursor-agent
+  - agent
+args:
+  - "-p"
+  - "${prompt_with_system}"
+  - "--output-format"
+  - "text"
+  - "${cursor_allow_all}"
+  - "${model}"

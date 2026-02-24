@@ -273,6 +273,52 @@ on_close:
 - **`on_close`** runs after the ticket is closed. Safe for deploys — if the
   hook kills the process, the ticket is already closed.
 
+### Custom Agent Harnesses
+
+Agent harnesses are YAML configs that describe how to invoke an agent CLI.
+Built-in harnesses (`claude`, `cursor`) ship with `ko`. You can add custom
+harnesses to extend support for other agents.
+
+Harness search order:
+1. `.ko/agent-harnesses/<name>.yaml` — project-local overrides
+2. `~/.config/knockout/agent-harnesses/<name>.yaml` — user-global harnesses
+3. Built-in harnesses (embedded in the `ko` binary)
+
+Example custom harness (`.ko/agent-harnesses/mycli.yaml`):
+
+```yaml
+# Binary to execute (or use binary_fallbacks for multiple options)
+binary: mycli
+
+# Command arguments template
+# Variables: ${prompt}, ${model}, ${system_prompt}, ${allow_all}
+# Conditional flags: if a template variable is empty, it's omitted
+args:
+  - "-p"                    # Prompt via stdin (following arg doesn't contain ${prompt})
+  - "--output-format"
+  - "text"
+  - "${model}"              # Expands to "--model\nsonnet" when model is set
+  - "${system_prompt}"      # Expands to "--append-system-prompt\n<text>" when set
+  - "${allow_all}"          # Expands to flag when allowAll=true
+```
+
+For agents that take the prompt as an argument (not stdin):
+
+```yaml
+binary: other-agent
+args:
+  - "-p"
+  - "${prompt_with_system}"  # Inlines system prompt into user prompt
+  - "--model"
+  - "${model}"
+```
+
+Use the custom harness in `pipeline.yml`:
+
+```yaml
+agent: mycli
+```
+
 ## Data Model
 
 Tickets are markdown files with YAML frontmatter in `.ko/tickets/`. No database,

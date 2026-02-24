@@ -31,10 +31,32 @@ Feature: Build Pipeline
     When the pipeline is parsed
     Then parsing should fail with "must have a 'main' workflow"
 
-  Scenario: Pipeline config specifies a default command for prompt nodes
-    Given a pipeline with "command: my-llm-tool"
-    Then prompt nodes invoke "my-llm-tool" instead of the default
-    # Default command is "claude" but configurable for testing and future tools
+  Scenario: Custom agent harness can be loaded from project config
+    Given a custom harness at ".ko/agent-harnesses/custom.yaml"
+    And a pipeline with "agent: custom"
+    When a prompt node runs
+    Then the harness is loaded from the project config
+    And the command is built according to the harness template
+
+  Scenario: Custom agent harness can be loaded from user config
+    Given a custom harness at "~/.config/knockout/agent-harnesses/mycli.yaml"
+    And a pipeline with "agent: mycli"
+    When a prompt node runs
+    Then the harness is loaded from the user config directory
+
+  Scenario: Harness lookup precedence is project > user > built-in
+    Given a built-in "claude" harness
+    And a user override at "~/.config/knockout/agent-harnesses/claude.yaml"
+    And a project override at ".ko/agent-harnesses/claude.yaml"
+    And a pipeline with "agent: claude"
+    When a prompt node runs
+    Then the project harness is used (highest precedence)
+
+  Scenario: Pipeline config specifies agent via harness lookup
+    Given a pipeline with "agent: claude"
+    Then prompt nodes use the "claude" agent harness to build commands
+    # Agent harnesses are loaded from .ko/agent-harnesses/, user config, or built-ins
+    # Legacy "command:" field is still supported for raw command override
 
   # Node execution
 
