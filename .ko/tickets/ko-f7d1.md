@@ -1,6 +1,6 @@
 ---
 id: ko-f7d1
-status: blocked
+status: open
 deps: []
 created: 2026-02-17T03:43:04Z
 type: task
