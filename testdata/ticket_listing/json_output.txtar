@@ -1,0 +1,53 @@
+# Test ko ls --json output
+exec ko ls --json
+stdout '"id":"json-0001"'
+stdout '"title":"First JSON ticket"'
+stdout '"status":"open"'
+stdout '"priority":2'
+
+# Test ko ready --json output
+exec ko ready --json
+stdout '"id":"json-0001"'
+stdout '"title":"First JSON ticket"'
+
+# Test ko blocked --json output with blocked ticket
+exec ko blocked --json
+stdout '"id":"json-0002"'
+stdout '"deps":\["json-0003"\]'
+
+# Test ko closed --json output
+exec ko close json-0003
+exec ko closed --json
+stdout '"id":"json-0003"'
+stdout '"status":"closed"'
+
+-- .ko/tickets/json-0001.md --
+---
+id: json-0001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First JSON ticket
+-- .ko/tickets/json-0002.md --
+---
+id: json-0002
+status: open
+deps: [json-0003]
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked JSON ticket
+-- .ko/tickets/json-0003.md --
+---
+id: json-0003
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocker ticket

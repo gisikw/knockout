@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // resolveProjectTicketsDir checks args for a #project tag and resolves it
@@ -57,6 +59,7 @@ func cmdLs(args []string) int {
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
+	jsonOutput := fs.Bool("json", false, "output as JSONL")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
@@ -69,26 +72,66 @@ func cmdLs(args []string) int {
 	}
 	SortByPriorityThenModified(tickets)
 
-	for _, t := range tickets {
-		if *statusFilter != "" && t.Status != *statusFilter {
-			continue
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		for _, t := range tickets {
+			if *statusFilter != "" && t.Status != *statusFilter {
+				continue
+			}
+			// Default: show non-closed tickets
+			if *statusFilter == "" && t.Status == "closed" {
+				continue
+			}
+			modified := ""
+			if !t.ModTime.IsZero() {
+				modified = t.ModTime.UTC().Format(time.RFC3339)
+			}
+			j := ticketJSON{
+				ID:       t.ID,
+				Title:    t.Title,
+				Status:   t.Status,
+				Type:     t.Type,
+				Priority: t.Priority,
+				Deps:     t.Deps,
+				Created:  t.Created,
+				Modified: modified,
+				Assignee: t.Assignee,
+				Parent:   t.Parent,
+				Tags:     t.Tags,
+			}
+			enc.Encode(j)
 		}
-		// Default: show non-closed tickets
-		if *statusFilter == "" && t.Status == "closed" {
-			continue
+	} else {
+		for _, t := range tickets {
+			if *statusFilter != "" && t.Status != *statusFilter {
+				continue
+			}
+			// Default: show non-closed tickets
+			if *statusFilter == "" && t.Status == "closed" {
+				continue
+			}
+			line := fmt.Sprintf("%s [%s] (p%d) %s", t.ID, t.Status, t.Priority, t.Title)
+			if len(t.Deps) > 0 {
+				line += fmt.Sprintf(" <- [%s]", strings.Join(t.Deps, ", "))
+			}
+			fmt.Println(line)
 		}
-		line := fmt.Sprintf("%s [%s] (p%d) %s", t.ID, t.Status, t.Priority, t.Title)
-		if len(t.Deps) > 0 {
-			line += fmt.Sprintf(" <- [%s]", strings.Join(t.Deps, ", "))
-		}
-		fmt.Println(line)
 	}
 	return 0
 }
 
 func cmdReady(args []string) int {
-	ticketsDir, _, err := resolveProjectTicketsDir(args)
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
+		return 1
+	}
+
+	args = reorderArgs(args, map[string]bool{})
+
+	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
 	}
@@ -110,8 +153,32 @@ func cmdReady(args []string) int {
 	// If local queue is non-empty, return it without cross-project checks
 	if len(ready) > 0 {
 		SortByPriorityThenModified(ready)
-		for _, t := range ready {
-			fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+		if *jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			for _, t := range ready {
+				modified := ""
+				if !t.ModTime.IsZero() {
+					modified = t.ModTime.UTC().Format(time.RFC3339)
+				}
+				j := ticketJSON{
+					ID:       t.ID,
+					Title:    t.Title,
+					Status:   t.Status,
+					Type:     t.Type,
+					Priority: t.Priority,
+					Deps:     t.Deps,
+					Created:  t.Created,
+					Modified: modified,
+					Assignee: t.Assignee,
+					Parent:   t.Parent,
+					Tags:     t.Tags,
+				}
+				enc.Encode(j)
+			}
+		} else {
+			for _, t := range ready {
+				fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+			}
 		}
 		return 0
 	}
@@ -129,7 +196,29 @@ func cmdReady(args []string) int {
 	lookup := CrossProjectLookup(ticketsDir, reg)
 	for _, t := range tickets {
 		if IsReady(t.Status, AllDepsResolvedWith(t.Deps, lookup)) {
-			fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+			if *jsonOutput {
+				modified := ""
+				if !t.ModTime.IsZero() {
+					modified = t.ModTime.UTC().Format(time.RFC3339)
+				}
+				j := ticketJSON{
+					ID:       t.ID,
+					Title:    t.Title,
+					Status:   t.Status,
+					Type:     t.Type,
+					Priority: t.Priority,
+					Deps:     t.Deps,
+					Created:  t.Created,
+					Modified: modified,
+					Assignee: t.Assignee,
+					Parent:   t.Parent,
+					Tags:     t.Tags,
+				}
+				enc := json.NewEncoder(os.Stdout)
+				enc.Encode(j)
+			} else {
+				fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+			}
 			return 0 // short-circuit: one ticket at a time
 		}
 	}
@@ -138,8 +227,17 @@ func cmdReady(args []string) int {
 }
 
 func cmdBlocked(args []string) int {
-	ticketsDir, _, err := resolveProjectTicketsDir(args)
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
+		return 1
+	}
+
+	args = reorderArgs(args, map[string]bool{})
+
+	fs := flag.NewFlagSet("blocked", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
 		return 1
 	}
@@ -150,18 +248,52 @@ func cmdBlocked(args []string) int {
 		return 1
 	}
 
-	for _, t := range tickets {
-		if t.Status == "closed" {
-			continue
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		for _, t := range tickets {
+			if t.Status == "closed" {
+				continue
+			}
+			if len(t.Deps) == 0 {
+				continue
+			}
+			if AllDepsResolved(ticketsDir, t.Deps) {
+				continue
+			}
+			// Has unresolved deps
+			modified := ""
+			if !t.ModTime.IsZero() {
+				modified = t.ModTime.UTC().Format(time.RFC3339)
+			}
+			j := ticketJSON{
+				ID:       t.ID,
+				Title:    t.Title,
+				Status:   t.Status,
+				Type:     t.Type,
+				Priority: t.Priority,
+				Deps:     t.Deps,
+				Created:  t.Created,
+				Modified: modified,
+				Assignee: t.Assignee,
+				Parent:   t.Parent,
+				Tags:     t.Tags,
+			}
+			enc.Encode(j)
 		}
-		if len(t.Deps) == 0 {
-			continue
+	} else {
+		for _, t := range tickets {
+			if t.Status == "closed" {
+				continue
+			}
+			if len(t.Deps) == 0 {
+				continue
+			}
+			if AllDepsResolved(ticketsDir, t.Deps) {
+				continue
+			}
+			// Has unresolved deps
+			fmt.Printf("%s [%s] (p%d) %s <- [%s]\n", t.ID, t.Status, t.Priority, t.Title, strings.Join(t.Deps, ", "))
 		}
-		if AllDepsResolved(ticketsDir, t.Deps) {
-			continue
-		}
-		// Has unresolved deps
-		fmt.Printf("%s [%s] (p%d) %s <- [%s]\n", t.ID, t.Status, t.Priority, t.Title, strings.Join(t.Deps, ", "))
 	}
 	return 0
 }
@@ -177,6 +309,7 @@ func cmdClosed(args []string) int {
 
 	fs := flag.NewFlagSet("closed", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSONL")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko closed: %v\n", err)
 		return 1
@@ -188,15 +321,47 @@ func cmdClosed(args []string) int {
 		return 1
 	}
 
-	count := 0
-	for _, t := range tickets {
-		if t.Status != "closed" {
-			continue
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		count := 0
+		for _, t := range tickets {
+			if t.Status != "closed" {
+				continue
+			}
+			modified := ""
+			if !t.ModTime.IsZero() {
+				modified = t.ModTime.UTC().Format(time.RFC3339)
+			}
+			j := ticketJSON{
+				ID:       t.ID,
+				Title:    t.Title,
+				Status:   t.Status,
+				Type:     t.Type,
+				Priority: t.Priority,
+				Deps:     t.Deps,
+				Created:  t.Created,
+				Modified: modified,
+				Assignee: t.Assignee,
+				Parent:   t.Parent,
+				Tags:     t.Tags,
+			}
+			enc.Encode(j)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
-		fmt.Printf("%s [closed] (p%d) %s\n", t.ID, t.Priority, t.Title)
-		count++
-		if *limit > 0 && count >= *limit {
-			break
+	} else {
+		count := 0
+		for _, t := range tickets {
+			if t.Status != "closed" {
+				continue
+			}
+			fmt.Printf("%s [closed] (p%d) %s\n", t.ID, t.Priority, t.Title)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
 	}
 	return 0

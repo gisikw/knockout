@@ -5,3 +5,5 @@ loop: ko-90ba SUCCEED
 loop: building ko-d897 — ko add should accept ticket description via stdin/heredoc or second arg
 loop: ko-d897 FAIL
 loop: building ko-75c7 — Deprecate link/unlink commands
+loop: ko-75c7 SUCCEED
+loop: building ko-84c5 — Support --json flag across ko commands

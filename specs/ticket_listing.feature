@@ -130,3 +130,43 @@ Feature: Ticket Listing
     And ticket "done-0002" has status "closed"
     When I run "ko closed --limit=1"
     Then the output line count should be 1
+
+  # JSON output
+
+  Scenario: List outputs JSON when --json flag is provided
+    Given a ticket exists with ID "json-0001" and title "First JSON ticket"
+    And a ticket exists with ID "json-0002" and title "Second JSON ticket"
+    When I run "ko ls --json"
+    Then the command should succeed
+    And the output should be valid JSONL
+    And each JSON object should have field "id"
+    And each JSON object should have field "title"
+    And each JSON object should have field "status"
+    And each JSON object should have field "priority"
+
+  Scenario: Ready outputs JSON when --json flag is provided
+    Given a ticket exists with ID "json-ready-001" and title "Ready JSON ticket"
+    When I run "ko ready --json"
+    Then the command should succeed
+    And the output should be valid JSONL
+    And each JSON object should have field "id"
+    And each JSON object should have field "title"
+
+  Scenario: Blocked outputs JSON when --json flag is provided
+    Given a ticket exists with ID "json-block-001" and title "Blocked JSON ticket"
+    And a ticket exists with ID "json-block-002" and title "Blocker JSON ticket"
+    And ticket "json-block-001" depends on "json-block-002"
+    When I run "ko blocked --json"
+    Then the command should succeed
+    And the output should be valid JSONL
+    And each JSON object should have field "id"
+    And each JSON object should have field "deps"
+
+  Scenario: Closed outputs JSON when --json flag is provided
+    Given a ticket exists with ID "json-done-001" and title "Done JSON ticket"
+    And ticket "json-done-001" has status "closed"
+    When I run "ko closed --json"
+    Then the command should succeed
+    And the output should be valid JSONL
+    And each JSON object should have field "id"
+    And each JSON object should have field "status"

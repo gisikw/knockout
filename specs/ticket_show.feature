@@ -68,3 +68,24 @@ Feature: Ticket Show
     When I run "ko show 001"
     Then the command should succeed
     And the output should contain "id: show-001"
+
+  # JSON output
+
+  Scenario: Show outputs JSON when --json flag is provided
+    Given a ticket exists with ID "json-show-001" and title "JSON show ticket"
+    And a ticket exists with ID "json-show-002" and title "Blocker ticket"
+    And a ticket exists with ID "json-show-003" and title "Blocked ticket"
+    And a ticket exists with ID "json-show-001.a001" and title "Child ticket" with parent "json-show-001"
+    And ticket "json-show-001" depends on "json-show-002"
+    And ticket "json-show-003" depends on "json-show-001"
+    When I run "ko show json-show-001 --json"
+    Then the command should succeed
+    And the output should be valid JSON
+    And the JSON should have field "id" with value "json-show-001"
+    And the JSON should have field "title" with value "JSON show ticket"
+    And the JSON should have field "status"
+    And the JSON should have field "priority"
+    And the JSON should have field "blockers" as array containing "json-show-002"
+    And the JSON should have field "blocking" as array containing "json-show-003"
+    And the JSON should have field "children" as array containing "json-show-001.a001"
+    And the JSON should have field "body"

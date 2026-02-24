@@ -1,0 +1,57 @@
+# Test ko show --json output with all derived fields
+exec ko show json-show-001 --json
+stdout '"id":\s*"json-show-001"'
+stdout '"title":\s*"JSON show ticket"'
+stdout '"status":\s*"open"'
+stdout '"priority":\s*2'
+stdout '"blockers":\s*\['
+stdout 'json-show-002'
+stdout '"blocking":\s*\['
+stdout 'json-show-003'
+stdout '"children":\s*\['
+stdout 'json-show-001.a001'
+stdout 'Body content for show ticket'
+
+-- .ko/tickets/json-show-001.md --
+---
+id: json-show-001
+status: open
+deps: [json-show-002]
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# JSON show ticket
+
+Body content for show ticket
+-- .ko/tickets/json-show-002.md --
+---
+id: json-show-002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocker ticket
+-- .ko/tickets/json-show-003.md --
+---
+id: json-show-003
+status: open
+deps: [json-show-001]
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Blocked ticket
+-- .ko/tickets/json-show-001.a001.md --
+---
+id: json-show-001.a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+parent: json-show-001
+---
+# Child ticket

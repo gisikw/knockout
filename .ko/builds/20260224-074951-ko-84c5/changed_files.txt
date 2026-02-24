@@ -1,0 +1,7 @@
+cmd_list.go
+cmd_show.go
+ko
+specs/ticket_listing.feature
+specs/ticket_show.feature
+testdata/ticket_listing/json_output.txtar
+testdata/ticket_show/json_output.txtar

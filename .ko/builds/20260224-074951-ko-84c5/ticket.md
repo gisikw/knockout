@@ -1,6 +1,6 @@
 ---
 id: ko-84c5
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -12,7 +12,3 @@ priority: 2
 Add `--json` flag to ko commands that produce output. Enables scripting
 and integration with other tools. `ko query` already does JSON; extend
 the pattern to `ko show`, `ko ls`, `ko ready`, `ko blocked`, etc.
-
-## Notes
-
-**2026-02-24 07:59:20 UTC:** ko: SUCCEED
