@@ -19,3 +19,5 @@ loop: ko-4895 SUCCEED
 loop: building ko-0a01 — Rename ko add-note to ko note
 loop: ko-0a01 SUCCEED
 loop: building ko-4afc — ko blocked: surface unblock reasons for blocked tickets
+loop: ko-4afc SUCCEED
+loop: building ko-1390 — Should agent.lock and agent.pid be .gitignored? And if so, should we be writing that local gitignore on ko agent init?
