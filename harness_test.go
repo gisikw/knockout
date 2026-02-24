@@ -117,7 +117,7 @@ func TestTemplateAdapter_ClaudeCommand(t *testing.T) {
 	}
 
 	adapter := NewTemplateAdapter(h)
-	cmd := adapter.BuildCommand("test prompt", "sonnet", "test system", true)
+	cmd := adapter.BuildCommand("test prompt", "sonnet", "test system", true, nil)
 
 	if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
 		t.Errorf("expected claude binary, got %q", cmd.Path)
@@ -171,7 +171,7 @@ func TestTemplateAdapter_ClaudeCommandWithoutOptionalFlags(t *testing.T) {
 	}
 
 	adapter := NewTemplateAdapter(h)
-	cmd := adapter.BuildCommand("test prompt", "", "", false)
+	cmd := adapter.BuildCommand("test prompt", "", "", false, nil)
 
 	// Check that optional flags are NOT present
 	args := strings.Join(cmd.Args, " ")
@@ -193,7 +193,7 @@ func TestTemplateAdapter_CursorCommand(t *testing.T) {
 	}
 
 	adapter := NewTemplateAdapter(h)
-	cmd := adapter.BuildCommand("test prompt", "sonnet", "test system", true)
+	cmd := adapter.BuildCommand("test prompt", "sonnet", "test system", true, nil)
 
 	// Check binary resolution (should be cursor-agent or agent)
 	bin := filepath.Base(cmd.Path)
@@ -254,7 +254,7 @@ func TestTemplateAdapter_BinaryFallbackResolution(t *testing.T) {
 	}
 
 	adapter := NewTemplateAdapter(h)
-	cmd := adapter.BuildCommand("test", "", "", false)
+	cmd := adapter.BuildCommand("test", "", "", false, nil)
 
 	// Should fall back to first option
 	if cmd.Path != "nonexistent-binary-1" {

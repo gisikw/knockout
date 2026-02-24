@@ -68,7 +68,7 @@ func NewTemplateAdapter(h *Harness) *TemplateAdapter {
 }
 
 // BuildCommand renders the harness template and returns a ready-to-run Cmd.
-func (a *TemplateAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool) *exec.Cmd {
+func (a *TemplateAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd {
 	// Resolve binary
 	bin := a.resolveBinary()
 
@@ -80,6 +80,7 @@ func (a *TemplateAdapter) BuildCommand(prompt, model, systemPrompt string, allow
 		"prompt_with_system": buildPromptWithSystem(prompt, systemPrompt),
 		"allow_all":          "",
 		"cursor_allow_all":   "",
+		"allowed_tools":      "",
 	}
 
 	// Set conditional flags
@@ -92,6 +93,10 @@ func (a *TemplateAdapter) BuildCommand(prompt, model, systemPrompt string, allow
 	if allowAll {
 		vars["allow_all"] = "--dangerously-skip-permissions"
 		vars["cursor_allow_all"] = "--force"
+	}
+	if len(allowedTools) > 0 {
+		toolsCSV := strings.Join(allowedTools, ",")
+		vars["allowed_tools"] = "--allowed-prompts\n" + toolsCSV
 	}
 
 	// Render args

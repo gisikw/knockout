@@ -10,4 +10,5 @@ args:
   - "--output-format"
   - "text"
   - "${cursor_allow_all}"
+  - "${allowed_tools}"
   - "${model}"

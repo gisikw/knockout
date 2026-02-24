@@ -12,17 +12,18 @@ const (
 
 // Node represents a single step in a workflow.
 type Node struct {
-	Name      string   // node identifier (unique within workflow)
-	Type      NodeType // decision or action
-	Prompt    string   // prompt file reference (mutually exclusive with Run)
-	Run       string   // shell command (mutually exclusive with Prompt)
-	Model     string   // optional model override
-	AllowAll  *bool    // per-node allow_all_tool_calls override (nil = inherit)
-	Routes    []string // workflows this decision node can route to
-	MaxVisits int      // max times this node can be entered per build (default: 1)
-	Timeout   string   // optional timeout override (e.g., "5m", "1h30m")
-	Skills    []string // skill directories to make available (future multi-agent harness support)
-	Skill     string   // specific skill to invoke (future multi-agent harness support; mutually exclusive with Prompt/Run)
+	Name         string   // node identifier (unique within workflow)
+	Type         NodeType // decision or action
+	Prompt       string   // prompt file reference (mutually exclusive with Run)
+	Run          string   // shell command (mutually exclusive with Prompt)
+	Model        string   // optional model override
+	AllowAll     *bool    // per-node allow_all_tool_calls override (nil = inherit)
+	AllowedTools []string // per-node allowed_tools override (nil = inherit)
+	Routes       []string // workflows this decision node can route to
+	MaxVisits    int      // max times this node can be entered per build (default: 1)
+	Timeout      string   // optional timeout override (e.g., "5m", "1h30m")
+	Skills       []string // skill directories to make available (future multi-agent harness support)
+	Skill        string   // specific skill to invoke (future multi-agent harness support; mutually exclusive with Prompt/Run)
 }
 
 // IsPromptNode reports whether this node invokes an LLM.
@@ -37,10 +38,11 @@ func (n *Node) IsRunNode() bool {
 
 // Workflow is a named sequence of nodes.
 type Workflow struct {
-	Name     string // workflow identifier
-	Model    string // optional model override for all nodes in this workflow
-	AllowAll *bool  // per-workflow allow_all_tool_calls override (nil = inherit)
-	Nodes    []Node // ordered list of nodes
+	Name         string   // workflow identifier
+	Model        string   // optional model override for all nodes in this workflow
+	AllowAll     *bool    // per-workflow allow_all_tool_calls override (nil = inherit)
+	AllowedTools []string // per-workflow allowed_tools override (nil = inherit)
+	Nodes        []Node   // ordered list of nodes
 }
 
 // ValidateWorkflows checks the workflow graph for structural errors.

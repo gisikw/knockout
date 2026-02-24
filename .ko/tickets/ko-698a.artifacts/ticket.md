@@ -13,3 +13,5 @@ priority: 2
 **2026-02-24 08:47:49 UTC:** ko: FAIL at node 'actionable' — Unresolved architectural decision in Open Questions #1: 'Merge vs Override Semantics: Should allowed_tools at node level completely replace the parent lists, or should it merge (union)?' The plan recommends merge semantics but explicitly requests a decision before implementation.
 
 **2026-02-24 13:02:23 UTC:** Decision: override, not merge. Node-level allowed_tools completely replaces parent lists.
+
+**2026-02-24 13:06:20 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field

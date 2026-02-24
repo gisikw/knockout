@@ -6,5 +6,6 @@ args:
   - "--output-format"
   - "text"
   - "${allow_all}"
+  - "${allowed_tools}"
   - "${model}"
   - "${system_prompt}"

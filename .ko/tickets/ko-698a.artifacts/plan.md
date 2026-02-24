@@ -16,7 +16,7 @@ Key files:
 The current system is binary: either skip all permission checks or require prompts for everything. The ticket requests granular control to specify which tools are auto-allowed.
 
 ## Approach
-Add an `allowed_tools` field (string slice) to the pipeline config hierarchy (pipeline, workflow, node levels) alongside the existing `allow_all_tool_calls` boolean. Update the harness template system to support a new `${allowed_tools}` variable that expands to the appropriate CLI flag syntax for each agent. Maintain the existing three-level inheritance pattern but for string slices rather than booleans. The `AgentAdapter` interface will need to accept the tools list and agents will format it appropriately (Claude uses `--allowed-prompts`, Cursor may ignore it if unsupported).
+Add an `allowed_tools` field (string slice) to the pipeline config hierarchy (pipeline, workflow, node levels) alongside the existing `allow_all_tool_calls` boolean. Update the harness template system to support a new `${allowed_tools}` variable that expands to the appropriate CLI flag syntax for each agent. Use **override semantics** (like the existing `allow_all_tool_calls`): node > workflow > pipeline, where a more-specific level completely replaces parent lists. The `AgentAdapter` interface will need to accept the tools list and agents will format it appropriately (Claude uses `--allowed-prompts`, Cursor may ignore it if unsupported).
 
 ## Tasks
 1. **[pipeline.go:Pipeline]** — Add `AllowedTools []string` field to the `Pipeline` struct alongside `AllowAll`. Parse `allowed_tools:` from YAML as a string list (support both multiline and inline `[a, b]` syntax, mirroring the existing `routes`/`skills` parsing pattern). No verification needed yet.
@@ -25,7 +25,7 @@ Add an `allowed_tools` field (string slice) to the pipeline config hierarchy (pi
 
 3. **[pipeline.go:ParsePipeline]** — Update the YAML parser to handle `allowed_tools:` at all three levels (pipeline, workflow, node) using the same pattern as the existing `skills` parsing (lines 307-313 show the pattern: handle both inline `[a, b]` syntax and multiline list, toggle a flag to track when we're accumulating a multiline list). Verify: Add unit test in pipeline_test.go.
 
-4. **[build.go:resolveAllowedTools]** — Create new function `resolveAllowedTools(p *Pipeline, wf *Workflow, node *Node) []string` that implements merge semantics: node tools + workflow tools + pipeline tools (union, deduplicated). This differs from `resolveAllowAll` which does override semantics. Verify: Add unit test.
+4. **[build.go:resolveAllowedTools]** — Create new function `resolveAllowedTools(p *Pipeline, wf *Workflow, node *Node) []string` that implements override semantics (same as `resolveAllowAll`): check node first, if non-nil return it; else check workflow, if non-nil return it; else return pipeline tools. Return nil if all are nil (no tools specified). Verify: Add unit test.
 
 5. **[build.go:runPromptNode]** — Update the call site around line 168 to resolve allowed tools and pass them to `adapter.BuildCommand()`. Change from `allowAll := resolveAllowAll(p, wf, node)` to also compute `allowedTools := resolveAllowedTools(p, wf, node)`, then pass both to the adapter. Verify: Existing build tests should still pass.
 
@@ -41,17 +41,19 @@ Add an `allowed_tools` field (string slice) to the pipeline config hierarchy (pi
 
 11. **[pipeline_test.go]** — Add test `TestParsePipelineAllowedTools` that validates parsing of `allowed_tools` at all three levels (pipeline, workflow, node) in both inline and multiline formats. Verify: Test passes.
 
-12. **[pipeline_test.go]** — Add test `TestResolveAllowedToolsMerge` that validates the union merge behavior across the three levels (node + workflow + pipeline with deduplication). Verify: Test passes.
+12. **[pipeline_test.go]** — Add test `TestResolveAllowedToolsOverride` that validates the override behavior across the three levels (node > workflow > pipeline, more-specific completely replaces less-specific). Verify: Test passes.
 
-13. **[README.md:Pipeline options]** — Add row to the pipeline options table: `allowed_tools` | `[]` | List of tool names to auto-allow (e.g., `Read`, `Write`, `Bash`). Can be set at pipeline, workflow, or node level; lists are merged (union). Verify: Documentation is clear.
+13. **[README.md:Pipeline options]** — Add row to the pipeline options table: `allowed_tools` | `[]` | List of tool names to auto-allow (e.g., `Read`, `Write`, `Bash`). Can be set at pipeline, workflow, or node level with override semantics (node > workflow > pipeline). Only used when `allow_all_tool_calls` is false. Tool names are case-sensitive. Verify: Documentation is clear.
 
-14. **[README.md:Node properties]** — Document that `allowed_tools` can be set per-node as a list (multiline or inline syntax). Verify: Documentation is clear.
+14. **[README.md:Node properties]** — Document that `allowed_tools` can be set per-node as a list (multiline or inline syntax) and completely replaces any workflow or pipeline level lists. Verify: Documentation is clear.
 
 ## Open Questions
-1. **Merge vs Override Semantics**: Should `allowed_tools` at node level completely replace the parent lists, or should it merge (union) with workflow and pipeline lists? The plan assumes **merge semantics** (union) because this is more permissive and aligns with the principle of least surprise — a node shouldn't become more restrictive by accident. However, if users need to restrict tools at a lower level, we could support both a positive list (`allowed_tools`) and a negative list (`denied_tools`), or use override semantics. **Decision needed**: Merge or override?
+**RESOLVED**: All open questions have been resolved.
 
-2. **Tool name format**: Are tool names case-sensitive? Should we normalize them (e.g., `"read"` vs `"Read"` vs `"READ"`)? The Claude CLI uses exact matches like `"Read"`, `"Write"`, `"Bash"`. **Assumption**: Use exact case-sensitive matching as provided by the user, document the canonical names in README.
+1. **Merge vs Override Semantics** → **RESOLVED**: Use **override semantics**. Node-level `allowed_tools` completely replaces parent lists (node > workflow > pipeline), matching the existing behavior of `allow_all_tool_calls`. (Decision provided in ticket notes 2026-02-24 13:02:23 UTC)
 
-3. **Interaction with allow_all_tool_calls**: When both `allow_all_tool_calls: true` and `allowed_tools: [Read, Write]` are set, which takes precedence? **Assumption**: `allow_all_tool_calls: true` overrides everything (skips all permission checks). The `allowed_tools` list is only used when `allow_all_tool_calls` is false. Document this behavior.
+2. **Tool name format** → **RESOLVED**: Use exact case-sensitive matching as provided by the user. The Claude CLI uses exact matches like `"Read"`, `"Write"`, `"Bash"`. Document the canonical tool names in README.
 
-4. **Empty list semantics**: Does `allowed_tools: []` mean "allow nothing" (maximally restrictive) or "inherit from parent"? **Assumption**: Empty list means inherit from parent (no tools specified at this level). To block all tools, omit the `allowed_tools` field entirely and set `allow_all_tool_calls: false`. Document this.
+3. **Interaction with allow_all_tool_calls** → **RESOLVED**: `allow_all_tool_calls: true` takes precedence and skips all permission checks. The `allowed_tools` list is only consulted when `allow_all_tool_calls` is false or not set. Document this interaction clearly.
+
+4. **Empty list semantics** → **RESOLVED**: An empty list `allowed_tools: []` at a given level means "allow no tools" at that level. With override semantics, this means an empty list at node level will override any parent lists and allow no tools. To inherit from parent, omit the `allowed_tools` field at that level. A nil (unset) value means "no override, check parent level."

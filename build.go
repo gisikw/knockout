@@ -168,6 +168,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Resolve overrides: node > workflow > pipeline
 		model := resolveModel(p, wf, node)
 		allowAll := resolveAllowAll(p, wf, node)
+		allowedTools := resolveAllowedTools(p, wf, node)
 		timeout, err := resolveTimeout(p, node)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
@@ -179,7 +180,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
 		hist.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, allowAll, timeout, wsDir, artifactDir, wfName, hist.Path(), verbose)
+		output, err := runNode(ticketsDir, t, p, node, model, allowAll, allowedTools, timeout, wsDir, artifactDir, wfName, hist.Path(), verbose)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
@@ -224,7 +225,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, allowedTools []string, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -232,7 +233,7 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string
 		var err error
 
 		if node.IsPromptNode() {
-			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, timeout, wsDir, artifactDir, wfName, histPath, verbose)
+			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, allowedTools, timeout, wsDir, artifactDir, wfName, histPath, verbose)
 		} else if node.IsRunNode() {
 			output, err = runRunNode(node, timeout, wsDir, artifactDir, histPath, wfName, verbose)
 		} else {
@@ -352,7 +353,7 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 }
 
 // runPromptNode invokes the configured command with ticket context.
-func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, allowedTools []string, timeout time.Duration, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	// Skill invocation is not yet supported by Claude adapter
 	// This will be implemented in ko-1930 (multi-agent harness)
 	if node.Skill != "" {
@@ -396,7 +397,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 	}
 
 	adapter := p.Adapter()
-	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, allowAll)
+	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, allowAll, allowedTools)
 
 	// Create a new context-aware command with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -549,6 +550,19 @@ func resolveAllowAll(p *Pipeline, wf *Workflow, node *Node) bool {
 		return *wf.AllowAll
 	}
 	return p.AllowAll
+}
+
+// resolveAllowedTools returns the most specific allowed_tools override.
+// Precedence: node > workflow > pipeline.
+// Returns nil if no tools are specified at any level.
+func resolveAllowedTools(p *Pipeline, wf *Workflow, node *Node) []string {
+	if node.AllowedTools != nil {
+		return node.AllowedTools
+	}
+	if wf.AllowedTools != nil {
+		return wf.AllowedTools
+	}
+	return p.AllowedTools
 }
 
 // resolveTimeout returns the effective timeout for a node.

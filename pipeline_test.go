@@ -584,3 +584,147 @@ workflows:
 		t.Errorf("Node.Timeout = %q, want %q", node.Timeout, "5m")
 	}
 }
+
+func TestParsePipelineAllowedTools(t *testing.T) {
+	config := `
+allowed_tools:
+  - Read
+  - Write
+workflows:
+  main:
+    allowed_tools:
+      - Read
+      - Bash
+    - name: task1
+      type: action
+      prompt: impl.md
+      allowed_tools:
+        - Read
+        - Write
+        - Edit
+    - name: task2
+      type: action
+      prompt: test.md
+      allowed_tools: [Bash, Grep]
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	// Pipeline-level
+	if len(p.AllowedTools) != 2 {
+		t.Fatalf("len(Pipeline.AllowedTools) = %d, want 2", len(p.AllowedTools))
+	}
+	if p.AllowedTools[0] != "Read" {
+		t.Errorf("Pipeline.AllowedTools[0] = %q, want %q", p.AllowedTools[0], "Read")
+	}
+	if p.AllowedTools[1] != "Write" {
+		t.Errorf("Pipeline.AllowedTools[1] = %q, want %q", p.AllowedTools[1], "Write")
+	}
+
+	// Workflow-level
+	wf := p.Workflows["main"]
+	if len(wf.AllowedTools) != 2 {
+		t.Fatalf("len(Workflow.AllowedTools) = %d, want 2", len(wf.AllowedTools))
+	}
+	if wf.AllowedTools[0] != "Read" {
+		t.Errorf("Workflow.AllowedTools[0] = %q, want %q", wf.AllowedTools[0], "Read")
+	}
+	if wf.AllowedTools[1] != "Bash" {
+		t.Errorf("Workflow.AllowedTools[1] = %q, want %q", wf.AllowedTools[1], "Bash")
+	}
+
+	// Node-level multiline
+	node1 := wf.Nodes[0]
+	if len(node1.AllowedTools) != 3 {
+		t.Fatalf("len(Node1.AllowedTools) = %d, want 3", len(node1.AllowedTools))
+	}
+	if node1.AllowedTools[0] != "Read" {
+		t.Errorf("Node1.AllowedTools[0] = %q, want %q", node1.AllowedTools[0], "Read")
+	}
+	if node1.AllowedTools[1] != "Write" {
+		t.Errorf("Node1.AllowedTools[1] = %q, want %q", node1.AllowedTools[1], "Write")
+	}
+	if node1.AllowedTools[2] != "Edit" {
+		t.Errorf("Node1.AllowedTools[2] = %q, want %q", node1.AllowedTools[2], "Edit")
+	}
+
+	// Node-level inline
+	node2 := wf.Nodes[1]
+	if len(node2.AllowedTools) != 2 {
+		t.Fatalf("len(Node2.AllowedTools) = %d, want 2", len(node2.AllowedTools))
+	}
+	if node2.AllowedTools[0] != "Bash" {
+		t.Errorf("Node2.AllowedTools[0] = %q, want %q", node2.AllowedTools[0], "Bash")
+	}
+	if node2.AllowedTools[1] != "Grep" {
+		t.Errorf("Node2.AllowedTools[1] = %q, want %q", node2.AllowedTools[1], "Grep")
+	}
+}
+
+func TestResolveAllowedToolsOverride(t *testing.T) {
+	config := `
+allowed_tools:
+  - Read
+  - Write
+workflows:
+  main:
+    allowed_tools:
+      - Bash
+      - Grep
+    - name: inherit_workflow
+      type: action
+      prompt: impl.md
+    - name: override_node
+      type: action
+      prompt: impl.md
+      allowed_tools:
+        - Edit
+        - TodoWrite
+  other:
+    - name: inherit_pipeline
+      type: action
+      prompt: impl.md
+    - name: empty_override
+      type: action
+      prompt: impl.md
+      allowed_tools: []
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	// Test node > workflow > pipeline precedence
+	mainWF := p.Workflows["main"]
+
+	// Node inherits from workflow
+	inheritWorkflowNode := mainWF.Nodes[0]
+	resolved := resolveAllowedTools(p, mainWF, &inheritWorkflowNode)
+	if len(resolved) != 2 || resolved[0] != "Bash" || resolved[1] != "Grep" {
+		t.Errorf("node inheriting from workflow: got %v, want [Bash Grep]", resolved)
+	}
+
+	// Node overrides workflow
+	overrideNode := mainWF.Nodes[1]
+	resolved = resolveAllowedTools(p, mainWF, &overrideNode)
+	if len(resolved) != 2 || resolved[0] != "Edit" || resolved[1] != "TodoWrite" {
+		t.Errorf("node overriding workflow: got %v, want [Edit TodoWrite]", resolved)
+	}
+
+	// Workflow inherits from pipeline
+	otherWF := p.Workflows["other"]
+	inheritPipelineNode := otherWF.Nodes[0]
+	resolved = resolveAllowedTools(p, otherWF, &inheritPipelineNode)
+	if len(resolved) != 2 || resolved[0] != "Read" || resolved[1] != "Write" {
+		t.Errorf("workflow inheriting from pipeline: got %v, want [Read Write]", resolved)
+	}
+
+	// Node with empty list overrides parent
+	emptyNode := otherWF.Nodes[1]
+	resolved = resolveAllowedTools(p, otherWF, &emptyNode)
+	if len(resolved) != 0 {
+		t.Errorf("node with empty list: got %v, want []", resolved)
+	}
+}

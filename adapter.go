@@ -9,7 +9,8 @@ import (
 type AgentAdapter interface {
 	// BuildCommand returns a ready-to-run Cmd. The caller sets Stdin if needed.
 	// prompt is the full prompt text. model may be empty. systemPrompt may be empty.
-	BuildCommand(prompt, model, systemPrompt string, allowAll bool) *exec.Cmd
+	// allowedTools may be nil or empty.
+	BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd
 }
 
 // LookupAdapter returns the adapter for a given agent name, or nil if unknown.
@@ -27,7 +28,7 @@ type RawCommandAdapter struct {
 	Command string
 }
 
-func (a *RawCommandAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool) *exec.Cmd {
+func (a *RawCommandAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd {
 	args := []string{"-p", "--output-format", "text"}
 	if model != "" {
 		args = append(args, "--model", model)
@@ -35,6 +36,7 @@ func (a *RawCommandAdapter) BuildCommand(prompt, model, systemPrompt string, all
 	if systemPrompt != "" {
 		args = append(args, "--append-system-prompt", systemPrompt)
 	}
+	// allowedTools not implemented for raw command adapter
 
 	cmd := exec.Command(a.Command, args...)
 	cmd.Stdin = strings.NewReader(prompt)

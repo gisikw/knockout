@@ -10,18 +10,19 @@ import (
 
 // Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
-	Agent       string                // agent adapter name: claude | cursor (default: "claude")
-	Command     string                // raw command override (mutually exclusive with agent)
-	AllowAll    bool                  // maps to --dangerously-skip-permissions, --force, etc.
-	Model       string                // default model for prompt nodes
-	MaxRetries  int                   // max retries per node (default: 2)
-	MaxDepth    int                   // max decomposition depth (default: 2)
-	Discretion  string                // low | medium | high (default: "medium")
-	StepTimeout string                // default timeout for all nodes (e.g., "15m", "1h30m")
-	Workflows   map[string]*Workflow  // named workflows; "main" is the entry point
-	OnSucceed   []string              // shell commands to run after all stages pass
-	OnFail      []string              // shell commands to run on build failure
-	OnClose     []string              // shell commands to run after ticket is closed
+	Agent        string                // agent adapter name: claude | cursor (default: "claude")
+	Command      string                // raw command override (mutually exclusive with agent)
+	AllowAll     bool                  // maps to --dangerously-skip-permissions, --force, etc.
+	AllowedTools []string              // list of tool names to auto-allow (e.g., Read, Write, Bash)
+	Model        string                // default model for prompt nodes
+	MaxRetries   int                   // max retries per node (default: 2)
+	MaxDepth     int                   // max decomposition depth (default: 2)
+	Discretion   string                // low | medium | high (default: "medium")
+	StepTimeout  string                // default timeout for all nodes (e.g., "15m", "1h30m")
+	Workflows    map[string]*Workflow  // named workflows; "main" is the entry point
+	OnSucceed    []string              // shell commands to run after all stages pass
+	OnFail       []string              // shell commands to run on build failure
+	OnClose      []string              // shell commands to run after ticket is closed
 
 	agentExplicit bool              // true if agent: was explicitly set in config
 }
@@ -77,6 +78,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	var currentNode *Node      // current node being parsed
 	var inRoutes bool          // parsing routes list for current node
 	var inSkills bool          // parsing skills list for current node
+	var inAllowedTools bool    // parsing allowed_tools list
 	var inPrompt bool          // parsing inline prompt content
 	var promptIndent int       // indentation level of prompt: line
 	var promptLines []string   // accumulated prompt lines
@@ -102,6 +104,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			flushWorkflow(&currentWF, p)
 			inRoutes = false
 			inSkills = false
+			inAllowedTools = false
 
 			if trimmed == "workflows:" {
 				section = "workflows"
@@ -143,6 +146,15 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				p.Discretion = val
 			case "step_timeout":
 				p.StepTimeout = val
+			case "allowed_tools":
+				// Handle inline list: allowed_tools: [a, b, c]
+				if strings.HasPrefix(val, "[") {
+					p.AllowedTools = parseYAMLList(val)
+				} else {
+					// Multiline list will be handled in section parsing
+					section = "allowed_tools"
+					continue
+				}
 			}
 			section = ""
 			continue
@@ -159,6 +171,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				flushWorkflow(&currentWF, p)
 				inRoutes = false
 				inSkills = false
+				inAllowedTools = false
 				name := strings.TrimSuffix(trimmed, ":")
 				currentWF = &Workflow{Name: name}
 
@@ -174,6 +187,13 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				case "allow_all_tool_calls":
 					v := val == "true"
 					currentWF.AllowAll = &v
+				case "allowed_tools":
+					inAllowedTools = true
+					// Handle inline list: allowed_tools: [a, b, c]
+					if strings.HasPrefix(val, "[") {
+						currentWF.AllowedTools = parseYAMLList(val)
+						inAllowedTools = false
+					}
 				}
 
 			case strings.HasPrefix(trimmed, "- name:") && currentWF != nil:
@@ -187,8 +207,15 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				flushNode(&currentNode, currentWF)
 				inRoutes = false
 				inSkills = false
+				inAllowedTools = false
 				_, val, _ := parseYAMLLine(strings.TrimPrefix(trimmed, "- "))
 				currentNode = &Node{Name: val, MaxVisits: 1}
+
+			case inAllowedTools && strings.HasPrefix(trimmed, "- ") && currentWF != nil && currentNode == nil:
+				// Workflow-level allowed_tools entry
+				tool := strings.TrimPrefix(trimmed, "- ")
+				tool = strings.TrimSpace(tool)
+				currentWF.AllowedTools = append(currentWF.AllowedTools, tool)
 
 			case inRoutes && strings.HasPrefix(trimmed, "- ") && currentNode != nil:
 				// Route entry
@@ -202,6 +229,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				skill = strings.TrimSpace(skill)
 				currentNode.Skills = append(currentNode.Skills, skill)
 
+			case inAllowedTools && strings.HasPrefix(trimmed, "- ") && currentNode != nil:
+				// Node-level allowed_tools entry
+				tool := strings.TrimPrefix(trimmed, "- ")
+				tool = strings.TrimSpace(tool)
+				currentNode.AllowedTools = append(currentNode.AllowedTools, tool)
+
 			case inPrompt && currentNode != nil:
 				// Accumulating inline prompt lines
 				indent := countIndent(line)
@@ -213,7 +246,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 					// Re-process this line as a node property
 					key, val, ok := parseYAMLLine(trimmed)
 					if ok {
-						applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills)
+						applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills, &inAllowedTools)
 					}
 				} else {
 					// Strip common indentation and accumulate
@@ -232,13 +265,14 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				}
 				inRoutes = false
 				inSkills = false
+				inAllowedTools = false
 				if key == "prompt" && val == "|" {
 					// Start of inline prompt
 					inPrompt = true
 					promptIndent = countIndent(line)
 					promptLines = nil
 				} else {
-					applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills)
+					applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills, &inAllowedTools)
 				}
 			}
 
@@ -256,6 +290,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			if strings.HasPrefix(trimmed, "- ") {
 				cmd := strings.TrimPrefix(trimmed, "- ")
 				p.OnClose = append(p.OnClose, cmd)
+			}
+		case "allowed_tools":
+			if strings.HasPrefix(trimmed, "- ") {
+				tool := strings.TrimPrefix(trimmed, "- ")
+				tool = strings.TrimSpace(tool)
+				p.AllowedTools = append(p.AllowedTools, tool)
 			}
 		}
 	}
@@ -284,9 +324,10 @@ func ParsePipeline(content string) (*Pipeline, error) {
 }
 
 // applyNodeProperty applies a parsed key-value pair to a node.
-func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bool) {
+func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bool, inAllowedTools *bool) {
 	*inRoutes = false
 	*inSkills = false
+	*inAllowedTools = false
 	switch key {
 	case "type":
 		node.Type = NodeType(val)
@@ -316,6 +357,13 @@ func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bo
 		if strings.HasPrefix(val, "[") {
 			node.Skills = parseYAMLList(val)
 			*inSkills = false
+		}
+	case "allowed_tools":
+		*inAllowedTools = true
+		// Handle inline list: allowed_tools: [a, b, c]
+		if strings.HasPrefix(val, "[") {
+			node.AllowedTools = parseYAMLList(val)
+			*inAllowedTools = false
 		}
 	case "skill":
 		node.Skill = val

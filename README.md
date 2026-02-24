@@ -249,6 +249,7 @@ on_close:
 | `agent` | `claude` | Agent adapter: `claude` \| `cursor` |
 | `command` | — | Raw command override (mutually exclusive with `agent`) |
 | `allow_all_tool_calls` | `false` | Maps to `--dangerously-skip-permissions` (claude), `--force` (cursor) |
+| `allowed_tools` | `[]` | List of tool names to auto-allow (e.g., `Read`, `Write`, `Bash`). Can be set at pipeline, workflow, or node level with override semantics (node > workflow > pipeline). Only used when `allow_all_tool_calls` is false. Tool names are case-sensitive. |
 | `model` | — | Default model for all prompt nodes |
 | `max_retries` | `2` | Retry attempts per node |
 | `max_depth` | `2` | Max decomposition depth |
@@ -264,6 +265,7 @@ on_close:
 | `prompt` | one of | Prompt file in `.ko/prompts/`, or inline text |
 | `run` | one of | Shell command to execute |
 | `model` | no | Model override for this node |
+| `allowed_tools` | no | List of tool names to auto-allow (multiline or inline syntax). Completely replaces any workflow or pipeline level lists. |
 | `routes` | no | Workflows this decision node may route to |
 | `max_visits` | no | Max times this node can run per build (default: 1) |
 | `timeout` | no | Max duration for this node (overrides `step_timeout`) |
