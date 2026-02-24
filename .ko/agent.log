@@ -29,3 +29,15 @@ loop: ko-bfc5 FAIL
 loop: building ko-9f8f — Support priority flag on create: ko create -p1 "title"
 loop: ko-9f8f SUCCEED
 loop: building ko-20d5 — Step timeout — enforce max duration per pipeline node with configurable default
+loop: building ko-d897 — ko add should accept ticket description via stdin/heredoc or second arg
+loop: ko-d897 FAIL
+loop: building ko-698a — Support granular tool permissions in pipeline config
+loop: ko-698a FAIL
+loop: building ko-dd51 — New ticket status: resolved — done but pending human review before close
+loop: ko-dd51 FAIL
+loop: building ko-fd4e — Add .ko/.gitignore for agent runtime files (agent.lock, agent.pid, agent.log)
+loop: ko-fd4e FAIL
+loop: building ko-f7d1 — Retry transitions and build failures should emit events to the event log
+loop: ko-f7d1 FAIL
+loop complete: 5 processed (0 succeeded, 5 failed, 0 blocked, 0 decomposed)
+stopped: empty

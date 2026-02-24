@@ -43,6 +43,9 @@ func cmdAgentInit(args []string) int {
 	}
 	os.WriteFile(filepath.Join(buildsDir, ".gitignore"), []byte("*\n!.gitignore\n"), 0644)
 
+	// Gitignore agent runtime files in .ko/
+	os.WriteFile(filepath.Join(koDir, ".gitignore"), []byte("agent.lock\nagent.pid\nagent.log\n"), 0644)
+
 	// Write pipeline config
 	if err := os.WriteFile(configPath, []byte(defaultPipelineYML), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)

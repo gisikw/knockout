@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -28,10 +29,23 @@ func TestCmdBuildInit_createsFiles(t *testing.T) {
 		".ko/prompts/triage.md",
 		".ko/prompts/implement.md",
 		".ko/prompts/review.md",
+		".ko/.gitignore",
 	} {
 		full := filepath.Join(dir, path)
 		if _, err := os.Stat(full); err != nil {
 			t.Errorf("expected %s to exist: %v", path, err)
+		}
+	}
+
+	// Verify .ko/.gitignore contains agent runtime files
+	gitignoreData, err := os.ReadFile(filepath.Join(dir, ".ko", ".gitignore"))
+	if err != nil {
+		t.Fatalf("failed to read .ko/.gitignore: %v", err)
+	}
+	gitignoreContent := string(gitignoreData)
+	for _, entry := range []string{"agent.lock", "agent.pid", "agent.log"} {
+		if !strings.Contains(gitignoreContent, entry) {
+			t.Errorf("expected .ko/.gitignore to contain %q", entry)
 		}
 	}
 
