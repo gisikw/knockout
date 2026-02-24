@@ -1,6 +1,6 @@
 ---
 id: ko-4afc
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -15,7 +15,3 @@ priority: 2
 Consider: blocking a ticket should always require a reason. Maybe enforce
 that the reason lands in frontmatter or a structured field so it's easy
 to extract programmatically, not just grep through notes.
-
-## Notes
-
-**2026-02-24 08:42:53 UTC:** ko: SUCCEED

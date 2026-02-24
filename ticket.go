@@ -458,3 +458,44 @@ func AddNote(t *Ticket, note string) {
 		t.Body += section
 	}
 }
+
+// ExtractBlockReason parses the ticket body to find the most recent note
+// containing "ko: FAIL" or "ko: BLOCKED" and extracts the reason text after
+// the "—" delimiter. Returns empty string if no block reason found.
+func ExtractBlockReason(t *Ticket) string {
+	if !strings.Contains(t.Body, "## Notes") {
+		return ""
+	}
+
+	// Split into lines and find all notes with FAIL or BLOCKED
+	lines := strings.Split(t.Body, "\n")
+	var lastReason string
+	delimiter := " — "
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Notes are formatted as: **timestamp:** ko: FAIL/BLOCKED at node 'name' — reason
+		if !strings.HasPrefix(line, "**") {
+			continue
+		}
+		// Find the note content after the timestamp
+		idx := strings.Index(line, ":** ")
+		if idx < 0 {
+			continue
+		}
+		noteContent := line[idx+4:]
+
+		// Check for FAIL or BLOCKED
+		if strings.HasPrefix(noteContent, "ko: FAIL") || strings.HasPrefix(noteContent, "ko: BLOCKED") {
+			// Extract reason after " — "
+			reasonIdx := strings.Index(noteContent, delimiter)
+			if reasonIdx >= 0 {
+				lastReason = noteContent[reasonIdx+len(delimiter):]
+			} else {
+				lastReason = "" // FAIL/BLOCKED without reason
+			}
+		}
+	}
+
+	return lastReason
+}

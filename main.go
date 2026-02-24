@@ -118,7 +118,7 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
-  blocked            Show tickets with unresolved deps
+  blocked [id]       Show blocked tickets or reason for specific ticket
   closed             Show closed tickets
 
   status <id> <s>    Set ticket status

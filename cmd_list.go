@@ -242,6 +242,29 @@ func cmdBlocked(args []string) int {
 		return 1
 	}
 
+	// If an ID is provided, show just that ticket's block reason
+	if len(fs.Args()) > 0 {
+		id, err := ResolveID(ticketsDir, fs.Args()[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
+			return 1
+		}
+		t, err := LoadTicket(ticketsDir, id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
+			return 1
+		}
+
+		reason := ExtractBlockReason(t)
+		if reason == "" {
+			fmt.Printf("%s: no block reason found\n", t.ID)
+		} else {
+			fmt.Printf("%s: %s\n", t.ID, reason)
+		}
+		return 0
+	}
+
+	// No ID provided: list all blocked tickets
 	tickets, err := ListTickets(ticketsDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
@@ -254,13 +277,11 @@ func cmdBlocked(args []string) int {
 			if t.Status == "closed" {
 				continue
 			}
-			if len(t.Deps) == 0 {
+			// Include tickets with status=blocked OR tickets with unresolved deps
+			hasUnresolvedDeps := len(t.Deps) > 0 && !AllDepsResolved(ticketsDir, t.Deps)
+			if t.Status != "blocked" && !hasUnresolvedDeps {
 				continue
 			}
-			if AllDepsResolved(ticketsDir, t.Deps) {
-				continue
-			}
-			// Has unresolved deps
 			modified := ""
 			if !t.ModTime.IsZero() {
 				modified = t.ModTime.UTC().Format(time.RFC3339)
@@ -285,14 +306,24 @@ func cmdBlocked(args []string) int {
 			if t.Status == "closed" {
 				continue
 			}
-			if len(t.Deps) == 0 {
+			// Include tickets with status=blocked OR tickets with unresolved deps
+			hasUnresolvedDeps := len(t.Deps) > 0 && !AllDepsResolved(ticketsDir, t.Deps)
+			if t.Status != "blocked" && !hasUnresolvedDeps {
 				continue
 			}
-			if AllDepsResolved(ticketsDir, t.Deps) {
-				continue
+
+			// For status=blocked tickets, show the reason
+			if t.Status == "blocked" {
+				reason := ExtractBlockReason(t)
+				if reason != "" {
+					fmt.Printf("%s [%s] (p%d) %s — %s\n", t.ID, t.Status, t.Priority, t.Title, reason)
+				} else {
+					fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+				}
+			} else {
+				// For dep-blocked tickets, show the deps (existing behavior)
+				fmt.Printf("%s [%s] (p%d) %s <- [%s]\n", t.ID, t.Status, t.Priority, t.Title, strings.Join(t.Deps, ", "))
 			}
-			// Has unresolved deps
-			fmt.Printf("%s [%s] (p%d) %s <- [%s]\n", t.ID, t.Status, t.Priority, t.Title, strings.Join(t.Deps, ", "))
 		}
 	}
 	return 0

@@ -114,6 +114,38 @@ Feature: Ticket Listing
     When I run "ko blocked"
     Then the output should not contain "block-001"
 
+  Scenario: Blocked shows tickets with status=blocked
+    Given a ticket exists with ID "block-003" and title "HITL ticket"
+    And ticket "block-003" has status "blocked"
+    When I run "ko blocked"
+    Then the command should succeed
+    And the output should contain "block-003"
+
+  Scenario: Blocked shows block reason for status=blocked tickets
+    Given a ticket exists with ID "block-004" and title "Failed ticket"
+    And ticket "block-004" has status "blocked"
+    And ticket "block-004" has a note "ko: FAIL at node 'actionable' — Missing required information"
+    When I run "ko blocked"
+    Then the command should succeed
+    And the output should contain "block-004"
+    And the output should contain "Missing required information"
+
+  Scenario: Blocked with ID shows specific ticket's block reason
+    Given a ticket exists with ID "block-005" and title "Specific blocked ticket"
+    And ticket "block-005" has status "blocked"
+    And ticket "block-005" has a note "ko: BLOCKED at node 'verify' — Test coverage insufficient"
+    When I run "ko blocked block-005"
+    Then the command should succeed
+    And the output should contain "block-005"
+    And the output should contain "Test coverage insufficient"
+
+  Scenario: Blocked with ID shows message when no reason found
+    Given a ticket exists with ID "block-006" and title "Blocked without reason"
+    And ticket "block-006" has status "blocked"
+    When I run "ko blocked block-006"
+    Then the command should succeed
+    And the output should contain "block-006: no block reason found"
+
   # Closed view
 
   Scenario: Closed shows recently closed tickets
