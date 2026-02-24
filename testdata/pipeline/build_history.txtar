@@ -1,0 +1,43 @@
+# Build history: JSONL created with build_start, node events, build_complete
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+# JSONL file should exist
+exec cat .ko/tickets/ko-a001.jsonl
+stdout '"event":"build_start"'
+stdout '"event":"node_start"'
+stdout '"event":"node_complete"'
+stdout '"event":"build_complete"'
+stdout '"outcome":"succeed"'
+stdout '"workflow":"main"'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Build history test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/triage.md --
+Triage this ticket.
+-- .ko/prompts/implement.md --
+Implement the changes.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

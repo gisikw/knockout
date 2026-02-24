@@ -78,6 +78,14 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		return OutcomeFail, fmt.Errorf("failed to create artifact directory: %v", err)
 	}
 
+	// Open build history (append-only, persists across builds and close)
+	hist, err := OpenBuildHistory(ticketsDir, t.ID)
+	if err != nil {
+		return OutcomeFail, fmt.Errorf("failed to open build history: %v", err)
+	}
+	defer hist.Close()
+	hist.BuildStart(t.ID)
+
 	// Mark ticket as in_progress
 	setStatus(ticketsDir, t, "in_progress")
 
@@ -90,22 +98,26 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 
 	// Execute starting from "main" workflow
 	log.WorkflowStart(t.ID, "main")
-	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, buildDir, log, verbose)
+	hist.WorkflowStart(t.ID, "main")
+	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, buildDir, log, hist, verbose)
 	if err != nil {
 		log.WorkflowComplete(t.ID, "fail")
+		hist.BuildComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
 	if outcome == OutcomeFail {
 		log.WorkflowComplete(t.ID, "fail")
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
+		hist.BuildComplete(t.ID, "fail")
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
 	if outcome != OutcomeSucceed {
 		log.WorkflowComplete(t.ID, outcomeString(outcome))
+		hist.BuildComplete(t.ID, outcomeString(outcome))
 		return outcome, nil
 	}
 
@@ -117,26 +129,27 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// committed but untracked changes.
 	AddNote(t, "ko: SUCCEED")
 	log.WorkflowComplete(t.ID, "succeed")
+	hist.BuildComplete(t.ID, "succeed")
 	setStatus(ticketsDir, t, "closed")
 
 	// Run on_succeed hooks (ticket already closed)
-	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir); err != nil {
+	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir, hist.Path()); err != nil {
 		// Reopen — the succeed hooks failed, so this isn't actually done
 		AddNote(t, fmt.Sprintf("ko: on_succeed failed — %s", err.Error()))
 		setStatus(ticketsDir, t, "blocked")
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir) // best-effort
+		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
 	// Run on_close hooks
-	runHooks(ticketsDir, t, p.OnClose, buildDir, wsDir)
+	runHooks(ticketsDir, t, p.OnClose, buildDir, wsDir, hist.Path())
 
 	return OutcomeSucceed, nil
 }
 
 // runWorkflow executes a single workflow, following route dispositions to other
 // workflows. Returns the terminal outcome.
-func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, verbose bool) (Outcome, error) {
+func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
 	wf, ok := p.Workflows[wfName]
 	if !ok {
 		return OutcomeFail, fmt.Errorf("unknown workflow '%s'", wfName)
@@ -159,9 +172,11 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 
 		// Execute the node
 		log.NodeStart(t.ID, wfName, node.Name)
-		output, err := runNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, verbose)
+		hist.NodeStart(t.ID, wfName, node.Name)
+		output, err := runNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, hist.Path(), verbose)
 		if err != nil {
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
+			hist.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
 			return OutcomeFail, nil
 		}
@@ -175,6 +190,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Action nodes: output isn't parsed, just continue
 		if node.Type == NodeAction {
 			log.NodeComplete(t.ID, wfName, node.Name, "done")
+			hist.NodeComplete(t.ID, wfName, node.Name, "done")
 			continue
 		}
 
@@ -183,12 +199,14 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		if err != nil {
 			// Should not happen — retries already exhausted in runNode
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
+			hist.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
 			return OutcomeFail, nil
 		}
 		log.NodeComplete(t.ID, wfName, node.Name, disp.Type)
+		hist.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 
-		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, buildDir, log, verbose)
+		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, buildDir, log, hist, verbose)
 		if err != nil {
 			return OutcomeFail, err
 		}
@@ -203,7 +221,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 }
 
 // runNode executes a single node with retry logic.
-func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName string, verbose bool) (string, error) {
+func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	maxAttempts := p.MaxRetries + 1
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
@@ -211,9 +229,9 @@ func runNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string
 		var err error
 
 		if node.IsPromptNode() {
-			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, verbose)
+			output, err = runPromptNode(ticketsDir, t, p, node, model, allowAll, wsDir, artifactDir, wfName, histPath, verbose)
 		} else if node.IsRunNode() {
-			output, err = runRunNode(node, wsDir, artifactDir, wfName, verbose)
+			output, err = runRunNode(node, wsDir, artifactDir, histPath, wfName, verbose)
 		} else {
 			return "", fmt.Errorf("node '%s' has neither prompt nor run", node.Name)
 		}
@@ -252,7 +270,7 @@ func extractDisposition(output string) (Disposition, error) {
 
 // applyDisposition handles a parsed disposition from a decision node.
 // Returns OutcomeSucceed for "continue" (advance to next node).
-func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, verbose bool) (Outcome, error) {
+func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
 	switch disp.Type {
 	case "continue":
 		return OutcomeSucceed, nil
@@ -275,7 +293,8 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 			return OutcomeFail, nil
 		}
 		log.WorkflowStart(t.ID, disp.Workflow)
-		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, buildDir, log, verbose)
+		hist.WorkflowStart(t.ID, disp.Workflow)
+		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, buildDir, log, hist, verbose)
 
 	default:
 		applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("unknown disposition '%s'", disp.Type))
@@ -330,7 +349,7 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 }
 
 // runPromptNode invokes the configured command with ticket context.
-func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName string, verbose bool) (string, error) {
+func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
 	promptContent, err := LoadPromptFile(ticketsDir, node.Prompt)
 	if err != nil {
 		return "", err
@@ -362,6 +381,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 	cmd.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,
+		"KO_BUILD_HISTORY="+histPath,
 	)
 
 	if verbose {
@@ -376,11 +396,12 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 }
 
 // runRunNode executes a shell command.
-func runRunNode(node *Node, wsDir, artifactDir, wfName string, verbose bool) (string, error) {
+func runRunNode(node *Node, wsDir, artifactDir, histPath, wfName string, verbose bool) (string, error) {
 	cmd := exec.Command("sh", "-c", node.Run)
 	cmd.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,
+		"KO_BUILD_HISTORY="+histPath,
 	)
 
 	if verbose {
@@ -517,7 +538,7 @@ func applyFailOutcome(ticketsDir string, t *Ticket, nodeName, reason string) {
 }
 
 // runHooks executes a list of shell commands with env vars set.
-func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir string) error {
+func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir, histPath string) error {
 	if len(hooks) == 0 {
 		return nil
 	}
@@ -549,6 +570,7 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir stri
 			"CHANGED_FILES="+changedFiles,
 			"KO_TICKET_WORKSPACE="+wsDir,
 			"KO_ARTIFACT_DIR="+ArtifactDir(ticketsDir, t.ID),
+			"KO_BUILD_HISTORY="+histPath,
 		)
 
 		if out, err := cmd.CombinedOutput(); err != nil {

@@ -1,0 +1,34 @@
+# Build history: $KO_BUILD_HISTORY env var available in run nodes
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+exec cat history_check.txt
+stdout 'ko-a001.jsonl'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Env var test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: check
+      type: action
+      run: sh -c 'echo "$KO_BUILD_HISTORY" > history_check.txt'
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

@@ -228,7 +228,7 @@ func cleanupAfterStop(ticketsDir string, p *Pipeline) {
 
 		if p != nil && len(p.OnFail) > 0 {
 			projectRoot := ProjectRoot(ticketsDir)
-			runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot)
+			runHooks(ticketsDir, t, p.OnFail, projectRoot, projectRoot, BuildHistoryPath(ticketsDir, t.ID))
 		}
 
 		AddNote(t, "ko: reset to open (agent stopped)")

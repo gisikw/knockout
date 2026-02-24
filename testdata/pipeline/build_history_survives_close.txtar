@@ -1,0 +1,36 @@
+# Build history survives ticket close (unlike artifact dir)
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+# JSONL file should still exist after close
+exec cat .ko/tickets/ko-a001.jsonl
+stdout '"event":"build_complete"'
+
+# Artifact directory should be gone
+! exists .ko/tickets/ko-a001.artifacts
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Survives close test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Done."
