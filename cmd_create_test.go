@@ -190,6 +190,242 @@ func TestCreateWithShorthandPriority(t *testing.T) {
 	}
 }
 
+func TestCreateWithDescription(t *testing.T) {
+	// Clear KO_NO_CREATE to allow ticket creation in tests
+	origNoCreate := os.Getenv("KO_NO_CREATE")
+	os.Unsetenv("KO_NO_CREATE")
+	defer func() {
+		if origNoCreate != "" {
+			os.Setenv("KO_NO_CREATE", origNoCreate)
+		}
+	}()
+
+	dir := t.TempDir()
+	ticketsDir := filepath.Join(dir, ".ko", "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+	WritePrefix(ticketsDir, "test")
+
+	// Save original dir and restore after test
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(dir)
+
+	tests := []struct {
+		name     string
+		args     []string
+		wantDesc string
+	}{
+		{
+			name:     "second positional arg sets description",
+			args:     []string{"Test title", "Test description from arg"},
+			wantDesc: "Test description from arg",
+		},
+		{
+			name:     "-d flag sets description when no positional arg",
+			args:     []string{"-d", "Test description from flag", "Test title"},
+			wantDesc: "Test description from flag",
+		},
+		{
+			name:     "second arg takes priority over -d flag",
+			args:     []string{"Test title", "From arg", "-d", "From flag"},
+			wantDesc: "From arg",
+		},
+		{
+			name:     "empty description is allowed",
+			args:     []string{"Test title"},
+			wantDesc: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exitCode := cmdCreate(tt.args)
+			if exitCode != 0 {
+				t.Fatalf("cmdCreate failed with exit code %d", exitCode)
+			}
+
+			// Find the created ticket
+			entries, err := os.ReadDir(ticketsDir)
+			if err != nil {
+				t.Fatalf("failed to read tickets dir: %v", err)
+			}
+
+			var ticketPath string
+			for _, e := range entries {
+				if filepath.Ext(e.Name()) == ".md" {
+					ticketPath = filepath.Join(ticketsDir, e.Name())
+					break
+				}
+			}
+
+			if ticketPath == "" {
+				t.Fatal("no ticket file created")
+			}
+
+			// Extract ticket ID from filename
+			ticketID := filepath.Base(ticketPath)
+			ticketID = ticketID[:len(ticketID)-3] // Remove .md extension
+
+			// Load and verify description
+			ticket, err := LoadTicket(ticketsDir, ticketID)
+			if err != nil {
+				t.Fatalf("failed to load ticket: %v", err)
+			}
+
+			// The description is stored in t.Body with newlines wrapped
+			// Expected format: "\n" + description + "\n" or empty if no description
+			var gotDesc string
+			if ticket.Body != "" {
+				// Strip the leading and trailing newlines
+				gotDesc = ticket.Body
+				if len(gotDesc) > 0 && gotDesc[0] == '\n' {
+					gotDesc = gotDesc[1:]
+				}
+				if len(gotDesc) > 0 && gotDesc[len(gotDesc)-1] == '\n' {
+					gotDesc = gotDesc[:len(gotDesc)-1]
+				}
+			}
+
+			if gotDesc != tt.wantDesc {
+				t.Errorf("ticket description = %q, want %q", gotDesc, tt.wantDesc)
+			}
+
+			// Clean up for next test
+			os.Remove(ticketPath)
+		})
+	}
+}
+
+func TestCreateWithStdinDescription(t *testing.T) {
+	// Clear KO_NO_CREATE to allow ticket creation in tests
+	origNoCreate := os.Getenv("KO_NO_CREATE")
+	os.Unsetenv("KO_NO_CREATE")
+	defer func() {
+		if origNoCreate != "" {
+			os.Setenv("KO_NO_CREATE", origNoCreate)
+		}
+	}()
+
+	dir := t.TempDir()
+	ticketsDir := filepath.Join(dir, ".ko", "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+	WritePrefix(ticketsDir, "test")
+
+	// Save original dir and restore after test
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(dir)
+
+	// Save original stdin and restore after test
+	origStdin := os.Stdin
+	defer func() { os.Stdin = origStdin }()
+
+	tests := []struct {
+		name        string
+		stdinInput  string
+		args        []string
+		wantDesc    string
+		description string
+	}{
+		{
+			name:        "stdin sets description",
+			stdinInput:  "Description from stdin",
+			args:        []string{"Test title"},
+			wantDesc:    "Description from stdin",
+			description: "stdin should be used when provided",
+		},
+		{
+			name:        "stdin takes priority over second arg",
+			stdinInput:  "From stdin",
+			args:        []string{"Test title", "From arg"},
+			wantDesc:    "From stdin",
+			description: "stdin should win over positional arg",
+		},
+		{
+			name:        "stdin takes priority over -d flag",
+			stdinInput:  "From stdin",
+			args:        []string{"-d", "From flag", "Test title"},
+			wantDesc:    "From stdin",
+			description: "stdin should win over -d flag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a pipe to mock stdin
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create pipe: %v", err)
+			}
+			defer r.Close()
+
+			// Replace stdin with the read end of the pipe
+			os.Stdin = r
+
+			// Write test data to the pipe and close the write end
+			go func() {
+				w.Write([]byte(tt.stdinInput))
+				w.Close()
+			}()
+
+			exitCode := cmdCreate(tt.args)
+			if exitCode != 0 {
+				t.Fatalf("cmdCreate failed with exit code %d", exitCode)
+			}
+
+			// Find the created ticket
+			entries, err := os.ReadDir(ticketsDir)
+			if err != nil {
+				t.Fatalf("failed to read tickets dir: %v", err)
+			}
+
+			var ticketPath string
+			for _, e := range entries {
+				if filepath.Ext(e.Name()) == ".md" {
+					ticketPath = filepath.Join(ticketsDir, e.Name())
+					break
+				}
+			}
+
+			if ticketPath == "" {
+				t.Fatal("no ticket file created")
+			}
+
+			// Extract ticket ID from filename
+			ticketID := filepath.Base(ticketPath)
+			ticketID = ticketID[:len(ticketID)-3] // Remove .md extension
+
+			// Load and verify description
+			ticket, err := LoadTicket(ticketsDir, ticketID)
+			if err != nil {
+				t.Fatalf("failed to load ticket: %v", err)
+			}
+
+			// The description is stored in t.Body with newlines wrapped
+			var gotDesc string
+			if ticket.Body != "" {
+				gotDesc = ticket.Body
+				if len(gotDesc) > 0 && gotDesc[0] == '\n' {
+					gotDesc = gotDesc[1:]
+				}
+				if len(gotDesc) > 0 && gotDesc[len(gotDesc)-1] == '\n' {
+					gotDesc = gotDesc[:len(gotDesc)-1]
+				}
+			}
+
+			if gotDesc != tt.wantDesc {
+				t.Errorf("ticket description = %q, want %q", gotDesc, tt.wantDesc)
+			}
+
+			// Clean up for next test
+			os.Remove(ticketPath)
+
+			// Restore stdin for next iteration
+			os.Stdin = origStdin
+		})
+	}
+}
+
 func TestCreateWithInvalidShorthandPriority(t *testing.T) {
 	// Clear KO_NO_CREATE to allow ticket creation in tests
 	origNoCreate := os.Getenv("KO_NO_CREATE")

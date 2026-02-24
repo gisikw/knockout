@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,26 @@ func cmdCreate(args []string) int {
 	title := "Untitled"
 	if fs.NArg() > 0 {
 		title = fs.Arg(0)
+	}
+
+	// Determine description source: stdin > second positional arg > -d flag
+	var descFromInput string
+	stdinInfo, err := os.Stdin.Stat()
+	isStdinPipe := err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0
+
+	if isStdinPipe {
+		// Stdin is a pipe (not a terminal), read from it
+		stdinBytes, readErr := io.ReadAll(os.Stdin)
+		if readErr != nil {
+			fmt.Fprintf(os.Stderr, "ko create: failed to read from stdin: %v\n", readErr)
+			return 1
+		}
+		descFromInput = strings.TrimSpace(string(stdinBytes))
+	}
+
+	// If stdin is empty or not a pipe, check for second positional arg
+	if descFromInput == "" && fs.NArg() > 1 {
+		descFromInput = fs.Arg(1)
 	}
 
 	// Find local project context
@@ -87,7 +108,10 @@ func cmdCreate(args []string) int {
 
 	t.Status = decision.Status
 
-	if *desc != "" {
+	// Apply strict priority for description: stdin > arg > -d flag
+	if descFromInput != "" {
+		t.Body += "\n" + descFromInput + "\n"
+	} else if *desc != "" {
 		t.Body += "\n" + *desc + "\n"
 	}
 	if *typ != "" {

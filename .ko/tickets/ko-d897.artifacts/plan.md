@@ -1,5 +1,5 @@
 ## Goal
-Enable `ko add` to accept ticket description via stdin/heredoc or second positional arg.
+Enable `ko add` to accept ticket description via stdin (heredoc) or second positional arg with strict priority: stdin > second arg > -d flag.
 
 ## Context
 The ticket depends on ko-90ba (rename `create` to `add`), which is already closed. Both `ko add` and `ko create` now map to `cmdCreate()` in cmd_create.go:12.
@@ -13,8 +13,10 @@ Current implementation in cmd_create.go:
 Reference implementation in cmd_note.go (lines 28-52):
 - Checks if stdin is a pipe using `os.Stdin.Stat()` and `os.ModeCharDevice`
 - Reads from stdin with `io.ReadAll(os.Stdin)` if piped
-- Falls back to args[1:] if stdin is empty or stdin is a terminal
-- Final validation ensures non-empty content
+- Falls back to args if stdin is empty or stdin is a terminal
+- Final validation ensures non-empty content (for notes — not required for descriptions)
+
+**Decision clarified (2026-02-24 13:02:31 UTC):** Strict priority, no merging. stdin > second positional arg > -d flag. Only the highest-priority non-empty source is used.
 
 The project follows strict testing patterns per INVARIANTS.md:
 - Specs in specs/*.feature (gherkin)
@@ -22,22 +24,23 @@ The project follows strict testing patterns per INVARIANTS.md:
 - Tests mirror source files (cmd_create.go → cmd_create_test.go)
 
 ## Approach
-Add stdin detection and second positional arg handling to cmdCreate(), following the same pattern used in cmdAddNote(). The description sources (in priority order): stdin (if piped), second positional arg, `-d` flag. Merge all sources into t.Body, matching the current behavior where `-d` appends.
+Add stdin detection and second positional arg handling to cmdCreate() following the pattern in cmdAddNote(). Implement strict priority: if stdin has content, use only stdin; else if second positional arg exists, use only that; else use `-d` flag if present. The `-d` flag becomes the lowest-priority fallback. Empty descriptions are valid (backward compatibility).
 
 ## Tasks
-1. [cmd_create.go:cmdCreate] — After line 43 (title extraction), add stdin detection using the same pattern as cmd_note.go:30-52. Read from stdin if it's a pipe, otherwise check for fs.Arg(1) as the second positional arg. Store in a local `descFromArgsOrStdin` variable.
+1. [cmd_create.go:cmdCreate] — After title extraction (line 43), add description source detection. Check stdin first using the same pattern as cmd_note.go:30-40. If stdin is a pipe and non-empty, use it. Otherwise check fs.Arg(1) for second positional arg. Store the result in a local `descFromInput` variable. Add `io` import if needed.
    Verify: `go build` compiles without errors.
 
-2. [cmd_create.go:cmdCreate] — Around line 90-92 (where `-d` flag is checked), merge the description sources. If `descFromArgsOrStdin` is non-empty, append it to t.Body with newlines. Preserve the existing `-d` flag handling so both can be used together.
-   Verify: Manual test with `ko add "test" "description"` creates a ticket with the description in the body.
+2. [cmd_create.go:cmdCreate] — Refactor the description handling block (lines 90-92). Apply strict priority: if `descFromInput` is non-empty, use it and ignore the `-d` flag. Otherwise fall back to `-d` flag. Preserve the newline wrapping behavior: `t.Body += "\n" + description + "\n"`.
+   Verify: Manual test with `ko add "title" "description"` creates a ticket with description. Test that `-d` is ignored when second arg is present.
 
-3. [cmd_create_test.go] — Add test cases covering: (1) second positional arg sets description, (2) stdin (simulated pipe) sets description, (3) both `-d` flag and positional arg merge into body, (4) empty description is allowed (backward compat). Follow the pattern from TestReadWritePrefix and TestDetectPrefixPersists.
-   Verify: `go test -run TestCreate` passes.
+3. [cmd_create_test.go] — Add test function `TestCreateWithDescription` covering: (1) second positional arg sets description, (2) `-d` flag sets description when no positional arg, (3) second arg takes priority over `-d` flag (flag is ignored), (4) empty description is allowed (no args, no flag). Follow the pattern from TestCreateWithShorthandPriority. Use a temp directory, create tickets, verify description content in ticket body.
+   Verify: `go test -run TestCreateWithDescription` passes.
 
-4. [specs/ticket_creation.feature] — If this spec exists, add scenarios for the new description input methods. If it doesn't exist, create it with basic scenarios including the new description handling.
-   Verify: Spec is readable and matches implementation behavior.
+4. [cmd_create_test.go] — Add test function `TestCreateWithStdinDescription` to test stdin handling. Mock stdin by temporarily redirecting it to a pipe with known content. Verify stdin sets description and takes priority over both positional arg and `-d` flag. This is more complex — may need to use `os.Pipe()` or skip if too brittle.
+   Verify: `go test -run TestCreateWithStdin` passes or is appropriately skipped with a comment explaining why stdin mocking is deferred.
+
+5. [specs/ticket_creation.feature] — Check if this spec exists. If it does, add scenarios for: (1) creating ticket with second positional arg description, (2) creating ticket with stdin description, (3) priority behavior (stdin > arg > flag). If the spec doesn't exist, create it with these scenarios plus basic creation scenario. Follow gherkin syntax (Given/When/Then).
+   Verify: Spec is readable, follows gherkin syntax, and accurately describes the new behavior.
 
 ## Open Questions
-Should the description sources have a strict priority (stdin wins over arg, arg wins over `-d`) or should they all merge together? The current `-d` flag appends to t.Body, suggesting merge is the intended behavior. Assuming merge: stdin content + second arg + `-d` flag all append to t.Body in that order.
-
-If multiple sources shouldn't merge, clarify the precedence order.
+None. The priority decision has been clarified: strict priority with stdin > second positional arg > -d flag. Empty descriptions remain valid for backward compatibility.

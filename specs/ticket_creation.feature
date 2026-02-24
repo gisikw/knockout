@@ -18,10 +18,38 @@ Feature: Ticket Creation
     And the output should match a ticket ID pattern
     And a ticket file should exist with title "Untitled"
 
-  Scenario: Create a ticket with description
+  Scenario: Create a ticket with description using -d flag
     When I run "ko create 'Test ticket' -d 'This is the description'"
     Then the command should succeed
     And the created ticket should contain "This is the description"
+
+  Scenario: Create a ticket with description as second positional argument
+    When I run "ko add 'Test ticket' 'Description from second arg'"
+    Then the command should succeed
+    And the created ticket should contain "Description from second arg"
+
+  Scenario: Create a ticket with description from stdin
+    When I pipe "Description from stdin" to "ko add 'Test ticket'"
+    Then the command should succeed
+    And the created ticket should contain "Description from stdin"
+
+  Scenario: Second positional argument takes priority over -d flag
+    When I run "ko add 'Test ticket' 'From arg' -d 'From flag'"
+    Then the command should succeed
+    And the created ticket should contain "From arg"
+    And the created ticket should not contain "From flag"
+
+  Scenario: Stdin takes priority over second positional argument
+    When I pipe "From stdin" to "ko add 'Test ticket' 'From arg'"
+    Then the command should succeed
+    And the created ticket should contain "From stdin"
+    And the created ticket should not contain "From arg"
+
+  Scenario: Stdin takes priority over -d flag
+    When I pipe "From stdin" to "ko add 'Test ticket' -d 'From flag'"
+    Then the command should succeed
+    And the created ticket should contain "From stdin"
+    And the created ticket should not contain "From flag"
 
   Scenario: Create a ticket with type
     When I run "ko create 'Bug ticket' -t bug"
