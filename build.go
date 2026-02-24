@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // Outcome represents the result of a build pipeline.
@@ -61,22 +60,20 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		return OutcomeFail, fmt.Errorf("%s", msg)
 	}
 
-	buildDir := createBuildDir(ticketsDir, t.ID)
-
-	// Save ticket snapshot
-	os.WriteFile(filepath.Join(buildDir, "ticket.md"), []byte(FormatTicket(t)), 0644)
-
-	// Create workspace
-	wsDir, err := CreateWorkspace(buildDir)
-	if err != nil {
-		return OutcomeFail, fmt.Errorf("failed to create workspace: %v", err)
-	}
-
-	// Ensure artifact directory exists (persists across builds, unlike workspace)
+	// Ensure artifact directory exists (persists across builds, cleaned on close)
 	artifactDir, err := EnsureArtifactDir(ticketsDir, t.ID)
 	if err != nil {
 		return OutcomeFail, fmt.Errorf("failed to create artifact directory: %v", err)
 	}
+
+	// Create workspace inside artifact dir
+	wsDir, err := CreateWorkspace(artifactDir)
+	if err != nil {
+		return OutcomeFail, fmt.Errorf("failed to create workspace: %v", err)
+	}
+
+	// Save ticket snapshot
+	os.WriteFile(filepath.Join(artifactDir, "ticket.md"), []byte(FormatTicket(t)), 0644)
 
 	// Open build history (append-only, persists across builds and close)
 	hist, err := OpenBuildHistory(ticketsDir, t.ID)
@@ -99,19 +96,19 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// Execute starting from "main" workflow
 	log.WorkflowStart(t.ID, "main")
 	hist.WorkflowStart(t.ID, "main")
-	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, buildDir, log, hist, verbose)
+	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, log, hist, verbose)
 	if err != nil {
 		log.WorkflowComplete(t.ID, "fail")
 		hist.BuildComplete(t.ID, "fail")
 		applyFailOutcome(ticketsDir, t, "build", err.Error())
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
+		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
 	if outcome == OutcomeFail {
 		log.WorkflowComplete(t.ID, "fail")
 		hist.BuildComplete(t.ID, "fail")
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
+		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
@@ -121,8 +118,8 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		return outcome, nil
 	}
 
-	// Compute changed files
-	writeChangedFiles(buildDir, projectRoot, beforeSnapshot)
+	// Compute changed files before close (close removes artifact dir)
+	changedFiles := computeChangedFiles(projectRoot, beforeSnapshot)
 
 	// Close ticket first — if the process is killed during on_succeed hooks,
 	// the ticket should stay closed rather than being reset to open with
@@ -133,23 +130,23 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	setStatus(ticketsDir, t, "closed")
 
 	// Run on_succeed hooks (ticket already closed)
-	if err := runHooks(ticketsDir, t, p.OnSucceed, buildDir, wsDir, hist.Path()); err != nil {
+	if err := runHooks(ticketsDir, t, p.OnSucceed, changedFiles, wsDir, hist.Path()); err != nil {
 		// Reopen — the succeed hooks failed, so this isn't actually done
 		AddNote(t, fmt.Sprintf("ko: on_succeed failed — %s", err.Error()))
 		setStatus(ticketsDir, t, "blocked")
-		runHooks(ticketsDir, t, p.OnFail, buildDir, wsDir, hist.Path()) // best-effort
+		runHooks(ticketsDir, t, p.OnFail, "", wsDir, hist.Path()) // best-effort
 		return OutcomeFail, nil
 	}
 
 	// Run on_close hooks
-	runHooks(ticketsDir, t, p.OnClose, buildDir, wsDir, hist.Path())
+	runHooks(ticketsDir, t, p.OnClose, changedFiles, wsDir, hist.Path())
 
 	return OutcomeSucceed, nil
 }
 
 // runWorkflow executes a single workflow, following route dispositions to other
 // workflows. Returns the terminal outcome.
-func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
+func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
 	wf, ok := p.Workflows[wfName]
 	if !ok {
 		return OutcomeFail, fmt.Errorf("unknown workflow '%s'", wfName)
@@ -184,9 +181,6 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		// Tee output to workspace
 		TeeOutput(wsDir, wfName, node.Name, output)
 
-		// Save to build artifacts
-		saveStageArtifact(buildDir, wfName+"."+node.Name, output)
-
 		// Action nodes: output isn't parsed, just continue
 		if node.Type == NodeAction {
 			log.NodeComplete(t.ID, wfName, node.Name, "done")
@@ -206,7 +200,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		log.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 		hist.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 
-		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, buildDir, log, hist, verbose)
+		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, log, hist, verbose)
 		if err != nil {
 			return OutcomeFail, err
 		}
@@ -270,7 +264,7 @@ func extractDisposition(output string) (Disposition, error) {
 
 // applyDisposition handles a parsed disposition from a decision node.
 // Returns OutcomeSucceed for "continue" (advance to next node).
-func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir, buildDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
+func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
 	switch disp.Type {
 	case "continue":
 		return OutcomeSucceed, nil
@@ -294,7 +288,7 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 		}
 		log.WorkflowStart(t.ID, disp.Workflow)
 		hist.WorkflowStart(t.ID, disp.Workflow)
-		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, buildDir, log, hist, verbose)
+		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, log, hist, verbose)
 
 	default:
 		applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("unknown disposition '%s'", disp.Type))
@@ -538,18 +532,12 @@ func applyFailOutcome(ticketsDir string, t *Ticket, nodeName, reason string) {
 }
 
 // runHooks executes a list of shell commands with env vars set.
-func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir, histPath string) error {
+func runHooks(ticketsDir string, t *Ticket, hooks []string, changedFiles, wsDir, histPath string) error {
 	if len(hooks) == 0 {
 		return nil
 	}
 
 	projectRoot := ProjectRoot(ticketsDir)
-
-	changedFiles := ""
-	cfPath := filepath.Join(buildDir, "changed_files.txt")
-	if data, err := os.ReadFile(cfPath); err == nil {
-		changedFiles = strings.TrimSpace(string(data))
-	}
 
 	for _, hook := range hooks {
 		expanded := os.Expand(hook, func(key string) string {
@@ -580,19 +568,6 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, buildDir, wsDir, his
 	return nil
 }
 
-// createBuildDir creates a timestamped build artifact directory.
-func createBuildDir(ticketsDir, ticketID string) string {
-	projectRoot := ProjectRoot(ticketsDir)
-	ts := time.Now().UTC().Format("20060102-150405")
-	dir := filepath.Join(projectRoot, ".ko", "builds", ts+"-"+ticketID)
-	os.MkdirAll(dir, 0755)
-	return dir
-}
-
-// saveStageArtifact writes stage output to the build directory.
-func saveStageArtifact(buildDir, name, output string) {
-	os.WriteFile(filepath.Join(buildDir, name+".md"), []byte(output), 0644)
-}
 
 // fileSnapshot records mod times for files in a project directory.
 type fileSnapshot map[string]int64
@@ -632,13 +607,10 @@ func changedFilesList(before, after fileSnapshot) []string {
 	return changed
 }
 
-func writeChangedFiles(buildDir, projectRoot string, before fileSnapshot) {
+func computeChangedFiles(projectRoot string, before fileSnapshot) string {
 	after := snapshotFiles(projectRoot)
 	changed := changedFilesList(before, after)
-	if len(changed) > 0 {
-		content := strings.Join(changed, "\n")
-		os.WriteFile(filepath.Join(buildDir, "changed_files.txt"), []byte(content), 0644)
-	}
+	return strings.Join(changed, "\n")
 }
 
 // outcomeString returns a string representation of an Outcome.

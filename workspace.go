@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 )
 
-// CreateWorkspace creates the workspace directory inside a build dir.
+// CreateWorkspace creates the workspace directory inside the artifact dir.
 // Returns the workspace path.
-func CreateWorkspace(buildDir string) (string, error) {
-	wsDir := filepath.Join(buildDir, "workspace")
+func CreateWorkspace(artifactDir string) (string, error) {
+	wsDir := filepath.Join(artifactDir, "workspace")
 	if err := os.MkdirAll(wsDir, 0755); err != nil {
 		return "", err
 	}

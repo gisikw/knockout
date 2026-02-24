@@ -1,6 +1,6 @@
 ---
 id: ko-6d2a
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T03:04:21Z
