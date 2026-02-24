@@ -1,0 +1,55 @@
+# Knockout dogfood pipeline — structured classify → route → build
+#
+# Classify (haiku) routes tickets by type: tasks produce code, research produces
+# answers, bugs get diagnosed first and may route to task if fixable.
+#
+# Task workflow: plan → actionable gate → implement → verify → review
+# Research workflow: investigate → close with findings
+# Bug workflow: diagnose → assess (fixable? route to task or close with findings)
+model: claude-sonnet-4-5-20250929
+max_retries: 2
+max_depth: 2
+discretion: medium
+
+workflows:
+  main:
+    - name: classify
+      type: decision
+      prompt: classify.md
+      model: claude-haiku-4-5-20251001
+      routes: [task, research, bug]
+
+  task:
+    - name: plan
+      type: action
+      prompt: plan.md
+    - name: actionable
+      type: decision
+      prompt: actionable.md
+      model: claude-haiku-4-5-20251001
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: verify
+      type: action
+      run: go test ./... -count=1
+    - name: review
+      type: decision
+      prompt: review.md
+
+  research:
+    - name: investigate
+      type: action
+      prompt: investigate.md
+
+  bug:
+    - name: diagnose
+      type: action
+      prompt: diagnose.md
+    - name: assess
+      type: decision
+      prompt: assess.md
+      routes: [task]
+
+on_succeed:
+  - git add -A && git commit -m "ko: ${TICKET_ID}"
