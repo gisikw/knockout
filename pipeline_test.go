@@ -383,3 +383,106 @@ workflows:
 		})
 	}
 }
+
+func TestParsePipelineSkillsMultiline(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: task
+      type: action
+      skill: feature-dev
+      skills:
+        - .claude/commands
+        - ~/my-skills
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	node := p.Workflows["main"].Nodes[0]
+	if node.Skill != "feature-dev" {
+		t.Errorf("Skill = %q, want %q", node.Skill, "feature-dev")
+	}
+	if len(node.Skills) != 2 {
+		t.Fatalf("len(Skills) = %d, want 2", len(node.Skills))
+	}
+	if node.Skills[0] != ".claude/commands" {
+		t.Errorf("Skills[0] = %q, want %q", node.Skills[0], ".claude/commands")
+	}
+	if node.Skills[1] != "~/my-skills" {
+		t.Errorf("Skills[1] = %q, want %q", node.Skills[1], "~/my-skills")
+	}
+}
+
+func TestParsePipelineSkillsInline(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: task
+      type: action
+      skill: feature-dev
+      skills: [.claude/commands, ~/my-skills]
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+	node := p.Workflows["main"].Nodes[0]
+	if node.Skill != "feature-dev" {
+		t.Errorf("Skill = %q, want %q", node.Skill, "feature-dev")
+	}
+	if len(node.Skills) != 2 {
+		t.Fatalf("len(Skills) = %d, want 2", len(node.Skills))
+	}
+	if node.Skills[0] != ".claude/commands" {
+		t.Errorf("Skills[0] = %q", node.Skills[0])
+	}
+	if node.Skills[1] != "~/my-skills" {
+		t.Errorf("Skills[1] = %q", node.Skills[1])
+	}
+}
+
+func TestValidateWorkflowsSkillExclusivity(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		errMsg string
+	}{
+		{
+			name: "skill and prompt",
+			config: `
+workflows:
+  main:
+    - name: task
+      type: action
+      skill: feature-dev
+      prompt: impl.md
+`,
+			errMsg: "both prompt and skill",
+		},
+		{
+			name: "skill and run",
+			config: `
+workflows:
+  main:
+    - name: task
+      type: action
+      skill: feature-dev
+      run: just test
+`,
+			errMsg: "both run and skill",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParsePipeline(tt.config)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !containsStr(err.Error(), tt.errMsg) {
+				t.Errorf("error = %q, want substring %q", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}

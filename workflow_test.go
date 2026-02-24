@@ -58,7 +58,7 @@ func TestValidateWorkflows(t *testing.T) {
 					{Name: "empty", Type: NodeAction, MaxVisits: 1},
 				}},
 			},
-			wantErr: "neither prompt nor run",
+			wantErr: "neither prompt, run, nor skill",
 		},
 		{
 			name: "node with both prompt and run",

@@ -344,6 +344,12 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 
 // runPromptNode invokes the configured command with ticket context.
 func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
+	// Skill invocation is not yet supported by Claude adapter
+	// This will be implemented in ko-1930 (multi-agent harness)
+	if node.Skill != "" {
+		return "", fmt.Errorf("skill invocation not yet supported by this adapter (pending ko-1930)")
+	}
+
 	var promptContent string
 	var err error
 

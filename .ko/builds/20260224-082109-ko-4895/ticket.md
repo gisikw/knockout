@@ -1,6 +1,6 @@
 ---
 id: ko-4895
-status: closed
+status: open
 deps: [ko-f21c]
 links: []
 created: 2026-02-24T07:27:01Z
@@ -24,7 +24,3 @@ Open question: Claude Code has no `--add-skills-dir` flag. Options:
 Probably best to design the config surface now but mark claude adapter
 support as pending. The multi-agent harness adapter (ko-1930) will handle
 this properly.
-
-## Notes
-
-**2026-02-24 08:30:05 UTC:** ko: SUCCEED

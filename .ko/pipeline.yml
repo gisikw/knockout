@@ -6,6 +6,17 @@
 # Task workflow: plan → actionable gate → implement → verify → review
 # Research workflow: investigate → close with findings
 # Bug workflow: diagnose → assess (fixable? route to task or close with findings)
+#
+# Skill invocation (future multi-agent harness support):
+# 1. Make skills available to an agent:
+#    skills:
+#      - .claude/commands
+#      - ~/my-skills
+# 2. Invoke a specific skill (mutually exclusive with prompt/run):
+#    skill: feature-dev
+# 3. Reference skills in inline prompts:
+#    prompt: |
+#      Apply the /feature-dev skill to ${TICKET_ID}
 model: claude-sonnet-4-5-20250929
 allow_all_tool_calls: true
 max_retries: 2

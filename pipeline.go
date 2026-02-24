@@ -74,6 +74,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	var currentWF *Workflow    // current workflow being parsed
 	var currentNode *Node      // current node being parsed
 	var inRoutes bool          // parsing routes list for current node
+	var inSkills bool          // parsing skills list for current node
 	var inPrompt bool          // parsing inline prompt content
 	var promptIndent int       // indentation level of prompt: line
 	var promptLines []string   // accumulated prompt lines
@@ -98,6 +99,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			flushNode(&currentNode, currentWF)
 			flushWorkflow(&currentWF, p)
 			inRoutes = false
+			inSkills = false
 
 			if trimmed == "workflows:" {
 				section = "workflows"
@@ -152,6 +154,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				flushNode(&currentNode, currentWF)
 				flushWorkflow(&currentWF, p)
 				inRoutes = false
+				inSkills = false
 				name := strings.TrimSuffix(trimmed, ":")
 				currentWF = &Workflow{Name: name}
 
@@ -179,6 +182,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				}
 				flushNode(&currentNode, currentWF)
 				inRoutes = false
+				inSkills = false
 				_, val, _ := parseYAMLLine(strings.TrimPrefix(trimmed, "- "))
 				currentNode = &Node{Name: val, MaxVisits: 1}
 
@@ -187,6 +191,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				route := strings.TrimPrefix(trimmed, "- ")
 				route = strings.TrimSpace(route)
 				currentNode.Routes = append(currentNode.Routes, route)
+
+			case inSkills && strings.HasPrefix(trimmed, "- ") && currentNode != nil:
+				// Skill entry
+				skill := strings.TrimPrefix(trimmed, "- ")
+				skill = strings.TrimSpace(skill)
+				currentNode.Skills = append(currentNode.Skills, skill)
 
 			case inPrompt && currentNode != nil:
 				// Accumulating inline prompt lines
@@ -199,7 +209,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 					// Re-process this line as a node property
 					key, val, ok := parseYAMLLine(trimmed)
 					if ok {
-						applyNodeProperty(currentNode, key, val, &inRoutes)
+						applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills)
 					}
 				} else {
 					// Strip common indentation and accumulate
@@ -217,13 +227,14 @@ func ParsePipeline(content string) (*Pipeline, error) {
 					continue
 				}
 				inRoutes = false
+				inSkills = false
 				if key == "prompt" && val == "|" {
 					// Start of inline prompt
 					inPrompt = true
 					promptIndent = countIndent(line)
 					promptLines = nil
 				} else {
-					applyNodeProperty(currentNode, key, val, &inRoutes)
+					applyNodeProperty(currentNode, key, val, &inRoutes, &inSkills)
 				}
 			}
 
@@ -269,8 +280,9 @@ func ParsePipeline(content string) (*Pipeline, error) {
 }
 
 // applyNodeProperty applies a parsed key-value pair to a node.
-func applyNodeProperty(node *Node, key, val string, inRoutes *bool) {
+func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bool) {
 	*inRoutes = false
+	*inSkills = false
 	switch key {
 	case "type":
 		node.Type = NodeType(val)
@@ -292,6 +304,15 @@ func applyNodeProperty(node *Node, key, val string, inRoutes *bool) {
 			node.Routes = parseYAMLList(val)
 			*inRoutes = false
 		}
+	case "skills":
+		*inSkills = true
+		// Handle inline list: skills: [a, b, c]
+		if strings.HasPrefix(val, "[") {
+			node.Skills = parseYAMLList(val)
+			*inSkills = false
+		}
+	case "skill":
+		node.Skill = val
 	}
 }
 

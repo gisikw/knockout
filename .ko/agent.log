@@ -13,3 +13,5 @@ loop: ko-f65e FAIL
 loop: building ko-1930 — Extract agent harnesses into file-parameterized configs
 loop: ko-1930 SUCCEED
 loop: building ko-f21c — Support inline prompt text in pipeline nodes
+loop: ko-f21c SUCCEED
+loop: building ko-4895 — Support skills in pipeline workflows

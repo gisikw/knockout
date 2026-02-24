@@ -20,6 +20,8 @@ type Node struct {
 	AllowAll  *bool    // per-node allow_all_tool_calls override (nil = inherit)
 	Routes    []string // workflows this decision node can route to
 	MaxVisits int      // max times this node can be entered per build (default: 1)
+	Skills    []string // skill directories to make available (future multi-agent harness support)
+	Skill     string   // specific skill to invoke (future multi-agent harness support; mutually exclusive with Prompt/Run)
 }
 
 // IsPromptNode reports whether this node invokes an LLM.
@@ -74,12 +76,22 @@ func ValidateWorkflows(workflows map[string]*Workflow) error {
 			}
 			nodeOwner[node.Name] = wfName
 
-			// Must have prompt or run (not both, not neither)
-			if node.Prompt == "" && node.Run == "" {
-				return fmt.Errorf("node '%s' in workflow '%s' has neither prompt nor run", node.Name, wfName)
+			// Must have prompt, run, or skill (exactly one)
+			hasPrompt := node.Prompt != ""
+			hasRun := node.Run != ""
+			hasSkill := node.Skill != ""
+
+			if !hasPrompt && !hasRun && !hasSkill {
+				return fmt.Errorf("node '%s' in workflow '%s' has neither prompt, run, nor skill", node.Name, wfName)
 			}
-			if node.Prompt != "" && node.Run != "" {
+			if hasPrompt && hasRun {
 				return fmt.Errorf("node '%s' in workflow '%s' has both prompt and run", node.Name, wfName)
+			}
+			if hasPrompt && hasSkill {
+				return fmt.Errorf("node '%s' in workflow '%s' has both prompt and skill", node.Name, wfName)
+			}
+			if hasRun && hasSkill {
+				return fmt.Errorf("node '%s' in workflow '%s' has both run and skill", node.Name, wfName)
 			}
 
 			// Valid node type
