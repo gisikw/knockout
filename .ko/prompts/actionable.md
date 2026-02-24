@@ -20,3 +20,13 @@ If the plan is complete, has no open questions, and looks feasible: end with
 a `continue` disposition.
 
 Do NOT investigate the codebase yourself. You are judging the plan as written.
+
+Your output MUST end with a fenced JSON block. Examples:
+
+```json
+{"disposition": "continue"}
+```
+
+```json
+{"disposition": "fail", "reason": "Plan has 3 open questions requiring human input: ..."}
+```

@@ -29,3 +29,13 @@ with `continue`.
 If the problems indicate a fundamental misunderstanding of the ticket, an
 invariant violation you cannot fix, or unexplained deviation from the plan,
 end with a `fail` disposition explaining what went wrong.
+
+Your output MUST end with a fenced JSON block. Examples:
+
+```json
+{"disposition": "continue"}
+```
+
+```json
+{"disposition": "fail", "reason": "Implementation diverged from plan: ..."}
+```

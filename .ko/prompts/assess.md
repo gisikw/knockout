@@ -18,3 +18,17 @@ Evaluate:
 
 When routing to `task`, the diagnosis artifact will be available to the plan
 node in the task workflow.
+
+Your output MUST end with a fenced JSON block. Examples:
+
+```json
+{"disposition": "continue"}
+```
+
+```json
+{"disposition": "route", "workflow": "task"}
+```
+
+```json
+{"disposition": "fail", "reason": "Multiple approaches possible: ..."}
+```
