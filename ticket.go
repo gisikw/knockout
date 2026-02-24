@@ -19,7 +19,6 @@ type Ticket struct {
 	ID          string   `yaml:"id"`
 	Status      string   `yaml:"status"`
 	Deps        []string `yaml:"deps"`
-	Links       []string `yaml:"links"`
 	Created     string   `yaml:"created"`
 	Type        string   `yaml:"type"`
 	Priority    int      `yaml:"priority"`
@@ -76,7 +75,6 @@ func FormatTicket(t *Ticket) string {
 	b.WriteString(fmt.Sprintf("id: %s\n", t.ID))
 	b.WriteString(fmt.Sprintf("status: %s\n", t.Status))
 	b.WriteString(fmt.Sprintf("deps: [%s]\n", strings.Join(t.Deps, ", ")))
-	b.WriteString(fmt.Sprintf("links: [%s]\n", strings.Join(t.Links, ", ")))
 	b.WriteString(fmt.Sprintf("created: %s\n", t.Created))
 	b.WriteString(fmt.Sprintf("type: %s\n", t.Type))
 	b.WriteString(fmt.Sprintf("priority: %d\n", t.Priority))
@@ -114,8 +112,7 @@ func ParseTicket(content string) (*Ticket, error) {
 	body := rest[end+5:] // skip \n---\n
 
 	t := &Ticket{
-		Deps:  []string{},
-		Links: []string{},
+		Deps: []string{},
 	}
 
 	for _, line := range strings.Split(frontmatter, "\n") {
@@ -130,8 +127,6 @@ func ParseTicket(content string) (*Ticket, error) {
 			t.Status = val
 		case "deps":
 			t.Deps = parseYAMLList(val)
-		case "links":
-			t.Links = parseYAMLList(val)
 		case "created":
 			t.Created = val
 		case "type":
@@ -364,7 +359,6 @@ func NewTicket(prefix, title string) *Ticket {
 		Title:    title,
 		Status:   "open",
 		Deps:     []string{},
-		Links:    []string{},
 		Created:  time.Now().UTC().Format(time.RFC3339),
 		Type:     "task",
 		Priority: 2,
@@ -380,7 +374,6 @@ func NewChildTicket(parentID, title string) *Ticket {
 		Title:    title,
 		Status:   "open",
 		Deps:     []string{},
-		Links:    []string{},
 		Created:  time.Now().UTC().Format(time.RFC3339),
 		Type:     "task",
 		Priority: 2,

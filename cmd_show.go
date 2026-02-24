@@ -36,7 +36,6 @@ func cmdShow(args []string) int {
 	fmt.Printf("type: %s\n", t.Type)
 	fmt.Printf("priority: %d\n", t.Priority)
 	fmt.Printf("deps: [%s]\n", strings.Join(t.Deps, ", "))
-	fmt.Printf("links: [%s]\n", strings.Join(t.Links, ", "))
 	fmt.Printf("created: %s\n", t.Created)
 	if t.Assignee != "" {
 		fmt.Printf("assignee: %s\n", t.Assignee)

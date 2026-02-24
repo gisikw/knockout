@@ -28,9 +28,6 @@ Commands:
   undep <id> <dep>   Remove dependency
   dep tree <id>      Show dependency tree
 
-  link <id1> <id2>   Link two tickets
-  unlink <id1> <id2> Unlink two tickets
-
   add-note <id> <text>  Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL

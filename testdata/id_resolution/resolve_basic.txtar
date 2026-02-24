@@ -23,7 +23,6 @@ stderr 'not found'
 id: abc-1234
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

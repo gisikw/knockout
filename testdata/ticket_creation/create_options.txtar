@@ -23,7 +23,6 @@ stdout '"assignee":"John Doe"'
 id: ko-seed
 status: closed
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

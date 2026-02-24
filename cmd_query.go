@@ -14,7 +14,6 @@ type ticketJSON struct {
 	Type     string   `json:"type"`
 	Priority int      `json:"priority"`
 	Deps     []string `json:"deps"`
-	Links    []string `json:"links"`
 	Created  string   `json:"created"`
 	Modified string   `json:"modified"`
 	Assignee string   `json:"assignee,omitempty"`
@@ -49,7 +48,6 @@ func cmdQuery(args []string) int {
 			Type:     t.Type,
 			Priority: t.Priority,
 			Deps:     t.Deps,
-			Links:    t.Links,
 			Created:  t.Created,
 			Modified: modified,
 			Assignee: t.Assignee,

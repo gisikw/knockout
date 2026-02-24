@@ -21,7 +21,6 @@ stderr 'unresolved dependencies'
 id: ko-inprog
 status: in_progress
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -32,7 +31,6 @@ priority: 2
 id: ko-closed
 status: closed
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -43,7 +41,6 @@ priority: 2
 id: ko-blocked
 status: blocked
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -54,7 +51,6 @@ priority: 2
 id: ko-deps
 status: open
 deps: [ko-other]
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -65,7 +61,6 @@ priority: 2
 id: ko-other
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

@@ -10,7 +10,6 @@ stdout 'ready-003.*Low priority'
 id: ready-003
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 3
@@ -21,7 +20,6 @@ priority: 3
 id: ready-001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 1
@@ -32,7 +30,6 @@ priority: 1
 id: ready-002
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 1

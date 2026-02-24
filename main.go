@@ -49,10 +49,6 @@ func run(args []string) int {
 		return cmdDep(rest)
 	case "undep":
 		return cmdUndep(rest)
-	case "link":
-		return cmdLink(rest)
-	case "unlink":
-		return cmdUnlink(rest)
 	case "add-note":
 		return cmdAddNote(rest)
 	case "bump":
@@ -132,9 +128,6 @@ Commands:
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency
   dep tree <id>      Show dependency tree
-
-  link <id1> <id2>   Link two tickets
-  unlink <id1> <id2> Unlink two tickets
 
   add-note <id> <text>  Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)

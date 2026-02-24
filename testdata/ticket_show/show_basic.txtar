@@ -4,7 +4,6 @@ stdout 'id: show-001'
 stdout '# Test ticket'
 stdout 'status: open'
 stdout 'deps: \[\]'
-stdout 'links: \[\]'
 stdout 'type: task'
 stdout 'priority: 2'
 
@@ -17,7 +16,6 @@ stderr 'not found'
 id: show-001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

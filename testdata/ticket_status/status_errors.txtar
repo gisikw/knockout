@@ -12,7 +12,6 @@ stderr 'not found'
 id: test-0001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

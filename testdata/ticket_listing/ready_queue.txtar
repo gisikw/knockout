@@ -21,7 +21,6 @@ stdout 'ready-001'
 id: ready-001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -32,7 +31,6 @@ priority: 2
 id: ready-002
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

@@ -27,7 +27,6 @@ stdout 'status: closed'
 id: ko-a001
 status: closed
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -38,7 +37,6 @@ priority: 2
 id: ko-a001.b002
 status: closed
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -50,7 +48,6 @@ parent: ko-a001
 id: ko-a001.b002.c003
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 1
@@ -62,7 +59,6 @@ parent: ko-a001.b002
 id: ko-d004
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

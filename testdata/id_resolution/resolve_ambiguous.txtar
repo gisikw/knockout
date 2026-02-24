@@ -11,7 +11,6 @@ stdout 'id: xyz'
 id: abc-1234
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -22,7 +21,6 @@ priority: 2
 id: abc-5678
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -33,7 +31,6 @@ priority: 2
 id: xyz
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -44,7 +41,6 @@ priority: 2
 id: xyz-1234
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

@@ -28,7 +28,6 @@ stdout 'Local ready'
 id: beta-0001
 status: closed
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -40,7 +39,6 @@ priority: 2
 id: alp-0001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -52,7 +50,6 @@ priority: 2
 id: alp-0002
 status: open
 deps: [beta-0001]
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2

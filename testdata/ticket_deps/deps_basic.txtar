@@ -32,7 +32,6 @@ stderr 'not found'
 id: task-0001
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -43,7 +42,6 @@ priority: 2
 id: task-0002
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
@@ -54,7 +52,6 @@ priority: 2
 id: task-0003
 status: open
 deps: []
-links: []
 created: 2026-01-01T00:00:00Z
 type: task
 priority: 2
