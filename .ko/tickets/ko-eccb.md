@@ -1,6 +1,6 @@
 ---
 id: ko-eccb
-status: open
+status: closed
 deps: [ko-8a7c, ko-f3e2, ko-3b00]
 links: []
 created: 2026-02-24T03:04:21Z

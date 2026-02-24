@@ -1,6 +1,6 @@
 ---
 id: ko-f3e2
-status: open
+status: closed
 deps: [ko-8a7c]
 links: []
 created: 2026-02-24T03:04:21Z
