@@ -1,6 +1,6 @@
 ---
 id: ko-99bc
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-23T02:12:56Z

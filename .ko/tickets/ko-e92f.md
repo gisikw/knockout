@@ -1,6 +1,6 @@
 ---
 id: ko-e92f
-status: open
+status: closed
 deps: [ko-76f7, ko-12c4]
 links: []
 created: 2026-02-15T16:35:05Z
