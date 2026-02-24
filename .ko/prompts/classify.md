@@ -22,4 +22,17 @@ it's a task. If it describes *what's broken*, it's a bug.
 When in doubt between research and bug: if the ticket is asking "is this a
 problem?", it's research. If it's asserting "this is a problem", it's a bug.
 
-Route to the appropriate workflow: `task`, `research`, or `bug`.
+Route to the appropriate workflow. Your output MUST end with a fenced JSON
+block using the `route` disposition. Examples:
+
+```json
+{"disposition": "route", "workflow": "task"}
+```
+
+```json
+{"disposition": "route", "workflow": "research"}
+```
+
+```json
+{"disposition": "route", "workflow": "bug"}
+```
