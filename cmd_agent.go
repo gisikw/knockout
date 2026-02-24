@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func cmdAgent(args []string) int {
@@ -186,29 +187,38 @@ func cmdAgentStop(args []string) int {
 		return 1
 	}
 
-	// Kill immediately — don't wait for the current build to finish
-	killProcessGroup(pid)
+	// Send SIGTERM first so the loop's signal handler can log it and clean up.
+	// If still alive after 5 seconds, escalate to SIGKILL.
+	syscall.Kill(-pid, syscall.SIGTERM)
+	syscall.Kill(pid, syscall.SIGTERM)
+
+	dead := false
+	for i := 0; i < 10; i++ {
+		time.Sleep(500 * time.Millisecond)
+		if !isProcessAlive(pid) {
+			dead = true
+			break
+		}
+	}
+	if !dead {
+		syscall.Kill(-pid, syscall.SIGKILL)
+		if proc, err := os.FindProcess(pid); err == nil {
+			proc.Kill()
+		}
+	}
+
 	os.Remove(pidPath)
 	fmt.Printf("agent stopped (pid %d)\n", pid)
 
-	// Clean up: reset any in_progress ticket and run on_fail hooks
+	// Clean up: reset any in_progress ticket and run on_fail hooks.
+	// The loop's own defers should have handled this on SIGTERM, but
+	// belt+suspenders in case it was escalated to SIGKILL.
 	var p *Pipeline
 	if configPath, err := FindPipelineConfig(ticketsDir); err == nil {
 		p, _ = LoadPipeline(configPath)
 	}
 	cleanupAfterStop(ticketsDir, p)
 	return 0
-}
-
-// killProcessGroup sends SIGKILL to the process group led by pid, killing
-// the agent loop and any child processes (claude, sh hooks, etc).
-func killProcessGroup(pid int) {
-	// Try process group kill first (negative pid = kill the group)
-	syscall.Kill(-pid, syscall.SIGKILL)
-	// Also kill the process directly in case setsid didn't work
-	if proc, err := os.FindProcess(pid); err == nil {
-		proc.Kill()
-	}
 }
 
 // cleanupAfterStop finds any in_progress ticket, resets it to open,

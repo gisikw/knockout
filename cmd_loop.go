@@ -7,9 +7,27 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
+
+// appendLine appends a timestamped line to a file. Best-effort; errors are silent.
+func appendLine(path, line string) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s\n", line)
+}
+
+// writeHeartbeat writes PID and current timestamp to the heartbeat file.
+func writeHeartbeat(path string) {
+	data := strconv.Itoa(os.Getpid()) + " " + time.Now().UTC().Format(time.RFC3339) + "\n"
+	os.WriteFile(path, []byte(data), 0644)
+}
 
 // agentLockPath returns the path to .ko/agent.lock for the given tickets dir.
 func agentLockPath(ticketsDir string) string {
@@ -116,13 +134,44 @@ func cmdAgentLoop(args []string) int {
 		config.MaxDuration = d
 	}
 
-	// Trap SIGTERM for graceful shutdown
+	// Trap signals for graceful shutdown and diagnostics.
+	// Broad set so we log what killed us even for unexpected signals.
 	stop := make(chan struct{})
+	var stopOnce sync.Once
+	stopHeartbeat := func() { stopOnce.Do(func() { close(stop) }) }
+
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(sigCh,
+		syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP,
+		syscall.SIGQUIT, syscall.SIGPIPE,
+		syscall.SIGUSR1, syscall.SIGUSR2,
+	)
+	agentLog := filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.log")
 	go func() {
-		<-sigCh
-		close(stop)
+		sig := <-sigCh
+		appendLine(agentLog, fmt.Sprintf("loop: received signal %s (pid %d)", sig, os.Getpid()))
+		stopHeartbeat()
+	}()
+
+	// Heartbeat: write PID + timestamp to .ko/agent.heartbeat every 30s.
+	// If the process dies without a clean shutdown log entry, the stale
+	// heartbeat tells you when it was last alive.
+	heartbeatPath := filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.heartbeat")
+	heartbeatDone := make(chan struct{})
+	go func() {
+		defer func() { close(heartbeatDone) }()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		writeHeartbeat(heartbeatPath)
+		for {
+			select {
+			case <-ticker.C:
+				writeHeartbeat(heartbeatPath)
+			case <-stop:
+				os.Remove(heartbeatPath)
+				return
+			}
+		}
 	}()
 
 	// On any exit (panic, signal, normal), reset in_progress tickets and
@@ -142,6 +191,11 @@ func cmdAgentLoop(args []string) int {
 	result := RunLoop(ticketsDir, p, config, log, stop)
 	elapsed := time.Since(loopStart)
 
+	// Stop heartbeat goroutine. On signal path, stop is already closed.
+	// On normal exit, we need to close it ourselves.
+	stopHeartbeat()
+	<-heartbeatDone
+
 	log.LoopSummary(result)
 
 	summary := fmt.Sprintf("loop complete: %d processed (%d succeeded, %d failed, %d blocked, %d decomposed)\nstopped: %s",
@@ -155,6 +209,9 @@ func cmdAgentLoop(args []string) int {
 
 	// Append JSONL summary to .ko/agent.log
 	writeAgentLogSummary(ticketsDir, result, elapsed)
+
+	// Clean shutdown — remove heartbeat file
+	os.Remove(heartbeatPath)
 
 	return 0
 }

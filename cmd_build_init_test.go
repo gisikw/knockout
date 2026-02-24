@@ -43,7 +43,7 @@ func TestCmdBuildInit_createsFiles(t *testing.T) {
 		t.Fatalf("failed to read .ko/.gitignore: %v", err)
 	}
 	gitignoreContent := string(gitignoreData)
-	for _, entry := range []string{"agent.lock", "agent.pid", "agent.log"} {
+	for _, entry := range []string{"agent.lock", "agent.pid", "agent.log", "agent.heartbeat"} {
 		if !strings.Contains(gitignoreContent, entry) {
 			t.Errorf("expected .ko/.gitignore to contain %q", entry)
 		}
