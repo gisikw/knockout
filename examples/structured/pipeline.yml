@@ -39,6 +39,7 @@ workflows:
       prompt: review.md
 
   research:
+    on_success: resolved
     - name: investigate
       type: action
       prompt: investigate.md

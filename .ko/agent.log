@@ -52,3 +52,6 @@ loop: ko-d897 SUCCEED
 loop: building ko-8fb3 — Agent runs should write a summary of what was done in a given run (if we don't have this yet). Can be modest. Just tickets touched, tickets blocked, tickets closed, total runtime, etc. Maybe .ko/agent.log jsonl?
 loop: ko-8fb3 SUCCEED
 loop: building ko-698a — Support granular tool permissions in pipeline config
+loop: ko-698a SUCCEED
+loop: building ko-72cd — Pipeline support for resolved status: configure success outcome per workflow
+loop: building ko-72cd — Pipeline support for resolved status: configure success outcome per workflow

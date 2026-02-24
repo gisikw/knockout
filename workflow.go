@@ -43,6 +43,7 @@ type Workflow struct {
 	AllowAll     *bool    // per-workflow allow_all_tool_calls override (nil = inherit)
 	AllowedTools []string // per-workflow allowed_tools override (nil = inherit)
 	Nodes        []Node   // ordered list of nodes
+	OnSuccess    string   // status to set on successful completion: "closed" (default) or "resolved"
 }
 
 // ValidateWorkflows checks the workflow graph for structural errors.

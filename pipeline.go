@@ -194,6 +194,8 @@ func ParsePipeline(content string) (*Pipeline, error) {
 						currentWF.AllowedTools = parseYAMLList(val)
 						inAllowedTools = false
 					}
+				case "on_success":
+					currentWF.OnSuccess = val
 				}
 
 			case strings.HasPrefix(trimmed, "- name:") && currentWF != nil:

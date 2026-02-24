@@ -22,6 +22,7 @@ var validDispositions = map[string]bool{
 	"blocked":   true,
 	"decompose": true,
 	"route":     true,
+	"resolved":  true,
 }
 
 // ExtractLastFencedJSON finds the last fenced code block in the output
@@ -123,6 +124,11 @@ Route to a different workflow:
 Decompose into subtasks:
 ` + "```json" + `
 {"disposition": "decompose", "subtasks": ["First subtask", "Second subtask"]}
+` + "```" + `
+
+Resolve (mark work complete, needs human review before closing):
+` + "```json" + `
+{"disposition": "resolved", "reason": "Research findings documented"}
 ` + "```" + `
 
 Think freely before your disposition — only the last fenced JSON block is parsed.`

@@ -728,3 +728,45 @@ workflows:
 		t.Errorf("node with empty list: got %v, want []", resolved)
 	}
 }
+
+func TestParsePipelineWorkflowOnSuccess(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+  research:
+    on_success: resolved
+    - name: investigate
+      type: action
+      prompt: investigate.md
+  task:
+    on_success: closed
+    - name: execute
+      type: action
+      prompt: execute.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	// main workflow should have empty on_success (default)
+	main := p.Workflows["main"]
+	if main.OnSuccess != "" {
+		t.Errorf("main.OnSuccess = %q, want empty (default)", main.OnSuccess)
+	}
+
+	// research workflow should have on_success: resolved
+	research := p.Workflows["research"]
+	if research.OnSuccess != "resolved" {
+		t.Errorf("research.OnSuccess = %q, want %q", research.OnSuccess, "resolved")
+	}
+
+	// task workflow should have on_success: closed
+	task := p.Workflows["task"]
+	if task.OnSuccess != "closed" {
+		t.Errorf("task.OnSuccess = %q, want %q", task.OnSuccess, "closed")
+	}
+}

@@ -1,6 +1,6 @@
 ---
 id: ko-72cd
-status: closed
+status: open
 deps: [ko-dd51]
 created: 2026-02-24T12:49:29Z
 type: task
@@ -21,7 +21,3 @@ The right answer probably involves both — a yaml-level default per
 workflow, plus a disposition that lets individual decision nodes override.
 Research workflows should land in `resolved` by default so findings
 get human review before closing.
-
-## Notes
-
-**2026-02-24 20:00:56 UTC:** ko: SUCCEED

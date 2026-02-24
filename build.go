@@ -98,7 +98,7 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// Execute starting from "main" workflow
 	log.WorkflowStart(t.ID, "main")
 	hist.WorkflowStart(t.ID, "main")
-	outcome, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, log, hist, verbose)
+	outcome, finalWorkflow, err := runWorkflow(ticketsDir, t, p, "main", visits, wsDir, artifactDir, log, hist, verbose)
 	if err != nil {
 		log.WorkflowComplete(t.ID, "fail")
 		hist.BuildComplete(t.ID, "fail")
@@ -123,13 +123,21 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	// Compute changed files before close (close removes artifact dir)
 	changedFiles := computeChangedFiles(projectRoot, beforeSnapshot)
 
+	// Determine target status based on final workflow's on_success config
+	targetStatus := "closed" // default
+	if finalWorkflow != "" {
+		if wf, ok := p.Workflows[finalWorkflow]; ok && wf.OnSuccess == "resolved" {
+			targetStatus = "resolved"
+		}
+	}
+
 	// Close ticket first — if the process is killed during on_succeed hooks,
 	// the ticket should stay closed rather than being reset to open with
 	// committed but untracked changes.
 	AddNote(t, "ko: SUCCEED")
 	log.WorkflowComplete(t.ID, "succeed")
 	hist.BuildComplete(t.ID, "succeed")
-	setStatus(ticketsDir, t, "closed")
+	setStatus(ticketsDir, t, targetStatus)
 
 	// Run on_succeed hooks (ticket already closed)
 	if err := runHooks(ticketsDir, t, p.OnSucceed, changedFiles, wsDir, hist.Path()); err != nil {
@@ -147,11 +155,11 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 }
 
 // runWorkflow executes a single workflow, following route dispositions to other
-// workflows. Returns the terminal outcome.
-func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
+// workflows. Returns the terminal outcome and the name of the final workflow that completed.
+func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, string, error) {
 	wf, ok := p.Workflows[wfName]
 	if !ok {
-		return OutcomeFail, fmt.Errorf("unknown workflow '%s'", wfName)
+		return OutcomeFail, "", fmt.Errorf("unknown workflow '%s'", wfName)
 	}
 
 	for i := 0; i < len(wf.Nodes); i++ {
@@ -162,7 +170,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		if visits[node.Name] > node.MaxVisits {
 			applyFailOutcome(ticketsDir, t, node.Name,
 				fmt.Sprintf("node '%s' exceeded max_visits (%d)", node.Name, node.MaxVisits))
-			return OutcomeFail, nil
+			return OutcomeFail, "", nil
 		}
 
 		// Resolve overrides: node > workflow > pipeline
@@ -174,7 +182,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("invalid timeout: %v", err))
-			return OutcomeFail, nil
+			return OutcomeFail, "", nil
 		}
 
 		// Execute the node
@@ -185,7 +193,7 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
-			return OutcomeFail, nil
+			return OutcomeFail, "", nil
 		}
 
 		// Tee output to workspace
@@ -205,23 +213,23 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 			log.NodeComplete(t.ID, wfName, node.Name, "error")
 			hist.NodeComplete(t.ID, wfName, node.Name, "error")
 			applyFailOutcome(ticketsDir, t, node.Name, err.Error())
-			return OutcomeFail, nil
+			return OutcomeFail, "", nil
 		}
 		log.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 		hist.NodeComplete(t.ID, wfName, node.Name, disp.Type)
 
-		outcome, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, log, hist, verbose)
+		outcome, finalWF, err := applyDisposition(ticketsDir, t, p, node, wfName, disp, visits, wsDir, artifactDir, log, hist, verbose)
 		if err != nil {
-			return OutcomeFail, err
+			return OutcomeFail, "", err
 		}
 		if outcome != OutcomeSucceed {
-			return outcome, nil
+			return outcome, finalWF, nil
 		}
 		// OutcomeSucceed from applyDisposition means "continue" — next node
 	}
 
 	// Reached end of workflow = succeed
-	return OutcomeSucceed, nil
+	return OutcomeSucceed, wfName, nil
 }
 
 // runNode executes a single node with retry logic.
@@ -274,35 +282,46 @@ func extractDisposition(output string) (Disposition, error) {
 
 // applyDisposition handles a parsed disposition from a decision node.
 // Returns OutcomeSucceed for "continue" (advance to next node).
-func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, error) {
+func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, currentWF string, disp Disposition, visits map[string]int, wsDir, artifactDir string, log *EventLogger, hist *BuildHistoryLogger, verbose bool) (Outcome, string, error) {
 	switch disp.Type {
 	case "continue":
-		return OutcomeSucceed, nil
+		return OutcomeSucceed, "", nil
 
 	case "fail":
 		applyFailOutcome(ticketsDir, t, node.Name, disp.Reason)
-		return OutcomeFail, nil
+		return OutcomeFail, "", nil
 
 	case "blocked":
-		return applyBlockedDisposition(ticketsDir, t, node, disp)
+		outcome, err := applyBlockedDisposition(ticketsDir, t, node, disp)
+		return outcome, "", err
 
 	case "decompose":
-		return applyDecomposeDisposition(ticketsDir, t, p, node, disp)
+		outcome, err := applyDecomposeDisposition(ticketsDir, t, p, node, disp)
+		return outcome, "", err
 
 	case "route":
 		if !contains(node.Routes, disp.Workflow) {
 			applyFailOutcome(ticketsDir, t, node.Name,
 				fmt.Sprintf("node '%s' tried to route to '%s' but only declares routes: %v",
 					node.Name, disp.Workflow, node.Routes))
-			return OutcomeFail, nil
+			return OutcomeFail, "", nil
 		}
 		log.WorkflowStart(t.ID, disp.Workflow)
 		hist.WorkflowStart(t.ID, disp.Workflow)
 		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, log, hist, verbose)
 
+	case "resolved":
+		note := fmt.Sprintf("ko: RESOLVED at node '%s'", node.Name)
+		if disp.Reason != "" {
+			note += " — " + disp.Reason
+		}
+		AddNote(t, note)
+		setStatus(ticketsDir, t, "resolved")
+		return OutcomeFail, "", nil
+
 	default:
 		applyFailOutcome(ticketsDir, t, node.Name, fmt.Sprintf("unknown disposition '%s'", disp.Type))
-		return OutcomeFail, nil
+		return OutcomeFail, "", nil
 	}
 }
 
