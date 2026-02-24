@@ -2,7 +2,6 @@
 id: ko-72cd
 status: open
 deps: [ko-dd51]
-links: []
 created: 2026-02-24T12:49:29Z
 type: task
 priority: 2
