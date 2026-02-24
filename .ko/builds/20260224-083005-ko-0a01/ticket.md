@@ -1,6 +1,6 @@
 ---
 id: ko-0a01
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -11,7 +11,3 @@ priority: 2
 
 Shorter, cleaner. `ko note <id> "text"` and `ko note <id> < file`.
 Keep `add-note` as a hidden alias for backward compat during transition.
-
-## Notes
-
-**2026-02-24 08:34:49 UTC:** ko: SUCCEED

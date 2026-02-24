@@ -15,3 +15,5 @@ loop: ko-1930 SUCCEED
 loop: building ko-f21c — Support inline prompt text in pipeline nodes
 loop: ko-f21c SUCCEED
 loop: building ko-4895 — Support skills in pipeline workflows
+loop: ko-4895 SUCCEED
+loop: building ko-0a01 — Rename ko add-note to ko note

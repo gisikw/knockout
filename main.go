@@ -49,6 +49,8 @@ func run(args []string) int {
 		return cmdDep(rest)
 	case "undep":
 		return cmdUndep(rest)
+	case "note":
+		return cmdAddNote(rest)
 	case "add-note":
 		return cmdAddNote(rest)
 	case "bump":
@@ -129,7 +131,7 @@ Commands:
   undep <id> <dep>   Remove dependency
   dep tree <id>      Show dependency tree
 
-  add-note <id> <text>  Add a note to a ticket
+  note <id> <text>      Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL
   clear --force         Remove all local tickets
