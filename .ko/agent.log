@@ -41,3 +41,4 @@ loop: building ko-f7d1 — Retry transitions and build failures should emit even
 loop: ko-f7d1 FAIL
 loop complete: 5 processed (0 succeeded, 5 failed, 0 blocked, 0 decomposed)
 stopped: empty
+loop: building ko-bfc5 — JSONL append on every ticket touch and build step transition

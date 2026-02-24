@@ -1,6 +1,6 @@
 ---
 id: ko-dd51
-status: blocked
+status: open
 deps: []
 created: 2026-02-24T12:47:30Z
 type: task

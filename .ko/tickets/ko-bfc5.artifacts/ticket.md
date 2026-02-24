@@ -1,6 +1,6 @@
 ---
 id: ko-bfc5
-status: closed
+status: open
 deps: []
 created: 2026-02-24T06:11:22Z
 type: task
@@ -15,5 +15,3 @@ priority: 2
 2. Tool name format: Should tool names be case-sensitive or normalized?
 3. Interaction with allow_all_tool_calls: When both are set, which takes precedence?
 4. Empty list semantics: Does allowed_tools: [] mean 'allow nothing' or 'inherit from parent'?
-
-**2026-02-24 14:48:37 UTC:** ko: SUCCEED
