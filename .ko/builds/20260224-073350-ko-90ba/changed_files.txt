@@ -1,4 +1,0 @@
-README.md
-knockout
-ko
-main.go

@@ -1,5 +1,0 @@
-build.go
-pipeline.go
-specs/pipeline.feature
-testdata/pipeline/build_inline_prompt.txtar
-testdata/pipeline/build_inline_prompt_mixed.txtar

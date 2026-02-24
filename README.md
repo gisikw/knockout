@@ -136,9 +136,11 @@ from hijacking the workflow graph.
 
 #### Workspace
 
-Each build creates a workspace at `.ko/builds/<ts>-<id>/workspace/`. Node
-outputs are tee'd to `<workflow>.<node>.md` files in the workspace. The path
-is available to all nodes and hooks as `$KO_TICKET_WORKSPACE`.
+Each build creates a workspace at `.ko/tickets/<id>.artifacts/workspace/`. Node
+outputs are tee'd to `<workflow>.<node>.md` files in the workspace. The artifact
+directory persists across builds and after ticket close. Available as
+`$KO_TICKET_WORKSPACE` (workspace path) and `$KO_ARTIFACT_DIR` (parent artifact
+directory).
 
 ### Build Loop
 
@@ -251,6 +253,7 @@ on_close:
 | `max_retries` | `2` | Retry attempts per node |
 | `max_depth` | `2` | Max decomposition depth |
 | `discretion` | `medium` | `low` \| `medium` \| `high` — passed to prompt nodes |
+| `step_timeout` | `15m` | Default max duration per pipeline node |
 
 ### Node properties
 
@@ -258,11 +261,14 @@ on_close:
 |-----|----------|-------------|
 | `name` | yes | Node identifier (unique across all workflows) |
 | `type` | yes | `decision` or `action` |
-| `prompt` | one of | Prompt file in `.ko/prompts/` |
+| `prompt` | one of | Prompt file in `.ko/prompts/`, or inline text |
 | `run` | one of | Shell command to execute |
 | `model` | no | Model override for this node |
 | `routes` | no | Workflows this decision node may route to |
 | `max_visits` | no | Max times this node can run per build (default: 1) |
+| `timeout` | no | Max duration for this node (overrides `step_timeout`) |
+| `skills` | no | List of skill directory paths to make available |
+| `skill` | no | Skill name — implies prompt "apply /skill-name" |
 
 ### Hooks
 

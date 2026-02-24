@@ -1,5 +1,0 @@
-cmd_list.go
-main.go
-specs/ticket_listing.feature
-ticket.go
-ticket_test.go
