@@ -1,6 +1,6 @@
 ---
 id: ko-d897
-status: blocked
+status: open
 deps: [ko-90ba]
 created: 2026-02-24T07:30:19Z
 type: task
@@ -22,5 +22,3 @@ Depends on ko-90ba (rename create to add) — implement against the new name.
 **2026-02-24 07:40:00 UTC:** ko: FAIL at node 'actionable' — Plan contains an open question that requires clarification: Should description sources have strict priority (stdin wins over arg, wins over -d) OR should they all merge together? The plan assumes merge behavior but notes this decision should be confirmed. Ticket author must clarify the intended precedence/merge strategy before implementation can proceed.
 
 **2026-02-24 13:02:31 UTC:** Decision: strict priority, no merging. stdin > second positional arg > -d flag.
-
-**2026-02-24 13:06:01 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field

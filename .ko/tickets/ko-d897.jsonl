@@ -1,0 +1,5 @@
+{"event":"build_start","ticket":"ko-d897","ts":"2026-02-24T13:05:44Z"}
+{"event":"workflow_start","ticket":"ko-d897","ts":"2026-02-24T13:05:44Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-d897","ts":"2026-02-24T13:05:44Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"error","ticket":"ko-d897","ts":"2026-02-24T13:06:01Z","workflow":"main"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-d897","ts":"2026-02-24T13:06:01Z"}
