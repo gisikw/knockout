@@ -1,0 +1,41 @@
+# Answer partial plan questions - some remain
+exec ko answer test-0001 '{"q1":"Spaces, 2-wide"}'
+stdout 'Answered 1 question\(s\) for test-0001 — 1 question\(s\) remaining'
+
+# Verify status is still blocked
+exec ko show test-0001
+stdout 'status: blocked'
+
+# Verify question q1 was removed and q2 remains
+stdout 'plan-questions:'
+stdout '  - id: q2'
+! stdout '  - id: q1'
+
+# Verify note was added
+stdout 'Plan answer \(q1\): Tabs or spaces\? → Spaces, 2-wide'
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: blocked
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+plan-questions:
+  - id: q1
+    question: Tabs or spaces?
+    options:
+      - label: Tabs
+        value: tabs
+      - label: Spaces
+        value: spaces
+  - id: q2
+    question: Fix manually or with script?
+    options:
+      - label: Manual
+        value: manual
+      - label: Script
+        value: script
+---
+# Test ticket

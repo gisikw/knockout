@@ -1,0 +1,40 @@
+# Answer all plan questions - unblocks ticket
+exec ko answer test-0001 '{"q1":"Spaces, 2-wide","q2":"I will fix manually"}'
+stdout 'Answered 2 question\(s\) for test-0001 — all questions resolved, status set to open'
+
+# Verify status is now open
+exec ko show test-0001
+stdout 'status: open'
+
+# Verify plan-questions field is gone
+! stdout 'plan-questions:'
+
+# Verify both notes were added
+stdout 'Plan answer \(q1\): Tabs or spaces\? → Spaces, 2-wide'
+stdout 'Plan answer \(q2\): Fix manually or with script\? → I will fix manually'
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: blocked
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+plan-questions:
+  - id: q1
+    question: Tabs or spaces?
+    options:
+      - label: Tabs
+        value: tabs
+      - label: Spaces
+        value: spaces
+  - id: q2
+    question: Fix manually or with script?
+    options:
+      - label: Manual
+        value: manual
+      - label: Script
+        value: script
+---
+# Test ticket

@@ -64,3 +64,5 @@ stopped: empty
 loop: building ko-f7d1 — Retry transitions and build failures should emit events to the event log
 loop: ko-f7d1 SUCCEED
 loop: building ko-9c4a — Add plan-questions to frontmatter schema and ko block --questions flag
+loop: ko-9c4a SUCCEED
+loop: building ko-16e8 — Add ko answer command for submitting plan question answers

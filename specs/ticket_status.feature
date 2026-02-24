@@ -121,3 +121,38 @@ Feature: Ticket Status Management
     Given ticket "test-0001" has status "routed"
     When I run "ko ready"
     Then the output should not contain "test-0001"
+
+  Scenario: Answer partial plan questions
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Tabs","value":"tabs"},{"label":"Spaces","value":"spaces"}]},{"id":"q2","question":"Fix manually or with script?","options":[{"label":"Manual","value":"manual"},{"label":"Script","value":"script"}]}]'
+    When I run "ko answer test-0001 '{\"q1\":\"Spaces, 2-wide\"}'"
+    Then the command should succeed
+    And ticket "test-0001" should have field "status" with value "blocked"
+    And ticket "test-0001" should have plan-questions with 1 question
+    And ticket "test-0001" body should contain "Plan answer (q1): Tabs or spaces? → Spaces, 2-wide"
+
+  Scenario: Answer all plan questions unblocks ticket
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Tabs","value":"tabs"},{"label":"Spaces","value":"spaces"}]},{"id":"q2","question":"Fix manually or with script?","options":[{"label":"Manual","value":"manual"},{"label":"Script","value":"script"}]}]'
+    When I run "ko answer test-0001 '{\"q1\":\"Spaces, 2-wide\",\"q2\":\"I will fix manually\"}'"
+    Then the command should succeed
+    And ticket "test-0001" should have field "status" with value "open"
+    And ticket "test-0001" should not have plan-questions
+    And ticket "test-0001" body should contain "Plan answer (q1): Tabs or spaces? → Spaces, 2-wide"
+    And ticket "test-0001" body should contain "Plan answer (q2): Fix manually or with script? → I will fix manually"
+
+  Scenario: Answer command with invalid JSON
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Test?","options":[{"label":"Yes","value":"yes"}]}]'
+    When I run "ko answer test-0001 'invalid json'"
+    Then the command should fail
+    And the error should contain "invalid JSON"
+
+  Scenario: Answer command with nonexistent question ID
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Test?","options":[{"label":"Yes","value":"yes"}]}]'
+    When I run "ko answer test-0001 '{\"q99\":\"answer\"}'"
+    Then the command should fail
+    And the error should contain "question ID q99 not found"
+
+  Scenario: Answer command on ticket with no plan-questions
+    Given ticket "test-0001" has status "open"
+    When I run "ko answer test-0001 '{\"q1\":\"answer\"}'"
+    Then the command should fail
+    And the error should contain "has no plan-questions"

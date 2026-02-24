@@ -55,6 +55,8 @@ func run(args []string) int {
 		return cmdAddNote(rest)
 	case "add-note":
 		return cmdAddNote(rest)
+	case "answer":
+		return cmdAnswer(rest)
 	case "bump":
 		return cmdBump(rest)
 	case "query":

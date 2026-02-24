@@ -1,0 +1,39 @@
+# Invalid JSON should fail
+! exec ko answer test-0001 'invalid json'
+stderr 'invalid JSON'
+
+# Nonexistent question ID should fail
+! exec ko answer test-0001 '{"q99":"answer"}'
+stderr 'question ID q99 not found'
+
+# Ticket with no plan-questions should fail
+! exec ko answer test-0002 '{"q1":"answer"}'
+stderr 'has no plan-questions'
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: blocked
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+plan-questions:
+  - id: q1
+    question: Test?
+    options:
+      - label: Yes
+        value: yes
+---
+# Test ticket with questions
+
+-- .ko/tickets/test-0002.md --
+---
+id: test-0002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket without questions
