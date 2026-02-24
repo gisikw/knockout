@@ -1,0 +1,1 @@
+Plan written! The implementation is straightforward — we'll add JSONL run summaries to `.ko/agent.log` after each loop completes, building on the existing `LoopResult` struct and keeping the human-readable text output alongside the structured data.

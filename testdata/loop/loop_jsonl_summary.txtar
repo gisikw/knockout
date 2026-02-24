@@ -1,0 +1,51 @@
+# Agent loop writes JSONL summary to .ko/agent.log
+chmod 755 fake-llm
+exec ko agent loop --max-tickets 2
+stdout '2 processed'
+stdout '2 succeeded'
+stdout 'stopped: max_tickets'
+
+# Check that agent.log contains JSONL summary with all required fields
+exec cat .ko/agent.log
+stdout '"ts":"'
+stdout '"tickets_processed":2'
+stdout '"succeeded":2'
+stdout '"failed":0'
+stdout '"blocked":0'
+stdout '"decomposed":0'
+stdout '"stop_reason":"max_tickets"'
+stdout '"runtime_seconds":'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .ko/tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "Stage completed successfully."

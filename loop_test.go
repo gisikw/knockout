@@ -58,3 +58,34 @@ func TestShouldContinueMaxTicketsTakesPrecedence(t *testing.T) {
 		t.Errorf("reason = %q, want %q", reason, "max_tickets")
 	}
 }
+
+func TestLoopResult(t *testing.T) {
+	result := LoopResult{
+		Processed:  10,
+		Succeeded:  5,
+		Failed:     2,
+		Blocked:    2,
+		Decomposed: 1,
+		Stopped:    "max_tickets",
+	}
+
+	// Verify all fields are accessible and have expected values
+	if result.Processed != 10 {
+		t.Errorf("Processed = %d, want 10", result.Processed)
+	}
+	if result.Succeeded != 5 {
+		t.Errorf("Succeeded = %d, want 5", result.Succeeded)
+	}
+	if result.Failed != 2 {
+		t.Errorf("Failed = %d, want 2", result.Failed)
+	}
+	if result.Blocked != 2 {
+		t.Errorf("Blocked = %d, want 2", result.Blocked)
+	}
+	if result.Decomposed != 1 {
+		t.Errorf("Decomposed = %d, want 1", result.Decomposed)
+	}
+	if result.Stopped != "max_tickets" {
+		t.Errorf("Stopped = %q, want %q", result.Stopped, "max_tickets")
+	}
+}

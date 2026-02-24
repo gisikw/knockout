@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -31,6 +32,34 @@ func acquireAgentLock(ticketsDir string) (*os.File, error) {
 		return nil, fmt.Errorf("another agent loop is already running")
 	}
 	return f, nil
+}
+
+// writeAgentLogSummary appends a JSONL summary line to .ko/agent.log.
+func writeAgentLogSummary(ticketsDir string, result LoopResult, elapsed time.Duration) {
+	agentLogPath := filepath.Join(ProjectRoot(ticketsDir), ".ko", "agent.log")
+	f, err := os.OpenFile(agentLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return // Silent failure - don't block the loop on logging errors
+	}
+	defer f.Close()
+
+	summary := map[string]interface{}{
+		"ts":              time.Now().UTC().Format(time.RFC3339),
+		"tickets_processed": result.Processed,
+		"succeeded":       result.Succeeded,
+		"failed":          result.Failed,
+		"blocked":         result.Blocked,
+		"decomposed":      result.Decomposed,
+		"stop_reason":     result.Stopped,
+		"runtime_seconds": elapsed.Seconds(),
+	}
+
+	data, err := json.Marshal(summary)
+	if err != nil {
+		return
+	}
+	data = append(data, '\n')
+	f.Write(data)
 }
 
 func cmdAgentLoop(args []string) int {
@@ -107,7 +136,11 @@ func cmdAgentLoop(args []string) int {
 
 	log := OpenEventLog()
 	defer log.Close()
+
+	// Capture start time for runtime calculation
+	loopStart := time.Now()
 	result := RunLoop(ticketsDir, p, config, log, stop)
+	elapsed := time.Since(loopStart)
 
 	log.LoopSummary(result)
 
@@ -119,6 +152,9 @@ func cmdAgentLoop(args []string) int {
 		}
 	}
 	fmt.Println(summary)
+
+	// Append JSONL summary to .ko/agent.log
+	writeAgentLogSummary(ticketsDir, result, elapsed)
 
 	return 0
 }
