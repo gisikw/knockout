@@ -32,3 +32,26 @@ Feature: Ticket Notes
   Scenario: Add note with partial ID
     When I run "ko add-note 0001 'Partial ID note'"
     Then the command should succeed
+
+  Scenario: Add multiline note via stdin
+    When I pipe "First line\nSecond line\nThird line" to "ko add-note note-0001"
+    Then the command should succeed
+    And ticket "note-0001" should contain "First line"
+    And ticket "note-0001" should contain "Second line"
+    And ticket "note-0001" should contain "Third line"
+
+  Scenario: Add note via heredoc
+    When I run "ko add-note note-0001" with heredoc input
+    Then the command should succeed
+    And ticket "note-0001" should preserve multiline formatting
+
+  Scenario: Stdin takes precedence over command-line args
+    When I pipe "From stdin" to "ko add-note note-0001 'From args'"
+    Then the command should succeed
+    And ticket "note-0001" should contain "From stdin"
+    And ticket "note-0001" should not contain "From args"
+
+  Scenario: Empty stdin falls back to args
+    When I run "ko add-note note-0001 'From command line'" with no stdin
+    Then the command should succeed
+    And ticket "note-0001" should contain "From command line"

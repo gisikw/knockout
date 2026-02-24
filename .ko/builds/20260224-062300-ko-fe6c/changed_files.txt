@@ -1,0 +1,4 @@
+cmd_note.go
+knockout
+specs/ticket_notes.feature
+testdata/ticket_notes/notes_basic.txtar

@@ -12,6 +12,48 @@ stdout '[0-9]{4}-[0-9]{2}-[0-9]{2}'
 ! exec ko add-note nonexistent 'My note'
 stderr 'not found'
 
+# Add multiline note via stdin (echo with newlines)
+stdin input_multiline.txt
+exec ko add-note note-0001
+stdout 'Note added'
+exec ko show note-0001
+stdout 'First line'
+stdout 'Second line'
+stdout 'Third line'
+
+# Add note via heredoc pattern
+stdin heredoc_input.txt
+exec ko add-note note-0001
+stdout 'Note added'
+exec ko show note-0001
+stdout 'Line one'
+stdout 'Line two'
+stdout 'Line three'
+
+# Stdin takes precedence over args
+stdin stdin_input.txt
+exec ko add-note note-0001 'This should be ignored'
+stdout 'Note added'
+exec ko show note-0001
+stdout 'From stdin'
+! stdout 'This should be ignored'
+
+# Empty stdin falls back to args (terminal mode)
+exec ko add-note note-0001 'From command line'
+stdout 'Note added'
+exec ko show note-0001
+stdout 'From command line'
+
+-- input_multiline.txt --
+First line
+Second line
+Third line
+-- heredoc_input.txt --
+Line one
+Line two
+Line three
+-- stdin_input.txt --
+From stdin
 -- .ko/tickets/note-0001.md --
 ---
 id: note-0001
