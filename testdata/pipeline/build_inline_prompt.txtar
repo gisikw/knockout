@@ -1,0 +1,31 @@
+# INLINE PROMPT: pipeline node uses inline prompt text via YAML pipe syntax
+chmod 755 fake-llm
+exec ko agent build ko-a001
+exec ko show ko-a001
+stdout 'status: closed'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Add logging
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: |
+        Review the ticket and implement the feature.
+        Consider existing code patterns.
+        Make minimal changes.
+-- fake-llm --
+#!/bin/sh
+echo "Implementing logging feature as requested."
+echo "Changes complete."

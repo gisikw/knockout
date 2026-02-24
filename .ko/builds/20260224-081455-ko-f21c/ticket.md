@@ -1,6 +1,6 @@
 ---
 id: ko-f21c
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -24,7 +24,3 @@ When `prompt:` value contains whitespace/newlines, treat it as inline text.
 When it looks like a filename (no spaces, ends in .md), load from file as today.
 
 Prereq for skills support in workflows (ko-4895).
-
-## Notes
-
-**2026-02-24 08:21:09 UTC:** ko: SUCCEED

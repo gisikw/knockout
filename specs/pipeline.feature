@@ -22,9 +22,26 @@ Feature: Build Pipeline
     Given a pipeline with workflows: main, hotfix
     Then the "main" workflow has nodes: triage (decision), implement (action)
     And each node has a name and a type (decision or action)
-    And each prompt node has a prompt file reference
+    And each prompt node has a prompt file reference or inline prompt text
     And each run node has a shell command
     And prompt and run are mutually exclusive per node
+
+  Scenario: Prompt node can use inline text via YAML pipe syntax
+    Given a prompt node with "prompt: |" followed by indented text
+    When the node runs
+    Then the inline text is used as the prompt content
+    And no file is loaded from .ko/prompts/
+
+  Scenario: Prompt node can reference external .md files
+    Given a prompt node with "prompt: implement.md"
+    When the node runs
+    Then the content is loaded from ".ko/prompts/implement.md"
+
+  Scenario: Inline and file-based prompts can coexist in the same pipeline
+    Given a pipeline with one node using inline prompts
+    And another node using file-based prompts
+    When the pipeline runs
+    Then both nodes execute correctly with their respective prompt content
 
   Scenario: Pipeline must have a "main" workflow
     Given a pipeline with no "main" workflow

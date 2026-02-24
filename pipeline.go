@@ -74,6 +74,9 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	var currentWF *Workflow    // current workflow being parsed
 	var currentNode *Node      // current node being parsed
 	var inRoutes bool          // parsing routes list for current node
+	var inPrompt bool          // parsing inline prompt content
+	var promptIndent int       // indentation level of prompt: line
+	var promptLines []string   // accumulated prompt lines
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -85,6 +88,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 
 		// Detect top-level section headers (no indentation)
 		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			// Flush any pending inline prompt
+			if inPrompt && currentNode != nil {
+				currentNode.Prompt = strings.Join(promptLines, "\n")
+				inPrompt = false
+				promptLines = nil
+			}
 			// Save any pending node/workflow
 			flushNode(&currentNode, currentWF)
 			flushWorkflow(&currentWF, p)
@@ -162,6 +171,12 @@ func ParsePipeline(content string) (*Pipeline, error) {
 
 			case strings.HasPrefix(trimmed, "- name:") && currentWF != nil:
 				// New node in current workflow
+				// Flush any pending inline prompt first
+				if inPrompt && currentNode != nil {
+					currentNode.Prompt = strings.Join(promptLines, "\n")
+					inPrompt = false
+					promptLines = nil
+				}
 				flushNode(&currentNode, currentWF)
 				inRoutes = false
 				_, val, _ := parseYAMLLine(strings.TrimPrefix(trimmed, "- "))
@@ -173,6 +188,28 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				route = strings.TrimSpace(route)
 				currentNode.Routes = append(currentNode.Routes, route)
 
+			case inPrompt && currentNode != nil:
+				// Accumulating inline prompt lines
+				indent := countIndent(line)
+				if indent <= promptIndent {
+					// End of prompt block — line is at same or lesser indent
+					currentNode.Prompt = strings.Join(promptLines, "\n")
+					inPrompt = false
+					promptLines = nil
+					// Re-process this line as a node property
+					key, val, ok := parseYAMLLine(trimmed)
+					if ok {
+						applyNodeProperty(currentNode, key, val, &inRoutes)
+					}
+				} else {
+					// Strip common indentation and accumulate
+					stripped := line
+					if len(line) > promptIndent+2 {
+						stripped = line[promptIndent+2:]
+					}
+					promptLines = append(promptLines, stripped)
+				}
+
 			case currentNode != nil:
 				// Node-level property
 				key, val, ok := parseYAMLLine(trimmed)
@@ -180,27 +217,13 @@ func ParsePipeline(content string) (*Pipeline, error) {
 					continue
 				}
 				inRoutes = false
-				switch key {
-				case "type":
-					currentNode.Type = NodeType(val)
-				case "prompt":
-					currentNode.Prompt = val
-				case "run":
-					currentNode.Run = val
-				case "model":
-					currentNode.Model = val
-				case "allow_all_tool_calls":
-					v := val == "true"
-					currentNode.AllowAll = &v
-				case "max_visits":
-					fmt.Sscanf(val, "%d", &currentNode.MaxVisits)
-				case "routes":
-					inRoutes = true
-					// Handle inline list: routes: [a, b, c]
-					if strings.HasPrefix(val, "[") {
-						currentNode.Routes = parseYAMLList(val)
-						inRoutes = false
-					}
+				if key == "prompt" && val == "|" {
+					// Start of inline prompt
+					inPrompt = true
+					promptIndent = countIndent(line)
+					promptLines = nil
+				} else {
+					applyNodeProperty(currentNode, key, val, &inRoutes)
 				}
 			}
 
@@ -222,6 +245,10 @@ func ParsePipeline(content string) (*Pipeline, error) {
 		}
 	}
 
+	// Flush any pending inline prompt
+	if inPrompt && currentNode != nil {
+		currentNode.Prompt = strings.Join(promptLines, "\n")
+	}
 	// Flush remaining
 	flushNode(&currentNode, currentWF)
 	flushWorkflow(&currentWF, p)
@@ -239,6 +266,33 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	}
 
 	return p, nil
+}
+
+// applyNodeProperty applies a parsed key-value pair to a node.
+func applyNodeProperty(node *Node, key, val string, inRoutes *bool) {
+	*inRoutes = false
+	switch key {
+	case "type":
+		node.Type = NodeType(val)
+	case "prompt":
+		node.Prompt = val
+	case "run":
+		node.Run = val
+	case "model":
+		node.Model = val
+	case "allow_all_tool_calls":
+		v := val == "true"
+		node.AllowAll = &v
+	case "max_visits":
+		fmt.Sscanf(val, "%d", &node.MaxVisits)
+	case "routes":
+		*inRoutes = true
+		// Handle inline list: routes: [a, b, c]
+		if strings.HasPrefix(val, "[") {
+			node.Routes = parseYAMLList(val)
+			*inRoutes = false
+		}
+	}
 }
 
 // flushNode saves the current node to the current workflow and clears it.

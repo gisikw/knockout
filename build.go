@@ -344,9 +344,19 @@ func applyDecomposeDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *
 
 // runPromptNode invokes the configured command with ticket context.
 func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model string, allowAll bool, wsDir, artifactDir, wfName, histPath string, verbose bool) (string, error) {
-	promptContent, err := LoadPromptFile(ticketsDir, node.Prompt)
-	if err != nil {
-		return "", err
+	var promptContent string
+	var err error
+
+	// Check if prompt is inline (contains newlines) or a file reference
+	if strings.Contains(node.Prompt, "\n") {
+		// Inline prompt content
+		promptContent = node.Prompt
+	} else {
+		// File-based prompt
+		promptContent, err = LoadPromptFile(ticketsDir, node.Prompt)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	var prompt strings.Builder

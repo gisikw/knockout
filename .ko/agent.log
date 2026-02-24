@@ -11,3 +11,5 @@ loop: ko-84c5 SUCCEED
 loop: building ko-f65e — Consolidate .ko/ top-level files into .ko/config.yaml
 loop: ko-f65e FAIL
 loop: building ko-1930 — Extract agent harnesses into file-parameterized configs
+loop: ko-1930 SUCCEED
+loop: building ko-f21c — Support inline prompt text in pipeline nodes
