@@ -88,9 +88,11 @@ be ticketed for remediation. No grandfathering.
   local subtasks (within depth limits) but at most one cross-project ask.
   It blocks on that ask. This bounds blast radius.
 - **Workspace persists across the build.** Each build creates a workspace at
-  `.ko/builds/<ts>-<id>/workspace/`. Stage outputs are tee'd to
-  `<workflow>.<node>.md`. Exposed as `$KO_TICKET_WORKSPACE`. This replaces
-  single-stage-back output threading.
+  `.ko/tickets/<id>.artifacts/workspace/`. Stage outputs are tee'd to
+  `<workflow>.<node>.md`. Exposed as `$KO_TICKET_WORKSPACE` (the workspace
+  path) and `$KO_ARTIFACT_DIR` (the parent artifact directory). The artifact
+  directory persists across builds and is cleaned on ticket close. This
+  replaces single-stage-back output threading.
 - **Invalid disposition JSON is retry-eligible.** If a decision node produces
   output without a valid fenced JSON block, or the JSON doesn't parse, the
   node is retried (up to `max_retries`). Valid dispositions (even `fail`) are
