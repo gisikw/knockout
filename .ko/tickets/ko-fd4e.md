@@ -15,3 +15,5 @@ tracked: agent.lock, agent.pid, agent.log. Should be created by
 ## Notes
 
 **2026-02-24 13:06:57 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: disposition missing required 'disposition' field
+
+**2026-02-24 14:05:51 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: unknown disposition type 'task'
