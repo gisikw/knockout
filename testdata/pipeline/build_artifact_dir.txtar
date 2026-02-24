@@ -1,0 +1,37 @@
+# Artifact directory: created during build, available via $KO_ARTIFACT_DIR
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+# The run node verifies the artifact dir exists and is writable
+exec cat artifact_verify.txt
+stdout 'artifact dir exists'
+stdout 'can write artifacts'
+stdout 'can read artifacts'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Artifact dir test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: plan
+      type: action
+      run: sh -c 'echo "the plan" > "$KO_ARTIFACT_DIR/plan.md"'
+    - name: implement
+      type: action
+      run: sh -c 'result=""; if [ -d "$KO_ARTIFACT_DIR" ]; then result="artifact dir exists\n"; fi; if [ -f "$KO_ARTIFACT_DIR/plan.md" ]; then result="${result}can write artifacts\n"; fi; content=$(cat "$KO_ARTIFACT_DIR/plan.md"); if [ "$content" = "the plan" ]; then result="${result}can read artifacts"; fi; printf "$result" > artifact_verify.txt; echo done'
+-- .ko/prompts/plan.md --
+Plan.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

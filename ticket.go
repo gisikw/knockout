@@ -200,6 +200,25 @@ func TicketPath(ticketsDir, id string) string {
 	return filepath.Join(ticketsDir, id+".md")
 }
 
+// ArtifactDir returns the artifact directory path for a ticket.
+func ArtifactDir(ticketsDir, id string) string {
+	return filepath.Join(ticketsDir, id+".artifacts")
+}
+
+// EnsureArtifactDir creates the artifact directory for a ticket if it doesn't exist.
+func EnsureArtifactDir(ticketsDir, id string) (string, error) {
+	dir := ArtifactDir(ticketsDir, id)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+// RemoveArtifactDir removes the artifact directory for a ticket.
+func RemoveArtifactDir(ticketsDir, id string) {
+	os.RemoveAll(ArtifactDir(ticketsDir, id))
+}
+
 // LoadTicket reads and parses a ticket from disk.
 func LoadTicket(ticketsDir, id string) (*Ticket, error) {
 	path := TicketPath(ticketsDir, id)
@@ -396,7 +415,9 @@ func SortByPriorityThenModified(tickets []*Ticket) {
 	})
 }
 
-// statusOrder returns a sort rank: in_progress < open < everything else < closed.
+// statusOrder returns a sort rank: in_progress < open < blocked/etc < closed.
+// Tickets with status "open" but unresolved deps are still "open" here —
+// they sort with other open tickets, not with explicitly blocked ones.
 func statusOrder(status string) int {
 	switch status {
 	case "in_progress":

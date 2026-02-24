@@ -1,0 +1,22 @@
+# Artifact directory: cleaned up when ticket is closed via CLI
+mkdir -p .ko/tickets/ko-a001.artifacts
+cp plan.md .ko/tickets/ko-a001.artifacts/plan.md
+exists .ko/tickets/ko-a001.artifacts/plan.md
+exec ko close ko-a001
+stdout 'ko-a001 -> closed'
+# Artifact dir should be removed
+! exists .ko/tickets/ko-a001.artifacts
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# CLI close cleanup test
+-- plan.md --
+some plan content

@@ -1,0 +1,31 @@
+# Artifact directory: cleaned up when ticket is closed
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+# After successful build, ticket is closed and artifacts should be gone
+! exists .ko/tickets/ko-a001.artifacts
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+links: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Artifact cleanup test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: plan
+      type: action
+      run: sh -c 'echo "plan content" > "$KO_ARTIFACT_DIR/plan.md"; echo done'
+-- .ko/prompts/plan.md --
+Plan.
+-- fake-llm --
+#!/bin/sh
+echo "Done."
