@@ -1,6 +1,6 @@
 ---
 id: ko-3639
-status: closed
+status: open
 deps: []
 links: []
 created: 2026-02-24T07:27:01Z
@@ -16,7 +16,3 @@ step definitions so the specs actually execute.
 Alternatively, evaluate whether the txtar-based tests already cover the
 same ground and the .feature files are redundant. If so, pick one approach
 and commit to it.
-
-## Notes
-
-**2026-02-24 07:33:50 UTC:** ko: SUCCEED
