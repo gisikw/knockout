@@ -47,6 +47,8 @@ func run(args []string) int {
 		return cmdDep(rest)
 	case "undep":
 		return cmdUndep(rest)
+	case "update":
+		return cmdUpdate(rest)
 	case "note":
 		return cmdAddNote(rest)
 	case "bump":
@@ -129,6 +131,14 @@ Commands:
   triage <id> --block [reason]    Block ticket with optional reason
   triage <id> --questions '<json>' Add questions, implicitly blocks
   triage <id> --answers '<json>'   Answer questions, auto-unblock when done
+
+  update <id> [--title title] [-d description] [-t type] [-p priority] [-a assignee]
+              [--parent id] [--external-ref ref]
+              [--design notes] [--acceptance criteria]
+              [--tags tag1,tag2]
+              [--questions '<json>'] [--answers '<json>']
+              [--status status]
+                    Update ticket fields (tags replace, --answers auto-unblocks)
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency

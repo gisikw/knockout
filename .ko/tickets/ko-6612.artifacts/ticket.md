@@ -1,6 +1,6 @@
 ---
 id: ko-6612
-status: closed
+status: open
 deps: []
 created: 2026-02-25T23:29:16Z
 type: task
@@ -18,7 +18,3 @@ ko update <id> [--title title] [-d description] [-t type] [-p priority] [-a assi
                [--status status]
 
 Tags replace, not append. Should handle auto-unblocking: if ticket is blocked with questions and --answers resolves all open questions, transition to open.
-
-## Notes
-
-**2026-02-25 23:43:02 UTC:** ko: SUCCEED
