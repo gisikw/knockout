@@ -1,6 +1,6 @@
 ---
 id: ko-30ec
-status: closed
+status: open
 deps: []
 created: 2026-02-25T13:00:14Z
 type: task
@@ -20,7 +20,3 @@ set the working directory for the exec. If absent, use cwd.
 
 This matches the subscribe endpoint's project resolution pattern and prevents
 the server from leaking access to unintended projects.
-
-## Notes
-
-**2026-02-25 13:10:18 UTC:** ko: SUCCEED

@@ -359,7 +359,8 @@ func cmdServe(args []string) int {
 
 		// Parse JSON body
 		var req struct {
-			Argv []string `json:"argv"`
+			Argv    []string `json:"argv"`
+			Project string   `json:"project"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, fmt.Sprintf("invalid JSON: %v", err), http.StatusBadRequest)
@@ -384,8 +385,49 @@ func cmdServe(args []string) int {
 			return
 		}
 
+		// Resolve project path if specified
+		var projectPath string
+		if req.Project != "" {
+			if strings.HasPrefix(req.Project, "#") {
+				// Registry lookup for #tag syntax
+				regPath := RegistryPath()
+				if regPath == "" {
+					http.Error(w, "cannot determine config directory", http.StatusInternalServerError)
+					return
+				}
+				reg, err := LoadRegistry(regPath)
+				if err != nil {
+					errResp := map[string]string{
+						"error": fmt.Sprintf("registry error: %v", err),
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(errResp)
+					return
+				}
+				tag := strings.TrimPrefix(req.Project, "#")
+				path, ok := reg.Projects[tag]
+				if !ok {
+					errResp := map[string]string{
+						"error": fmt.Sprintf("project not found: %s", req.Project),
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(errResp)
+					return
+				}
+				projectPath = path
+			} else {
+				// Treat as absolute path
+				projectPath = req.Project
+			}
+		}
+
 		// Execute command
 		cmd := exec.Command(os.Args[0], req.Argv...)
+		if projectPath != "" {
+			cmd.Dir = projectPath
+		}
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {

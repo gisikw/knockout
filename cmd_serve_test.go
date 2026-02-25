@@ -54,7 +54,8 @@ func TestServeHandler(t *testing.T) {
 		}
 
 		var req struct {
-			Argv []string `json:"argv"`
+			Argv    []string `json:"argv"`
+			Project string   `json:"project"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -157,6 +158,13 @@ func TestServeHandler(t *testing.T) {
 			name:         "valid subcommand agent",
 			method:       http.MethodPost,
 			body:         `{"argv":["agent","status"]}`,
+			wantStatus:   http.StatusOK,
+			wantContains: "ok",
+		},
+		{
+			name:         "empty project uses cwd",
+			method:       http.MethodPost,
+			body:         `{"argv":["ls"],"project":""}`,
 			wantStatus:   http.StatusOK,
 			wantContains: "ok",
 		},
@@ -534,5 +542,212 @@ func TestSubscribeMultiple(t *testing.T) {
 		if !received[i] {
 			t.Errorf("subscriber %d did not receive event", i)
 		}
+	}
+}
+
+func TestServeProjectScoped(t *testing.T) {
+	// Save and restore environment
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"ko"}
+
+	// Create test environment with two projects
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, "config")
+	project1 := filepath.Join(tmpDir, "project1")
+	project2 := filepath.Join(tmpDir, "project2")
+
+	// Setup projects
+	os.MkdirAll(filepath.Join(project1, ".ko", "tickets"), 0755)
+	os.MkdirAll(filepath.Join(project2, ".ko", "tickets"), 0755)
+	os.MkdirAll(configDir, 0755)
+
+	// Create test tickets
+	os.WriteFile(filepath.Join(project1, ".ko", "tickets", "p1-abc.md"), []byte(`---
+id: p1-abc
+status: open
+type: task
+priority: 1
+created: 2024-01-01T00:00:00Z
+---
+Project 1 ticket
+`), 0644)
+
+	os.WriteFile(filepath.Join(project2, ".ko", "tickets", "p2-xyz.md"), []byte(`---
+id: p2-xyz
+status: open
+type: task
+priority: 1
+created: 2024-01-01T00:00:00Z
+---
+Project 2 ticket
+`), 0644)
+
+	// Create registry
+	regPath := filepath.Join(configDir, "knockout", "projects.yml")
+	os.MkdirAll(filepath.Dir(regPath), 0755)
+	regContent := fmt.Sprintf(`projects:
+  proj1: %s
+  proj2: %s
+`, project1, project2)
+	os.WriteFile(regPath, []byte(regContent), 0644)
+
+	// Set XDG_CONFIG_HOME
+	oldConfig := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", configDir)
+	defer os.Setenv("XDG_CONFIG_HOME", oldConfig)
+
+	// Define whitelist
+	whitelist := map[string]bool{
+		"ls": true,
+	}
+
+	// Create handler with project resolution
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			Argv    []string `json:"argv"`
+			Project string   `json:"project"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		if len(req.Argv) == 0 {
+			http.Error(w, "argv must have at least one element", http.StatusBadRequest)
+			return
+		}
+
+		subcommand := req.Argv[0]
+		if !whitelist[subcommand] {
+			errResp := map[string]string{
+				"error": "subcommand '" + subcommand + "' not allowed",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errResp)
+			return
+		}
+
+		// Resolve project path if specified
+		var projectPath string
+		if req.Project != "" {
+			if strings.HasPrefix(req.Project, "#") {
+				// Registry lookup for #tag syntax
+				regPath := RegistryPath()
+				if regPath == "" {
+					http.Error(w, "cannot determine config directory", http.StatusInternalServerError)
+					return
+				}
+				reg, err := LoadRegistry(regPath)
+				if err != nil {
+					errResp := map[string]string{
+						"error": fmt.Sprintf("registry error: %v", err),
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(errResp)
+					return
+				}
+				tag := strings.TrimPrefix(req.Project, "#")
+				path, ok := reg.Projects[tag]
+				if !ok {
+					errResp := map[string]string{
+						"error": fmt.Sprintf("project not found: %s", req.Project),
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(errResp)
+					return
+				}
+				projectPath = path
+			} else {
+				// Treat as absolute path
+				projectPath = req.Project
+			}
+		}
+
+		// For testing, echo back the resolved project path
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		if projectPath != "" {
+			w.Write([]byte(projectPath))
+		} else {
+			w.Write([]byte("cwd"))
+		}
+	})
+
+	tests := []struct {
+		name         string
+		body         string
+		wantStatus   int
+		wantContains string
+		checkJSON    bool
+		wantError    string
+	}{
+		{
+			name:         "with #tag resolves to project path",
+			body:         `{"argv":["ls"],"project":"#proj1"}`,
+			wantStatus:   http.StatusOK,
+			wantContains: project1,
+		},
+		{
+			name:         "with absolute path uses it directly",
+			body:         fmt.Sprintf(`{"argv":["ls"],"project":"%s"}`, project2),
+			wantStatus:   http.StatusOK,
+			wantContains: project2,
+		},
+		{
+			name:       "unrecognized tag returns error",
+			body:       `{"argv":["ls"],"project":"#unknown"}`,
+			wantStatus: http.StatusNotFound,
+			checkJSON:  true,
+			wantError:  "project not found: #unknown",
+		},
+		{
+			name:         "empty project uses cwd",
+			body:         `{"argv":["ls"],"project":""}`,
+			wantStatus:   http.StatusOK,
+			wantContains: "cwd",
+		},
+		{
+			name:         "no project field uses cwd",
+			body:         `{"argv":["ls"]}`,
+			wantStatus:   http.StatusOK,
+			wantContains: "cwd",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/ko", bytes.NewBufferString(tt.body))
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			if w.Code != tt.wantStatus {
+				t.Errorf("handler returned wrong status code: got %v want %v", w.Code, tt.wantStatus)
+			}
+
+			if tt.checkJSON {
+				var resp map[string]string
+				if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+					t.Fatalf("failed to parse JSON response: %v", err)
+				}
+				if resp["error"] != tt.wantError {
+					t.Errorf("error = %q, want %q", resp["error"], tt.wantError)
+				}
+			} else if tt.wantContains != "" {
+				body := w.Body.String()
+				if !strings.Contains(body, tt.wantContains) {
+					t.Errorf("response body = %q, want to contain %q", body, tt.wantContains)
+				}
+			}
+		})
 	}
 }

@@ -177,6 +177,64 @@ Feature: HTTP Server (ko serve)
       Then the response status is 200
       And the response body contains ticket ko-1234 details
 
+  Rule: Project-scoped execution
+
+    Scenario: Request with #tag resolves to registered project
+      Given a registry with projects:
+        | tag      | path              |
+        | knockout | /home/user/knockout |
+      And a ko serve instance is running
+      When I POST to "/ko" with body:
+        """
+        {"argv": ["ls"], "project": "#knockout"}
+        """
+      Then the response status is 200
+      And the ko ls command executes in /home/user/knockout
+
+    Scenario: Request with absolute path uses it directly
+      Given a knockout project exists at /home/user/myproject
+      And a ko serve instance is running
+      When I POST to "/ko" with body:
+        """
+        {"argv": ["ready"], "project": "/home/user/myproject"}
+        """
+      Then the response status is 200
+      And the ko ready command executes in /home/user/myproject
+
+    Scenario: Request with invalid tag returns error
+      Given a registry with no project "unknown"
+      And a ko serve instance is running
+      When I POST to "/ko" with body:
+        """
+        {"argv": ["ls"], "project": "#unknown"}
+        """
+      Then the response status is 404
+      And the response Content-Type is "application/json"
+      And the response body contains:
+        """
+        {"error": "project not found: #unknown"}
+        """
+
+    Scenario: Request without project uses cwd
+      Given a knockout project exists at /path/to/project
+      And I start ko serve from /path/to/project
+      When I POST to "/ko" with body:
+        """
+        {"argv": ["ready"]}
+        """
+      Then the response status is 200
+      And the ko ready command executes in /path/to/project
+
+    Scenario: Request with empty project string uses cwd
+      Given a knockout project exists at /path/to/project
+      And I start ko serve from /path/to/project
+      When I POST to "/ko" with body:
+        """
+        {"argv": ["ready"], "project": ""}
+        """
+      Then the response status is 200
+      And the ko ready command executes in /path/to/project
+
   Rule: Security constraints
 
     Scenario: Cannot execute arbitrary shell commands
