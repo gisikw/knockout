@@ -4,7 +4,7 @@ status: open
 deps: [ko-9c4a]
 created: 2026-02-25T01:23:51Z
 type: task
-priority: 2
+priority: 1
 ---
 # Actionable node should emit structured plan-questions on fail
 
