@@ -1,11 +1,42 @@
-The plan is well-structured with a clear goal, identified files, ordered tasks with verification steps, and feasible approach. However, it has **4 open questions** that require human input before implementation can proceed:
+## Analysis
 
-1. **Backward compatibility** - Whether to support both YAML and shell scripts, provide a deprecation path, or make a clean break
-2. **Error handling** - How to handle script failures (fallthrough vs immediate failure)
-3. **Security** - Whether to add sandboxing/validation for custom harnesses
-4. **Script permissions** - Whether to auto-set execute permissions or require them pre-set
+The plan artifact clearly documents the current architecture and identifies critical missing decisions. Let me assess against the three criteria:
 
-These architectural decisions need to be resolved before implementation. I'll convert them to structured plan questions:
+### 1. **Open Questions Section**
+The plan explicitly lists 9 open questions spanning:
+- **Design Intent** (Q1): What problem does migrating to shell scripts solve?
+- **Architecture** (Q2): Which approach should be used?
+- **Interface Contract** (Q3): How should shell scripts receive parameters?
+- **Binary Resolution** (Q4): Where should binary fallback logic live?
+- **Backward Compatibility** (Q5): Should YAML harnesses coexist or be replaced?
+- **Runtime Dependencies** (Q6): Does shell violate the "zero external runtime dependencies" invariant?
+- **Testing Strategy** (Q7): How to test shell scripts?
+- **Migration of Built-ins** (Q8): How to convert existing harnesses?
+- **File Naming** (Q9): Naming convention for shell harnesses?
+
+These are genuine architectural decisions that cannot be inferred from the codebase alone—they require human judgment about design intent and trade-offs.
+
+### 2. **Completeness**
+The plan has:
+- ✓ Clear goal statement
+- ✓ Thorough context (current architecture, tests, constraints)
+- ✗ No ordered implementation tasks (blocked by open questions)
+- ✗ No verification steps (deferred until questions are answered)
+
+The plan correctly acknowledges incompleteness—it ends by stating "Cannot define implementation tasks without understanding..." the key design decisions.
+
+### 3. **Feasibility**
+The plan references plausible files:
+- `harness.go` (173 lines, exists)
+- `harness_test.go` (exists)
+- `agent-harnesses/*.yaml` (referenced as embedded)
+- Constraints from `INVARIANTS.md` (mentioned)
+
+No red flags on file existence or patterns.
+
+## Conclusion
+
+This plan **needs human input** to proceed. The decision node should collect answers to the key architectural questions before implementation can be planned. I'll structure the 9 questions into a consolidated set focusing on the most critical decisions:
 
 ```json
 {
@@ -13,79 +44,89 @@ These architectural decisions need to be resolved before implementation. I'll co
   "plan_questions": [
     {
       "id": "q1",
-      "question": "Should we maintain backward compatibility with YAML harnesses during migration?",
-      "context": "Users may have custom YAML harnesses in ~/.config/knockout/agent-harnesses/. The ticket says 'migrate' but breaking custom harnesses immediately may impact users.",
+      "question": "What is the primary motivation for migrating from YAML to shell scripts?",
+      "context": "Understanding the design intent will inform all downstream decisions.",
       "options": [
         {
-          "label": "Support both formats (Recommended)",
-          "value": "support_both",
-          "description": "Accept both .sh and .yaml files with .sh taking precedence. Allows gradual migration for users."
+          "label": "Simpler syntax for custom harnesses",
+          "value": "simpler_syntax",
+          "description": "Shell scripts are more intuitive for users to write than YAML templates"
         },
         {
-          "label": "Clean break",
-          "value": "clean_break",
-          "description": "Replace YAML entirely, communicate breaking change. Simpler to implement, no maintenance overhead."
+          "label": "More flexible command construction",
+          "value": "flexible_construction",
+          "description": "Shell allows dynamic logic, conditionals, and piping that YAML templates cannot express"
         },
         {
-          "label": "Provide migration tool",
-          "value": "migration_tool",
-          "description": "Automated tool to convert YAML harnesses to shell scripts, then remove YAML support."
+          "label": "Better shell pipeline composition",
+          "value": "pipeline_composition",
+          "description": "Shell scripts can be composed into pipelines more naturally"
+        },
+        {
+          "label": "Other (please specify)",
+          "value": "other",
+          "description": "Different rationale"
         }
       ]
     },
     {
       "id": "q2",
-      "question": "How should the system handle shell script failures?",
-      "context": "Scripts may fail with non-zero exit, no output, or malformed output. Harness loading searches multiple locations (project, user, built-in).",
+      "question": "Which architecture should the implementation use?",
+      "context": "Option A: Shell scripts are invoked as executables with parameters passed via environment variables. Option B: Shell scripts are renderers that output a complete command line for Go to execute. Option C: Shell scripts handle all orchestration including binary resolution and execution.",
       "options": [
         {
-          "label": "Fall through to next location",
-          "value": "fallthrough",
-          "description": "Continue searching if script fails, similar to file-not-found behavior"
+          "label": "Option A: Executable wrapper scripts with env vars",
+          "value": "env_var_wrapper",
+          "description": "Go passes params (PROMPT, MODEL, etc.) via env vars to shell scripts that exec the agent CLI"
         },
         {
-          "label": "Fail immediately",
-          "value": "fail_immediately",
-          "description": "Return error to user, stop searching. Provides clear feedback on problems."
+          "label": "Option B: Shell template renderers",
+          "value": "template_renderer",
+          "description": "Shell scripts output the full command line; Go then executes it"
+        },
+        {
+          "label": "Option C: Full delegation to shell",
+          "value": "full_delegation",
+          "description": "Shell scripts handle binary resolution, parameter processing, and execution"
         }
       ]
     },
     {
       "id": "q3",
-      "question": "Should we add security controls for custom shell harnesses?",
-      "context": "Shell scripts are more powerful than YAML templates but allow arbitrary code execution. Harnesses are typically trusted code in user's config.",
+      "question": "Should YAML harnesses continue to work after migration?",
+      "context": "The plan mentions INVARIANTS.md constraint about 'zero external runtime dependencies'. Shell scripts introduce a runtime dependency on a shell interpreter, unless we consider shell universally available.",
       "options": [
         {
-          "label": "No additional controls",
-          "value": "no_controls",
-          "description": "Assume harnesses are trusted; harness execution already requires user intent"
+          "label": "Coexist: Support both YAML and shell scripts",
+          "value": "coexist",
+          "description": "Both formats work; search order defines priority (e.g., shell scripts first, then YAML)"
         },
         {
-          "label": "Add validation/warnings",
-          "value": "add_warnings",
-          "description": "Validate script syntax or warn on first use of custom harnesses"
+          "label": "Replace: Convert YAML to shell and deprecate YAML",
+          "value": "replace",
+          "description": "Migrate built-in and user harnesses to shell; YAML support is removed"
         },
         {
-          "label": "Sandbox execution",
-          "value": "sandbox",
-          "description": "Run scripts in restricted environment (more complex, potential compatibility issues)"
+          "label": "Auto-convert: YAML files are automatically converted to shell",
+          "value": "auto_convert",
+          "description": "Tooling converts YAML harnesses to shell scripts; old files may remain but are no longer used"
         }
       ]
     },
     {
       "id": "q4",
-      "question": "How should execute permissions be handled for harness scripts?",
-      "context": "Embedded scripts in the binary and git-tracked scripts may have different permission expectations. Users creating custom harnesses need clear guidance.",
+      "question": "Should binary fallback logic stay in Go or move to shell?",
+      "context": "Currently YAML harnesses support binary_fallbacks (e.g., try 'claude' then 'claude-4.5'). This can be implemented in Go (before calling shell) or in the shell script itself.",
       "options": [
         {
-          "label": "Auto-set permissions",
-          "value": "auto_set",
-          "description": "LoadHarness automatically chmod +x scripts. Simpler user experience."
+          "label": "Stay in Go: Resolve binary, pass to shell",
+          "value": "go_resolution",
+          "description": "Go determines the final binary path and passes it to the shell script"
         },
         {
-          "label": "Require pre-set permissions",
-          "value": "require_presets",
-          "description": "Fail if script is not executable. More explicit, helps catch user errors."
+          "label": "Move to shell: Shell handles fallback logic",
+          "value": "shell_resolution",
+          "description": "Shell scripts use command -v or similar to find the binary"
         }
       ]
     }
