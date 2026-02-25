@@ -1,0 +1,10 @@
+{"event":"build_start","ticket":"ko-860e","ts":"2026-02-25T21:35:16Z"}
+{"event":"workflow_start","ticket":"ko-860e","ts":"2026-02-25T21:35:16Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-860e","ts":"2026-02-25T21:35:16Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-860e","ts":"2026-02-25T21:35:25Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-860e","ts":"2026-02-25T21:35:25Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-860e","ts":"2026-02-25T21:35:25Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-860e","ts":"2026-02-25T21:37:11Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-860e","ts":"2026-02-25T21:37:11Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"needs_input","ticket":"ko-860e","ts":"2026-02-25T21:37:52Z","workflow":"task"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-860e","ts":"2026-02-25T21:37:52Z"}
