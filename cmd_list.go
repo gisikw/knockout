@@ -55,11 +55,12 @@ func cmdLs(args []string) int {
 		return 1
 	}
 
-	args = reorderArgs(args, map[string]bool{"status": true})
+	args = reorderArgs(args, map[string]bool{"status": true, "limit": true})
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
-	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
@@ -73,7 +74,8 @@ func cmdLs(args []string) int {
 	SortByPriorityThenModified(tickets)
 
 	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
+		var result []ticketJSON
+		count := 0
 		for _, t := range tickets {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
@@ -87,21 +89,32 @@ func cmdLs(args []string) int {
 				modified = t.ModTime.UTC().Format(time.RFC3339)
 			}
 			j := ticketJSON{
-				ID:       t.ID,
-				Title:    t.Title,
-				Status:   t.Status,
-				Type:     t.Type,
-				Priority: t.Priority,
-				Deps:     t.Deps,
-				Created:  t.Created,
-				Modified: modified,
-				Assignee: t.Assignee,
-				Parent:   t.Parent,
-				Tags:     t.Tags,
+				ID:               t.ID,
+				Title:            t.Title,
+				Status:           t.Status,
+				Type:             t.Type,
+				Priority:         t.Priority,
+				Deps:             t.Deps,
+				Created:          t.Created,
+				Modified:         modified,
+				Assignee:         t.Assignee,
+				Parent:           t.Parent,
+				Tags:             t.Tags,
+				Description:      t.Body,
+				HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+				PlanQuestions:    t.PlanQuestions,
 			}
-			enc.Encode(j)
+			result = append(result, j)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(result)
 	} else {
+		count := 0
 		for _, t := range tickets {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
@@ -115,6 +128,10 @@ func cmdLs(args []string) int {
 				line += fmt.Sprintf(" <- [%s]", strings.Join(t.Deps, ", "))
 			}
 			fmt.Println(line)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
 	}
 	return 0
@@ -127,10 +144,11 @@ func cmdReady(args []string) int {
 		return 1
 	}
 
-	args = reorderArgs(args, map[string]bool{})
+	args = reorderArgs(args, map[string]bool{"limit": true})
 
 	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
@@ -154,30 +172,46 @@ func cmdReady(args []string) int {
 	if len(ready) > 0 {
 		SortByPriorityThenModified(ready)
 		if *jsonOutput {
-			enc := json.NewEncoder(os.Stdout)
+			var result []ticketJSON
+			count := 0
 			for _, t := range ready {
 				modified := ""
 				if !t.ModTime.IsZero() {
 					modified = t.ModTime.UTC().Format(time.RFC3339)
 				}
 				j := ticketJSON{
-					ID:       t.ID,
-					Title:    t.Title,
-					Status:   t.Status,
-					Type:     t.Type,
-					Priority: t.Priority,
-					Deps:     t.Deps,
-					Created:  t.Created,
-					Modified: modified,
-					Assignee: t.Assignee,
-					Parent:   t.Parent,
-					Tags:     t.Tags,
+					ID:               t.ID,
+					Title:            t.Title,
+					Status:           t.Status,
+					Type:             t.Type,
+					Priority:         t.Priority,
+					Deps:             t.Deps,
+					Created:          t.Created,
+					Modified:         modified,
+					Assignee:         t.Assignee,
+					Parent:           t.Parent,
+					Tags:             t.Tags,
+					Description:      t.Body,
+					HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+					PlanQuestions:    t.PlanQuestions,
 				}
-				enc.Encode(j)
+				result = append(result, j)
+				count++
+				if *limit > 0 && count >= *limit {
+					break
+				}
 			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(result)
 		} else {
+			count := 0
 			for _, t := range ready {
 				fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+				count++
+				if *limit > 0 && count >= *limit {
+					break
+				}
 			}
 		}
 		return 0
@@ -202,20 +236,25 @@ func cmdReady(args []string) int {
 					modified = t.ModTime.UTC().Format(time.RFC3339)
 				}
 				j := ticketJSON{
-					ID:       t.ID,
-					Title:    t.Title,
-					Status:   t.Status,
-					Type:     t.Type,
-					Priority: t.Priority,
-					Deps:     t.Deps,
-					Created:  t.Created,
-					Modified: modified,
-					Assignee: t.Assignee,
-					Parent:   t.Parent,
-					Tags:     t.Tags,
+					ID:               t.ID,
+					Title:            t.Title,
+					Status:           t.Status,
+					Type:             t.Type,
+					Priority:         t.Priority,
+					Deps:             t.Deps,
+					Created:          t.Created,
+					Modified:         modified,
+					Assignee:         t.Assignee,
+					Parent:           t.Parent,
+					Tags:             t.Tags,
+					Description:      t.Body,
+					HasUnresolvedDep: !AllDepsResolvedWith(t.Deps, lookup),
+					PlanQuestions:    t.PlanQuestions,
 				}
+				result := []ticketJSON{j}
 				enc := json.NewEncoder(os.Stdout)
-				enc.Encode(j)
+				enc.SetIndent("", "  ")
+				enc.Encode(result)
 			} else {
 				fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
 			}
@@ -233,10 +272,11 @@ func cmdBlocked(args []string) int {
 		return 1
 	}
 
-	args = reorderArgs(args, map[string]bool{})
+	args = reorderArgs(args, map[string]bool{"limit": true})
 
 	fs := flag.NewFlagSet("blocked", flag.ContinueOnError)
-	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko blocked: %v\n", err)
 		return 1
@@ -272,7 +312,8 @@ func cmdBlocked(args []string) int {
 	}
 
 	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
+		var result []ticketJSON
+		count := 0
 		for _, t := range tickets {
 			if t.Status == "closed" {
 				continue
@@ -287,21 +328,32 @@ func cmdBlocked(args []string) int {
 				modified = t.ModTime.UTC().Format(time.RFC3339)
 			}
 			j := ticketJSON{
-				ID:       t.ID,
-				Title:    t.Title,
-				Status:   t.Status,
-				Type:     t.Type,
-				Priority: t.Priority,
-				Deps:     t.Deps,
-				Created:  t.Created,
-				Modified: modified,
-				Assignee: t.Assignee,
-				Parent:   t.Parent,
-				Tags:     t.Tags,
+				ID:               t.ID,
+				Title:            t.Title,
+				Status:           t.Status,
+				Type:             t.Type,
+				Priority:         t.Priority,
+				Deps:             t.Deps,
+				Created:          t.Created,
+				Modified:         modified,
+				Assignee:         t.Assignee,
+				Parent:           t.Parent,
+				Tags:             t.Tags,
+				Description:      t.Body,
+				HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+				PlanQuestions:    t.PlanQuestions,
 			}
-			enc.Encode(j)
+			result = append(result, j)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(result)
 	} else {
+		count := 0
 		for _, t := range tickets {
 			if t.Status == "closed" {
 				continue
@@ -324,6 +376,10 @@ func cmdBlocked(args []string) int {
 				// For dep-blocked tickets, show the deps (existing behavior)
 				fmt.Printf("%s [%s] (p%d) %s <- [%s]\n", t.ID, t.Status, t.Priority, t.Title, strings.Join(t.Deps, ", "))
 			}
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
 		}
 	}
 	return 0
@@ -340,7 +396,7 @@ func cmdClosed(args []string) int {
 
 	fs := flag.NewFlagSet("closed", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
-	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko closed: %v\n", err)
 		return 1
@@ -353,7 +409,7 @@ func cmdClosed(args []string) int {
 	}
 
 	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
+		var result []ticketJSON
 		count := 0
 		for _, t := range tickets {
 			if t.Status != "closed" {
@@ -364,24 +420,30 @@ func cmdClosed(args []string) int {
 				modified = t.ModTime.UTC().Format(time.RFC3339)
 			}
 			j := ticketJSON{
-				ID:       t.ID,
-				Title:    t.Title,
-				Status:   t.Status,
-				Type:     t.Type,
-				Priority: t.Priority,
-				Deps:     t.Deps,
-				Created:  t.Created,
-				Modified: modified,
-				Assignee: t.Assignee,
-				Parent:   t.Parent,
-				Tags:     t.Tags,
+				ID:               t.ID,
+				Title:            t.Title,
+				Status:           t.Status,
+				Type:             t.Type,
+				Priority:         t.Priority,
+				Deps:             t.Deps,
+				Created:          t.Created,
+				Modified:         modified,
+				Assignee:         t.Assignee,
+				Parent:           t.Parent,
+				Tags:             t.Tags,
+				Description:      t.Body,
+				HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+				PlanQuestions:    t.PlanQuestions,
 			}
-			enc.Encode(j)
+			result = append(result, j)
 			count++
 			if *limit > 0 && count >= *limit {
 				break
 			}
 		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(result)
 	} else {
 		count := 0
 		for _, t := range tickets {
@@ -409,7 +471,7 @@ func cmdResolved(args []string) int {
 
 	fs := flag.NewFlagSet("resolved", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
-	jsonOutput := fs.Bool("json", false, "output as JSONL")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko resolved: %v\n", err)
 		return 1
@@ -422,7 +484,7 @@ func cmdResolved(args []string) int {
 	}
 
 	if *jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
+		var result []ticketJSON
 		count := 0
 		for _, t := range tickets {
 			if t.Status != "resolved" {
@@ -433,24 +495,30 @@ func cmdResolved(args []string) int {
 				modified = t.ModTime.UTC().Format(time.RFC3339)
 			}
 			j := ticketJSON{
-				ID:       t.ID,
-				Title:    t.Title,
-				Status:   t.Status,
-				Type:     t.Type,
-				Priority: t.Priority,
-				Deps:     t.Deps,
-				Created:  t.Created,
-				Modified: modified,
-				Assignee: t.Assignee,
-				Parent:   t.Parent,
-				Tags:     t.Tags,
+				ID:               t.ID,
+				Title:            t.Title,
+				Status:           t.Status,
+				Type:             t.Type,
+				Priority:         t.Priority,
+				Deps:             t.Deps,
+				Created:          t.Created,
+				Modified:         modified,
+				Assignee:         t.Assignee,
+				Parent:           t.Parent,
+				Tags:             t.Tags,
+				Description:      t.Body,
+				HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+				PlanQuestions:    t.PlanQuestions,
 			}
-			enc.Encode(j)
+			result = append(result, j)
 			count++
 			if *limit > 0 && count >= *limit {
 				break
 			}
 		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(result)
 	} else {
 		count := 0
 		for _, t := range tickets {

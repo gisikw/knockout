@@ -170,7 +170,7 @@ Feature: Ticket Listing
     And a ticket exists with ID "json-0002" and title "Second JSON ticket"
     When I run "ko ls --json"
     Then the command should succeed
-    And the output should be valid JSONL
+    And the output should be a valid JSON array
     And each JSON object should have field "id"
     And each JSON object should have field "title"
     And each JSON object should have field "status"
@@ -180,7 +180,7 @@ Feature: Ticket Listing
     Given a ticket exists with ID "json-ready-001" and title "Ready JSON ticket"
     When I run "ko ready --json"
     Then the command should succeed
-    And the output should be valid JSONL
+    And the output should be a valid JSON array
     And each JSON object should have field "id"
     And each JSON object should have field "title"
 
@@ -190,7 +190,7 @@ Feature: Ticket Listing
     And ticket "json-block-001" depends on "json-block-002"
     When I run "ko blocked --json"
     Then the command should succeed
-    And the output should be valid JSONL
+    And the output should be a valid JSON array
     And each JSON object should have field "id"
     And each JSON object should have field "deps"
 
@@ -199,6 +199,6 @@ Feature: Ticket Listing
     And ticket "json-done-001" has status "closed"
     When I run "ko closed --json"
     Then the command should succeed
-    And the output should be valid JSONL
+    And the output should be a valid JSON array
     And each JSON object should have field "id"
     And each JSON object should have field "status"

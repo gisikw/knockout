@@ -22,3 +22,4 @@ removing the need for a backend-for-frontend translation layer.
 Check what ko query already emits and match that schema. The key fields the
 punchlist client needs: id, title, status, priority, created, deps,
 hasUnresolvedDep (computed), description (body), plan-questions.
+

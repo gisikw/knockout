@@ -8,17 +8,20 @@ import (
 )
 
 type ticketJSON struct {
-	ID       string   `json:"id"`
-	Title    string   `json:"title"`
-	Status   string   `json:"status"`
-	Type     string   `json:"type"`
-	Priority int      `json:"priority"`
-	Deps     []string `json:"deps"`
-	Created  string   `json:"created"`
-	Modified string   `json:"modified"`
-	Assignee string   `json:"assignee,omitempty"`
-	Parent   string   `json:"parent,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
+	ID                string         `json:"id"`
+	Title             string         `json:"title"`
+	Status            string         `json:"status"`
+	Type              string         `json:"type"`
+	Priority          int            `json:"priority"`
+	Deps              []string       `json:"deps"`
+	Created           string         `json:"created"`
+	Modified          string         `json:"modified"`
+	Assignee          string         `json:"assignee,omitempty"`
+	Parent            string         `json:"parent,omitempty"`
+	Tags              []string       `json:"tags,omitempty"`
+	Description       string         `json:"description,omitempty"`
+	HasUnresolvedDep  bool           `json:"hasUnresolvedDep"`
+	PlanQuestions     []PlanQuestion `json:"plan-questions,omitempty"`
 }
 
 func cmdQuery(args []string) int {
@@ -42,17 +45,20 @@ func cmdQuery(args []string) int {
 			modified = t.ModTime.UTC().Format(time.RFC3339)
 		}
 		j := ticketJSON{
-			ID:       t.ID,
-			Title:    t.Title,
-			Status:   t.Status,
-			Type:     t.Type,
-			Priority: t.Priority,
-			Deps:     t.Deps,
-			Created:  t.Created,
-			Modified: modified,
-			Assignee: t.Assignee,
-			Parent:   t.Parent,
-			Tags:     t.Tags,
+			ID:               t.ID,
+			Title:            t.Title,
+			Status:           t.Status,
+			Type:             t.Type,
+			Priority:         t.Priority,
+			Deps:             t.Deps,
+			Created:          t.Created,
+			Modified:         modified,
+			Assignee:         t.Assignee,
+			Parent:           t.Parent,
+			Tags:             t.Tags,
+			Description:      t.Body,
+			HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+			PlanQuestions:    t.PlanQuestions,
 		}
 		enc.Encode(j)
 	}

@@ -1,25 +1,68 @@
-# Test ko ls --json output
+# Test ko ls --json output (JSON array format)
 exec ko ls --json
-stdout '"id":"json-0001"'
-stdout '"title":"First JSON ticket"'
-stdout '"status":"open"'
-stdout '"priority":2'
+stdout '^\['
+stdout '"id": "json-0001"'
+stdout '"title": "First JSON ticket"'
+stdout '"status": "open"'
+stdout '"priority": 2'
+stdout '"hasUnresolvedDep": false'
+stdout '"hasUnresolvedDep": true'
+stdout '^\]'
 
-# Test ko ready --json output
+# Test ko ls --limit flag works (output should have exactly 1 line)
+exec ko ls --limit 1
+stdout -count=1 '\[open\]'
+
+# Test ko ls --json --limit combined (output should have exactly 1 ticket object)
+exec ko ls --json --limit 1
+stdout -count=1 '"id":'
+
+# Test ko ready --json output (JSON array format)
 exec ko ready --json
-stdout '"id":"json-0001"'
-stdout '"title":"First JSON ticket"'
+stdout '^\['
+stdout '"id": "json-0001"'
+stdout '"title": "First JSON ticket"'
+stdout '"hasUnresolvedDep": false'
+stdout '^\]'
 
-# Test ko blocked --json output with blocked ticket
+# Test ko ready --limit flag (output should have exactly 1 line)
+exec ko ready --limit 1
+stdout -count=1 '\[open\]'
+
+# Test ko blocked --json output with blocked ticket (JSON array format)
 exec ko blocked --json
-stdout '"id":"json-0002"'
-stdout '"deps":\["json-0003"\]'
+stdout '^\['
+stdout '"id": "json-0002"'
+stdout '"deps": \['
+stdout '"json-0003"'
+stdout '"hasUnresolvedDep": true'
+stdout '^\]'
 
-# Test ko closed --json output
+# Test ko blocked --limit flag
+exec ko ls --status blocked
+exec ko blocked --limit 1
+stdout 'json-0002'
+
+# Test ko closed --json output (JSON array format)
 exec ko close json-0003
 exec ko closed --json
-stdout '"id":"json-0003"'
-stdout '"status":"closed"'
+stdout '^\['
+stdout '"id": "json-0003"'
+stdout '"status": "closed"'
+stdout '"hasUnresolvedDep": false'
+stdout '^\]'
+
+# Test ko closed --limit flag (already existed, verify it still works)
+exec ko close json-0001
+exec ko closed --limit 1
+stdout 'json-0001'
+! stdout 'json-0003'
+
+# Test that description field is included when ticket has body content
+exec ko ls --json --status open
+stdout '"id": "json-0004"'
+stdout '"description":'
+stdout 'This ticket has a body description'
 
 -- .ko/tickets/json-0001.md --
 ---
@@ -51,3 +94,15 @@ type: task
 priority: 2
 ---
 # Blocker ticket
+-- .ko/tickets/json-0004.md --
+---
+id: json-0004
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Ticket with description
+
+This ticket has a body description that should appear in the JSON output.
