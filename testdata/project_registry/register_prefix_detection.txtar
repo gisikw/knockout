@@ -1,4 +1,4 @@
-# Register detects ticket prefix from existing tickets
+# project set detects ticket prefix from existing tickets
 env HOME=$WORK/home
 mkdir $WORK/home
 
@@ -8,8 +8,8 @@ cp $WORK/fn_ticket.txt $WORK/fort-nix/.ko/tickets/fn-a001.md
 
 # Register it
 cd $WORK/fort-nix
-exec ko register '#fort-nix'
-stdout 'registered fort-nix'
+exec ko project set '#fort-nix'
+stdout 'project fort-nix registered'
 
 # Verify prefix was stored in registry
 exec cat $WORK/home/.config/knockout/projects.yml

@@ -6,9 +6,9 @@ mkdir $WORK/home
 mkdir $WORK/alpha/.ko/tickets
 mkdir $WORK/beta/.ko/tickets
 cd $WORK/alpha
-exec ko register '#alpha'
+exec ko project set '#alpha'
 cd $WORK/beta
-exec ko register '#beta'
+exec ko project set '#beta'
 cd $WORK/alpha
 
 # beta-0001 is closed

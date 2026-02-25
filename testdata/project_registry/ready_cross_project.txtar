@@ -8,9 +8,9 @@ mkdir $WORK/beta/.ko/tickets
 
 # Register both projects
 cd $WORK/alpha
-exec ko register '#alpha'
+exec ko project set '#alpha'
 cd $WORK/beta
-exec ko register '#beta'
+exec ko project set '#beta'
 cd $WORK/alpha
 
 # beta-0001 is closed in beta

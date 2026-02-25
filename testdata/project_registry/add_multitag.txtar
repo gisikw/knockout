@@ -5,7 +5,7 @@ mkdir $WORK/home
 # Register target project
 mkdir $WORK/target/.ko/tickets
 cd $WORK/target
-exec ko register '#target'
+exec ko project set '#target'
 cd $WORK
 
 # Add with multiple tags

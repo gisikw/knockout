@@ -35,8 +35,6 @@ Commands:
   questions <id>        Show plan questions as JSON
   answer <id> <json>    Submit answers to plan questions
 
-  init <prefix>      Initialize project with ticket prefix
-
   agent build <id>   Run build pipeline against a single ticket
   agent loop         Build all ready tickets until queue is empty
   agent init         Initialize pipeline config in current project
@@ -44,9 +42,9 @@ Commands:
   agent stop         Stop a running background agent
   agent status       Check if an agent is running
 
-  register #<tag>    Register current project in the global registry
-  default [#<tag>]   Show or set the default project for routing
-  projects           List registered projects
+  project set #<tag> [--prefix=p] [--default]
+                     Initialize .ko dir, register project, optionally set default
+  project ls         List registered projects (default marked with *)
 
   help               Show this help
   version            Show version
@@ -198,11 +196,12 @@ ticket is reset to `open` and `on_fail` hooks run (worktree cleanup).
 Register projects for cross-project routing:
 
 ```bash
-ko register #fort-nix     # register current project as "fort-nix"
-ko register #myapp         # register another project
-ko default #myapp          # set default for unrecognized tags
-ko projects                # list all registered projects
+ko project set #fort-nix --prefix=nix    # initialize .ko dir, register as "fort-nix"
+ko project set #myapp --default           # register and set as default
+ko project ls                             # list all registered projects (default marked with *)
 ```
+
+The `project set` command is an upsert operation: it initializes the `.ko/tickets/` directory if needed, writes the prefix to `.ko/config.yaml`, registers the project in the global registry, and optionally sets it as the default. Running it again on an existing project updates the registration.
 
 Registry lives at `~/.config/knockout/projects.yml`.
 

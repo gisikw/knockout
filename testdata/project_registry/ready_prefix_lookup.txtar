@@ -8,9 +8,9 @@ mkdir $WORK/beta/.ko/tickets
 
 # Register both projects
 cd $WORK/alpha
-exec ko register '#alpha'
+exec ko project set '#alpha'
 cd $WORK/beta
-exec ko register '#beta'
+exec ko project set '#beta'
 cd $WORK/alpha
 
 # Create a beta ticket (closed) — this also establishes beta's prefix
@@ -20,7 +20,7 @@ cp $WORK/beta_ticket.txt $WORK/beta/.ko/tickets/beta-0001.md
 cp $WORK/alpha_blocked.txt $WORK/alpha/.ko/tickets/alp-0001.md
 
 # Verify the registry has prefixes after backfill
-exec ko projects
+exec ko project ls
 stdout 'alpha'
 stdout 'beta'
 

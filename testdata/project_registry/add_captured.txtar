@@ -2,11 +2,10 @@
 env HOME=$WORK/home
 mkdir $WORK/home
 
-# Register default project
+# Register default project and set as default
 mkdir $WORK/default-proj/.ko/tickets
 cd $WORK/default-proj
-exec ko register '#catchall'
-exec ko default '#catchall'
+exec ko project set '#catchall' --default
 cd $WORK
 
 # Add with unrecognized tag

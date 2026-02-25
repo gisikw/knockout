@@ -1,17 +1,17 @@
-# Register overwrites existing entry for same tag
+# project set overwrites existing entry for same tag (upsert)
 env HOME=$WORK/home
 mkdir -p $WORK/home/.config/knockout
-exec ko register '#myproj'
-stdout 'registered myproj'
+exec ko project set '#myproj'
+stdout 'project myproj registered'
 
 # Re-register from different directory overwrites path
 mkdir $WORK/other/.ko/tickets
 cd $WORK/other
-exec ko register '#myproj'
-stdout 'registered myproj'
+exec ko project set '#myproj'
+stdout 'project myproj registered'
 
-# Projects shows only one entry (not duplicated)
-exec ko projects
+# project ls shows only one entry (not duplicated)
+exec ko project ls
 stdout 'myproj'
 
 -- .ko/tickets/.keep --

@@ -200,6 +200,17 @@ func resolveTicketsDir(projectRoot string) string {
 	return filepath.Join(projectRoot, ".ko", "tickets")
 }
 
+// findProjectRoot returns the absolute path to the project root.
+// If a tickets directory is found, derives root via ProjectRoot.
+// Otherwise, returns the current working directory.
+func findProjectRoot() (string, error) {
+	ticketsDir, err := FindTicketsDir()
+	if err == nil {
+		return ProjectRoot(ticketsDir), nil
+	}
+	return os.Getwd()
+}
+
 // CrossProjectLookup returns a dep lookup function that checks the local
 // tickets directory first, then falls back to searching registered projects.
 // When prefixes are available, uses prefix-based routing for O(1) lookups.

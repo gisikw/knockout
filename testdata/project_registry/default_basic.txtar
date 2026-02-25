@@ -2,19 +2,18 @@
 env HOME=$WORK/home
 mkdir $WORK/home
 
-# Register a project first
-exec ko register '#exo'
+# Register a project and set as default
+exec ko project set '#exo' --default
+stdout 'project exo registered and set as default'
 
-# Set as default
-exec ko default '#exo'
-stdout 'default: exo'
+# Query default via project ls (shows * marker)
+exec ko project ls
+stdout '\* exo'
 
-# Query default (no args)
-exec ko default
-stdout 'exo'
-
-# Default rejects unregistered tags
-! exec ko default '#ghost'
-stderr 'not registered'
+# Setting default for unregistered tags requires registering first
+mkdir $WORK/ghost/.ko/tickets
+cd $WORK/ghost
+exec ko project set '#ghost' --default
+stdout 'project ghost registered and set as default'
 
 -- .ko/tickets/.keep --

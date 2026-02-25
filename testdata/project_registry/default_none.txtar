@@ -1,12 +1,13 @@
-# Show "no default" when none is set
+# When no default is set, project ls shows no asterisk
 env HOME=$WORK/home
 mkdir $WORK/home
 
 # Register without setting default
-exec ko register '#exo'
+exec ko project set '#exo'
 
-# Query shows no default
-exec ko default
-stdout 'no default'
+# project ls shows no asterisk marker
+exec ko project ls
+stdout '  exo'
+! stdout '\* exo'
 
 -- .ko/tickets/.keep --

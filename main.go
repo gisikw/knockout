@@ -67,16 +67,10 @@ func run(args []string) int {
 		return cmdQuery(rest)
 	case "agent":
 		return cmdAgent(rest)
-	case "init":
-		return cmdInit(rest)
+	case "project":
+		return cmdProject(rest)
 	case "clear":
 		return cmdClear(rest)
-	case "register":
-		return cmdRegister(rest)
-	case "default":
-		return cmdDefault(rest)
-	case "projects":
-		return cmdProjects(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -159,8 +153,6 @@ Commands:
   query                 Output all tickets as JSONL
   clear --force         Remove all local tickets
 
-  init <prefix>      Initialize project with ticket prefix
-
   agent build <id>   Run build pipeline against a single ticket
   agent loop         Build all ready tickets until queue is empty
   agent init         Initialize pipeline config in current project
@@ -168,9 +160,9 @@ Commands:
   agent stop         Stop a running background agent
   agent status       Check if an agent is running
 
-  register #<tag>    Register current project in the global registry
-  default [#<tag>]   Show or set the default project for routing
-  projects           List registered projects
+  project set #<tag> [--prefix=p] [--default]
+                     Initialize .ko dir, register project, optionally set default
+  project ls         List registered projects (default marked with *)
 
   help               Show this help
   version            Show version`)

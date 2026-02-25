@@ -1,6 +1,6 @@
 ---
 id: ko-7537
-status: closed
+status: open
 deps: []
 created: 2026-02-25T20:06:42Z
 type: task
@@ -19,7 +19,3 @@ ko project ls
   - Replaces: ko projects, ko default (getter — default visible in ls output)
 
 Remove: ko init, ko register, ko default, ko projects
-
-## Notes
-
-**2026-02-25 21:53:12 UTC:** ko: SUCCEED

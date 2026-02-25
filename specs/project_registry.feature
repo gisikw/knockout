@@ -7,68 +7,82 @@ Feature: Project Registry
 
   Scenario: Register a project with a tag
     Given I am in a project directory "/tmp/test-projects/fort-nix"
-    When I run "ko register #fort-nix"
+    When I run "ko project set #fort-nix"
     Then the command should succeed
     And the registry at "~/.config/knockout/projects.yml" should contain project "fort-nix"
     And the registered path for "fort-nix" should be "/tmp/test-projects/fort-nix"
 
   Scenario: Register strips the hash from the tag
     Given I am in a project directory "/tmp/test-projects/exo"
-    When I run "ko register #exo"
+    When I run "ko project set #exo"
     Then the registered project name should be "exo" not "#exo"
 
   Scenario: Register requires a tag argument
-    When I run "ko register"
+    When I run "ko project set"
     Then the command should fail
-    And the error should contain "usage: ko register #<tag>"
+    And the error should contain "#tag argument required"
 
-  Scenario: Register overwrites existing entry for same tag
+  Scenario: Register overwrites existing entry for same tag (upsert)
     Given a registry with project "exo" at "/old/path"
     And I am in a project directory "/new/path"
-    When I run "ko register #exo"
+    When I run "ko project set #exo"
     Then the command should succeed
     And the registered path for "exo" should be "/new/path"
 
   Scenario: Register creates registry file if it does not exist
     Given no registry file exists
     And I am in a project directory "/tmp/test-projects/fort-nix"
-    When I run "ko register #fort-nix"
+    When I run "ko project set #fort-nix"
     Then the command should succeed
     And the registry file should exist
 
+  Scenario: Set project with prefix
+    Given I am in a project directory "/tmp/test-projects/fort-nix"
+    When I run "ko project set #fort-nix --prefix=nix"
+    Then the command should succeed
+    And the prefix "nix" should be stored for project "fort-nix"
+    And the .ko/config.yaml should contain prefix "nix"
+
   # Default project
 
-  Scenario: Set default project
-    Given a registry with project "exo" at "/tmp/test-projects/exo"
-    When I run "ko default #exo"
+  Scenario: Set default project during registration
+    Given I am in a project directory "/tmp/test-projects/exo"
+    When I run "ko project set #exo --default"
     Then the command should succeed
     And the registry default should be "exo"
 
-  Scenario: Show current default
-    Given a registry with default project "exo"
-    When I run "ko default"
+  Scenario: Set project as default after initial registration
+    Given a registry with project "exo" at "/tmp/test-projects/exo"
+    When I run "ko project set #exo --default"
     Then the command should succeed
-    And the output should contain "exo"
+    And the registry default should be "exo"
 
-  Scenario: Show no default set
-    Given a registry with no default project
-    When I run "ko default"
+  Scenario: Upsert can update prefix and set default in one command
+    Given a registry with project "exo" at "/tmp/test-projects/exo"
+    When I run "ko project set #exo --prefix=new --default"
     Then the command should succeed
-    And the output should contain "no default"
-
-  Scenario: Default rejects unregistered tags
-    Given a registry with no projects
-    When I run "ko default #ghost"
-    Then the command should fail
-    And the error should contain "not registered"
+    And the prefix "new" should be stored for project "exo"
+    And the registry default should be "exo"
 
   # Listing
 
-  Scenario: Registry is a config file
+  Scenario: List all registered projects
     Given a registry file at "~/.config/knockout/projects.yml"
-    When I run "ko projects"
+    When I run "ko project ls"
     Then the command should succeed
     And the output should list registered projects
+
+  Scenario: List shows default project with marker
+    Given a registry with default project "exo"
+    When I run "ko project ls"
+    Then the command should succeed
+    And the output should show "exo" with an asterisk marker
+
+  Scenario: List shows no projects when registry is empty
+    Given an empty registry
+    When I run "ko project ls"
+    Then the command should succeed
+    And the output should contain "no projects registered"
 
   Scenario: Registry has a default project
     Given a registry with default project "exo"
