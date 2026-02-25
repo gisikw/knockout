@@ -131,3 +131,5 @@ loop: ko-ff51 SUCCEED
 loop: building ko-1bfc — Consolidate ko add/create: keep 'add', remove 'create' alias
 loop: ko-1bfc SUCCEED
 loop: building ko-b99d — Remove ko closed and ko resolved commands
+loop: ko-b99d SUCCEED
+loop: building ko-dbe4 — Remove ko add-note alias, keep ko note

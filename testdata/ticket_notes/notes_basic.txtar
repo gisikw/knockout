@@ -43,12 +43,6 @@ stdout 'Note added'
 exec ko show note-0001
 stdout 'From command line'
 
-# Backward compatibility: add-note still works
-exec ko add-note note-0001 'Backward compat test'
-stdout 'Note added'
-exec ko show note-0001
-stdout 'Backward compat test'
-
 -- input_multiline.txt --
 First line
 Second line
