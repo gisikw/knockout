@@ -1,20 +1,21 @@
-Looking at this ticket, I need to classify the type of work it represents.
+Looking at this ticket, I need to classify the type of work it requires.
 
-**Ticket Analysis:**
+**Analysis:**
 
-Title: "Migrate agent harnesses from YAML templates to shell scripts"
+The ticket is titled "Migrate agent harnesses from YAML templates to shell scripts" and the notes section clearly shows:
+- The motivation is established (ensure agent invocation intent carries through regardless of harness syntax)
+- The architecture is decided (executable wrapper with KO_ namespaced env vars)
+- The approach is determined (replace YAML with shell scripts, deprecate YAML)
+- Implementation details are clear (shell handles fallback logic using command -v)
 
-This ticket is:
-- **Descriptive of what to build**: It specifies a concrete migration task - converting existing YAML templates to shell scripts for agent harnesses
-- **Action-oriented**: It calls for code changes/refactoring (migration of existing code)
-- **Clear scope**: The work involves replacing one implementation with another (YAML → shell scripts)
-- **Expected output**: Committed code changes representing the migrated harnesses
+This is a **task ticket** because:
+1. It explicitly describes what to build: migrate YAML templates to shell scripts
+2. The expected output is committed code implementing this migration
+3. The architectural decisions have been made and answered in the notes
+4. It's not asking "can we do this?" or "what would it take?" - those questions have been answered
+5. It's not reporting unexpected behavior - it's requesting a specific implementation
 
-This is not asking "can we do this?" (research) or "something is broken" (bug). It's clearly stating what needs to be done - a migration/refactoring task.
-
-**Classification: task**
-
-The ticket describes implementation work to refactor/migrate agent harnesses from one format to another, which is a code change task.
+The ticket has moved past the research/design phase and is ready for implementation work.
 
 ```json
 {"disposition": "route", "workflow": "task"}

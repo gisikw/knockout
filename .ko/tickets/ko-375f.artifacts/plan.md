@@ -1,95 +1,115 @@
 ## Goal
 
-Replace YAML-based agent harness templates with executable shell scripts for configuring agent CLI invocations.
+Replace YAML-based agent harness templates with executable shell scripts that receive parameters via KO_-namespaced environment variables.
 
 ## Context
 
-The current agent harness system uses YAML configuration files to describe how to invoke different agent CLIs (claude, cursor, etc.):
-
-**Current Architecture:**
-- `harness.go` defines the `Harness` struct (loaded from YAML) and `TemplateAdapter` (renders YAML templates to exec.Cmd)
+**Current YAML Architecture:**
+- `harness.go` defines `Harness` struct (loaded from YAML) and `TemplateAdapter` (renders YAML templates to exec.Cmd)
 - `agent-harnesses/*.yaml` contains built-in harness definitions (embedded via `//go:embed`)
 - Harness search order: `.ko/agent-harnesses/` → `~/.config/knockout/agent-harnesses/` → built-ins
 - YAML templates support variables like `${prompt}`, `${model}`, `${system_prompt}`, `${allow_all}`, `${allowed_tools}`, `${prompt_with_system}`, `${cursor_allow_all}`
-- Template variables can expand to multi-argument flags (e.g., `${model}` → `--model\nsonnet`)
+- Template variables expand to multi-argument flags (e.g., `${model}` → `--model\nsonnet`)
+- `TemplateAdapter.BuildCommand()` handles template rendering, binary fallback resolution, and stdin setup
 - The `AgentAdapter` interface has `BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd`
-- Two adapter implementations: `TemplateAdapter` (uses YAML harnesses) and `RawCommandAdapter` (legacy backward compat)
 
-**Existing Tests:**
-- `harness_test.go` has comprehensive tests for loading harnesses, binary fallback resolution, and command building for both claude and cursor
-- Tests verify template variable expansion, conditional flag handling, stdin setup, and project/user override behavior
+**Example Current YAML (claude.yaml):**
+```yaml
+binary: claude
+args:
+  - "-p"
+  - "--output-format"
+  - "text"
+  - "${allow_all}"
+  - "${allowed_tools}"
+  - "${model}"
+  - "${system_prompt}"
+```
 
 **Project Constraints (from INVARIANTS.md):**
-- 500-line file limit (harness.go is 173 lines, well within limit)
-- Specs before code (no spec exists yet for this migration)
-- Zero external runtime dependencies (shell scripts would need to be self-contained or require shell interpreter)
+- 500-line file limit (harness.go is 173 lines)
+- Specs before code (no spec exists yet — needs to be added)
+- Zero external runtime dependencies (shell is considered available, like the kernel)
+
+**Testing:**
+- `harness_test.go` has comprehensive tests for YAML loading, binary fallback, command building
+- `specs/pipeline.feature` documents harness behavior (scenarios 51-75)
+- Tests verify template variable expansion, conditional flags, stdin setup, project/user override behavior
+
+**Ticket Context (from notes):**
+- **Motivation**: Different agent harnesses have different syntax/affordances; shell scripts ensure invocation intent carries through regardless of harness
+- **Architecture choice**: Executable wrapper with KO_-namespaced environment variables
+- **Migration strategy**: Replace YAML entirely — convert built-in and user harnesses to shell, deprecate YAML support
+- **Binary fallback**: Move to shell scripts using `command -v` or similar
 
 ## Approach
 
-**The ticket lacks critical context about the migration rationale and design.** Shell scripts could mean:
+Create a new `ShellAdapter` that executes shell scripts instead of rendering YAML templates. Shell harness scripts will be executable files that:
+1. Receive parameters via KO_-namespaced environment variables (KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, KO_ALLOWED_TOOLS)
+2. Handle binary fallback logic internally using `command -v`
+3. Construct and exec the agent CLI command
 
-1. **Executable harness wrappers**: Replace YAML with shell scripts that receive args via env vars and exec the agent CLI
-2. **Shell-based templating**: Keep Go orchestration but use shell scripts for template rendering
-3. **Full delegation**: Shell scripts handle all command construction and execution
-
-Each has different implications for:
-- How parameters (prompt, model, system prompt, allow flags, tools) are passed
-- Binary fallback resolution strategy
-- Testing approach (shell scripts are harder to unit test than Go code)
-- Cross-platform compatibility (bash vs sh vs zsh)
-- Runtime dependency posture (violates "zero external runtime dependencies" if shell is required)
-
-Without knowing the design intent, I cannot plan implementation tasks.
+The Go code will search for shell harnesses (`.ko/agent-harnesses/<name>` as executable file) before falling back to YAML harnesses (for backward compatibility during transition), then remove YAML support entirely. Built-in shell harnesses will be embedded using `//go:embed` as text files, written to a temp location with exec permissions, then executed.
 
 ## Tasks
 
-Cannot define implementation tasks without understanding:
-1. Which shell script approach to use
-2. How shell scripts receive parameters (env vars, stdin, args, JSON?)
-3. Whether binary fallback logic stays in Go or moves to shell
-4. Testing strategy for shell-based harnesses
-5. Migration path for existing YAML harnesses (convert automatically? coexist?)
+1. **[specs/agent_harnesses.feature]** — Create a new spec file documenting shell harness behavior: environment variable contract, binary fallback expectations, search order, and migration from YAML. Include scenarios for KO_-namespaced env vars, executable detection, binary fallback in shell, and precedence.
+   Verify: Spec captures all behavioral requirements.
+
+2. **[agent-harnesses/claude.sh]** — Create shell script version of claude.yaml. Script receives KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, KO_ALLOWED_TOOLS as env vars. Constructs claude CLI args with conditional flags (only add --model if KO_MODEL is set, etc.). Execs claude with prompt via stdin. Include #!/bin/sh shebang.
+   Verify: Script is valid shell and follows env var contract.
+
+3. **[agent-harnesses/cursor.sh]** — Create shell script version of cursor.yaml. Handles KO_PROMPT_WITH_SYSTEM instead of separate system prompt (cursor inlines system into prompt). Implements binary fallback using `command -v cursor-agent || command -v agent`. Uses --force instead of --dangerously-skip-permissions for KO_ALLOW_ALL. Passes prompt as -p argument (not stdin).
+   Verify: Script handles binary fallback and cursor-specific flags correctly.
+
+4. **[harness.go:ShellAdapter]** — Add new `ShellAdapter` struct that implements `AgentAdapter`. Store the harness script path. Implement `BuildCommand()` to: set KO_* environment variables on exec.Cmd, set KO_PROMPT_WITH_SYSTEM (combining system + prompt), construct KO_ALLOWED_TOOLS as comma-separated string, execute the shell script directly. Return *exec.Cmd pointing to the shell harness.
+   Verify: Implements AgentAdapter interface correctly.
+
+5. **[harness.go:LoadHarness]** — Update to search for shell harnesses first. Check for executable file at `<name>` (no extension) before checking `<name>.yaml`. For project and user paths, use os.Stat and check exec bits. For built-in, embed shell scripts alongside YAML and extract to temp location with exec permissions. Return wrapper struct indicating shell vs YAML type.
+   Verify: Search order is shell-first, maintains backward compat with YAML.
+
+6. **[harness.go:Harness]** — Add field to distinguish harness type (shell vs YAML). Update parseHarness to handle both. Shell harnesses don't parse YAML, just store script path. Refactor to return `HarnessConfig` struct with `Type` field and union of `ShellPath` or `YAMLConfig`.
+   Verify: Both types can be represented and loaded.
+
+7. **[adapter.go:LookupAdapter]** — Update to return `ShellAdapter` when harness type is shell, `TemplateAdapter` when YAML. Check harness type from LoadHarness result and construct appropriate adapter.
+   Verify: Correct adapter type is returned for each harness type.
+
+8. **[harness_test.go]** — Add tests for ShellAdapter: test that KO_* env vars are set correctly on exec.Cmd, test that shell script is executed with correct environment, test binary fallback is handled by script (not Go), test that shell harnesses take precedence over YAML. Update existing tests to work with shell harnesses.
+   Verify: `go test ./... -run TestShellAdapter` passes, existing harness tests still pass.
+
+9. **[testdata/harness_shell.txtar]** — Add testscript test for shell harness end-to-end: create .ko/agent-harnesses/test-agent script, build a ticket with agent: test-agent, verify script receives correct KO_* env vars. Use a mock script that echoes env vars to verify contract.
+   Verify: `go test ./... -run TestScript/harness_shell` passes.
+
+10. **[agent-harnesses/claude.yaml]** — Delete YAML harness (replaced by claude.sh).
+    Verify: File deleted, built-in references removed.
+
+11. **[agent-harnesses/cursor.yaml]** — Delete YAML harness (replaced by cursor.sh).
+    Verify: File deleted, built-in references removed.
+
+12. **[harness.go:parseHarness]** — Remove YAML parsing logic. Remove yaml.Unmarshal call and YAML struct unmarshaling. Shell harnesses are just paths, no parsing needed beyond checking executability.
+    Verify: No more yaml.v3 import or YAML parsing code.
+
+13. **[harness.go:TemplateAdapter]** — Remove TemplateAdapter struct and all methods (BuildCommand, resolveBinary, buildPromptWithSystem). No longer needed since YAML support is removed.
+    Verify: TemplateAdapter code fully removed, adapter.go references updated.
+
+14. **[harness.go:embeddedHarnesses]** — Update embed directive from `//go:embed agent-harnesses/*.yaml` to `//go:embed agent-harnesses/*` (will embed .sh files). Update extraction logic to write to temp with exec permissions.
+    Verify: Shell scripts are embedded and extractable.
+
+15. **[harness_test.go]** — Remove YAML-specific tests (template expansion, binary_fallbacks field, YAML parsing). Keep tests for shell harnesses, binary fallback in scripts, and search order. Update TestLoadHarness_BuiltInClaude and TestLoadHarness_BuiltInCursor to expect shell harnesses.
+    Verify: All tests pass with shell harnesses only.
+
+16. **[README.md or docs]** — Update any documentation mentioning YAML harnesses to reflect shell script approach. Add example shell harness with env var reference. Document migration path for users with custom YAML harnesses.
+    Verify: Documentation is accurate and complete.
+
+17. **[build.go:runNode]** — Verify that existing code in runPromptNode already passes allowedTools correctly to BuildCommand. No changes needed, but confirm the call site at line 199 matches the updated contract.
+    Verify: Code review confirms correct usage.
 
 ## Open Questions
 
-1. **Design Intent**: What problem does migrating to shell scripts solve? Is this for:
-   - Simpler syntax/user experience for custom harnesses?
-   - More flexibility in command construction?
-   - Better shell pipeline composition?
-   - Something else?
+None — all major decisions have been answered:
+- Architecture: Executable wrappers with KO_-namespaced env vars (confirmed in ticket notes)
+- Migration: Replace YAML entirely, deprecate YAML support (confirmed)
+- Binary fallback: Move to shell using `command -v` (confirmed)
+- Runtime dependencies: Shell is acceptable (implicit from architecture choice)
 
-2. **Architecture**: Which shell script approach should be used?
-   - Option A: Executable scripts that receive params via env vars (PROMPT, MODEL, SYSTEM_PROMPT, ALLOW_ALL, ALLOWED_TOOLS) and exec the agent CLI
-   - Option B: Shell scripts as template renderers that output the full command line
-   - Option C: Something else?
-
-3. **Interface Contract**: How should shell harness scripts receive input?
-   - Environment variables?
-   - Arguments?
-   - JSON on stdin?
-   - A combination?
-
-4. **Binary Resolution**: Should binary fallback logic (currently `binary_fallbacks` in YAML):
-   - Stay in Go and pass resolved binary to shell script?
-   - Move into shell script (using `command -v` or similar)?
-
-5. **Backward Compatibility**: Should YAML harnesses:
-   - Continue to work alongside shell scripts?
-   - Be automatically converted to shell scripts?
-   - Be deprecated and removed?
-
-6. **Runtime Dependencies**: Shell scripts require a shell interpreter. Does this violate the "zero external runtime dependencies" invariant from INVARIANTS.md? Or is shell considered universally available (like the kernel)?
-
-7. **Testing**: How should shell script harnesses be tested?
-   - Keep Go unit tests that shell out to scripts?
-   - Add shell script unit tests (bats, shunit2)?
-   - Integration tests only?
-
-8. **Migration**: For the built-in harnesses (claude.yaml, cursor.yaml):
-   - Should these be converted first as examples?
-   - What should the shell script versions look like?
-
-9. **File Naming**: Should shell harnesses be:
-   - Named `<agent>.sh` (parallel to current `<agent>.yaml`)?
-   - Named something else?
-   - Detected by executable bit rather than extension?
+One implementation detail to confirm: Should shell harnesses support stdin for prompt (like current claude.yaml with `-p` flag) or always pass via KO_PROMPT env var? Current plan assumes env var only, but scripts can read stdin if needed. The shell script has full control over how it uses the environment.

@@ -1,135 +1,30 @@
+Now I'll analyze the plan for completeness and feasibility.
+
 ## Analysis
 
-The plan artifact clearly documents the current architecture and identifies critical missing decisions. Let me assess against the three criteria:
+**Checking the Open Questions section:**
+The plan states "None — all major decisions have been answered" but then includes a note at the end (lines 115-116) that reads: "One implementation detail to confirm: Should shell harnesses support stdin for prompt (like current claude.yaml with `-p` flag) or always pass via KO_PROMPT env var? Current plan assumes env var only, but scripts can read stdin if needed. The shell script has full control over how it uses the environment."
 
-### 1. **Open Questions Section**
-The plan explicitly lists 9 open questions spanning:
-- **Design Intent** (Q1): What problem does migrating to shell scripts solve?
-- **Architecture** (Q2): Which approach should be used?
-- **Interface Contract** (Q3): How should shell scripts receive parameters?
-- **Binary Resolution** (Q4): Where should binary fallback logic live?
-- **Backward Compatibility** (Q5): Should YAML harnesses coexist or be replaced?
-- **Runtime Dependencies** (Q6): Does shell violate the "zero external runtime dependencies" invariant?
-- **Testing Strategy** (Q7): How to test shell scripts?
-- **Migration of Built-ins** (Q8): How to convert existing harnesses?
-- **File Naming** (Q9): Naming convention for shell harnesses?
+This is a genuine open question that affects how shell scripts are implemented. The task descriptions reference this implicitly (e.g., Task 2 says "Execs claude with prompt via stdin" while Task 3 says "Passes prompt as -p argument (not stdin)"), showing that different agents have different expectations. This needs clarification before implementation.
 
-These are genuine architectural decisions that cannot be inferred from the codebase alone—they require human judgment about design intent and trade-offs.
+**Checking for Completeness:**
+- ✅ Clear goal: Replace YAML with shell scripts
+- ✅ Identified files: Specific Go files, test files, harness files, and docs
+- ✅ Ordered tasks: 17 tasks with verification steps
+- ✅ Approach section: Clear architecture description
 
-### 2. **Completeness**
-The plan has:
-- ✓ Clear goal statement
-- ✓ Thorough context (current architecture, tests, constraints)
-- ✗ No ordered implementation tasks (blocked by open questions)
-- ✗ No verification steps (deferred until questions are answered)
+**Checking for Feasibility:**
+- ✅ File references (harness.go, agent-harnesses/, harness_test.go) plausibly exist per the Context section
+- ✅ Testing artifacts (specs/pipeline.feature, testdata/harness_shell.txtar) are documented
+- ✅ The constraint about 500-line limit and zero external dependencies is noted
 
-The plan correctly acknowledges incompleteness—it ends by stating "Cannot define implementation tasks without understanding..." the key design decisions.
+**Critical Issue:**
+The final note about stdin vs environment variable handling is an unresolved design question. Task 2 and Task 3 give contradictory guidance:
+- Task 2 (claude.sh): "Execs claude with prompt via stdin"
+- Task 3 (cursor.sh): "Passes prompt as -p argument (not stdin)"
 
-### 3. **Feasibility**
-The plan references plausible files:
-- `harness.go` (173 lines, exists)
-- `harness_test.go` (exists)
-- `agent-harnesses/*.yaml` (referenced as embedded)
-- Constraints from `INVARIANTS.md` (mentioned)
-
-No red flags on file existence or patterns.
-
-## Conclusion
-
-This plan **needs human input** to proceed. The decision node should collect answers to the key architectural questions before implementation can be planned. I'll structure the 9 questions into a consolidated set focusing on the most critical decisions:
+This suggests agents have different requirements, but the decision of which mechanism to use for which agent (or whether both should be supported) needs to be clarified.
 
 ```json
-{
-  "disposition": "needs_input",
-  "plan_questions": [
-    {
-      "id": "q1",
-      "question": "What is the primary motivation for migrating from YAML to shell scripts?",
-      "context": "Understanding the design intent will inform all downstream decisions.",
-      "options": [
-        {
-          "label": "Simpler syntax for custom harnesses",
-          "value": "simpler_syntax",
-          "description": "Shell scripts are more intuitive for users to write than YAML templates"
-        },
-        {
-          "label": "More flexible command construction",
-          "value": "flexible_construction",
-          "description": "Shell allows dynamic logic, conditionals, and piping that YAML templates cannot express"
-        },
-        {
-          "label": "Better shell pipeline composition",
-          "value": "pipeline_composition",
-          "description": "Shell scripts can be composed into pipelines more naturally"
-        },
-        {
-          "label": "Other (please specify)",
-          "value": "other",
-          "description": "Different rationale"
-        }
-      ]
-    },
-    {
-      "id": "q2",
-      "question": "Which architecture should the implementation use?",
-      "context": "Option A: Shell scripts are invoked as executables with parameters passed via environment variables. Option B: Shell scripts are renderers that output a complete command line for Go to execute. Option C: Shell scripts handle all orchestration including binary resolution and execution.",
-      "options": [
-        {
-          "label": "Option A: Executable wrapper scripts with env vars",
-          "value": "env_var_wrapper",
-          "description": "Go passes params (PROMPT, MODEL, etc.) via env vars to shell scripts that exec the agent CLI"
-        },
-        {
-          "label": "Option B: Shell template renderers",
-          "value": "template_renderer",
-          "description": "Shell scripts output the full command line; Go then executes it"
-        },
-        {
-          "label": "Option C: Full delegation to shell",
-          "value": "full_delegation",
-          "description": "Shell scripts handle binary resolution, parameter processing, and execution"
-        }
-      ]
-    },
-    {
-      "id": "q3",
-      "question": "Should YAML harnesses continue to work after migration?",
-      "context": "The plan mentions INVARIANTS.md constraint about 'zero external runtime dependencies'. Shell scripts introduce a runtime dependency on a shell interpreter, unless we consider shell universally available.",
-      "options": [
-        {
-          "label": "Coexist: Support both YAML and shell scripts",
-          "value": "coexist",
-          "description": "Both formats work; search order defines priority (e.g., shell scripts first, then YAML)"
-        },
-        {
-          "label": "Replace: Convert YAML to shell and deprecate YAML",
-          "value": "replace",
-          "description": "Migrate built-in and user harnesses to shell; YAML support is removed"
-        },
-        {
-          "label": "Auto-convert: YAML files are automatically converted to shell",
-          "value": "auto_convert",
-          "description": "Tooling converts YAML harnesses to shell scripts; old files may remain but are no longer used"
-        }
-      ]
-    },
-    {
-      "id": "q4",
-      "question": "Should binary fallback logic stay in Go or move to shell?",
-      "context": "Currently YAML harnesses support binary_fallbacks (e.g., try 'claude' then 'claude-4.5'). This can be implemented in Go (before calling shell) or in the shell script itself.",
-      "options": [
-        {
-          "label": "Stay in Go: Resolve binary, pass to shell",
-          "value": "go_resolution",
-          "description": "Go determines the final binary path and passes it to the shell script"
-        },
-        {
-          "label": "Move to shell: Shell handles fallback logic",
-          "value": "shell_resolution",
-          "description": "Shell scripts use command -v or similar to find the binary"
-        }
-      ]
-    }
-  ]
-}
+{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "How should shell harnesses receive and pass the prompt to the agent?", "context": "The plan notes that different agents have different affordances. Task 2 (claude.sh) uses stdin for prompt, Task 3 (cursor.sh) uses -p argument. Need to clarify the general pattern and whether both methods are supported.", "options": [{"label": "Environment variable only (KO_PROMPT)", "value": "env_var_only", "description": "All scripts receive prompt via KO_PROMPT environment variable and construct their own arguments"}, {"label": "Stdin only", "value": "stdin_only", "description": "Shell adapter pipes prompt to stdin; scripts don't use KO_PROMPT for prompt content"}, {"label": "Per-harness choice (documented in script)", "value": "per_harness", "description": "Each shell script decides how to use KO_PROMPT (stdin, -p argument, environment variable, etc.) based on the agent's requirements"}]}]}
 ```
