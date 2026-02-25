@@ -1,78 +1,69 @@
 ## Goal
-Replace YAML-based agent harnesses with executable shell scripts for simpler, more direct command construction.
+Replace YAML-based agent harness templates with executable shell scripts.
 
 ## Context
-Agent harnesses currently use YAML templates (claude.yaml, cursor.yaml in agent-harnesses/) that are parsed by harness.go and rendered through TemplateAdapter. The YAML format includes:
-- `binary` or `binary_fallbacks` fields for executable resolution
-- `args` array with template variables like `${prompt}`, `${model}`, `${system_prompt}`, `${allow_all}`, `${allowed_tools}`
-- Special handling for stdin detection (standalone `-p` flag)
-- Conditional flag expansion (newline-based for non-prompt variables)
+Agent harnesses currently use YAML files with string-substitution templates (`${variable}` syntax) to build CLI commands for agents like claude and cursor. These live in:
+- `agent-harnesses/claude.yaml`
+- `agent-harnesses/cursor.yaml`
 
-Key files:
-- harness.go:14-15 — embeds YAML files via go:embed
-- harness.go:24-50 — LoadHarness searches project/user/embedded locations
-- harness.go:60-173 — TemplateAdapter renders YAML templates to exec.Cmd
-- adapter.go:16-23 — LookupAdapter delegates to harness loading
-- build.go:447-448 — Pipeline uses p.Adapter().BuildCommand() for prompt nodes
-- pipeline.go:30-43 — Pipeline.Adapter() returns AgentAdapter interface
+The harness loading mechanism (harness.go:26-50) searches in this order:
+1. `.ko/agent-harnesses/<name>.yaml`
+2. `~/.config/knockout/agent-harnesses/<name>.yaml`
+3. Embedded built-ins (from `agent-harnesses/*.yaml`)
 
-Tests in harness_test.go verify built-in harnesses, user/project overrides, binary fallback resolution, and template rendering.
+The `TemplateAdapter` (harness.go:60-147) implements the current template rendering:
+- Builds a vars map with prompt, model, system_prompt, allow_all, etc.
+- Does string replacement on the Args array
+- Handles conditional flags (empty vars are omitted)
+- Splits flag variables on newlines for multi-arg expansion
+
+This approach is limited compared to shell scripts, which can:
+- Use native shell conditionals and logic
+- Access shell utilities for complex transformations
+- Be more familiar to users customizing harnesses
+- Eliminate custom template parsing code
+
+The migration should maintain backward compatibility where feasible and preserve all existing test coverage.
 
 ## Approach
-Replace YAML templates with shell scripts that output the command to execute. Harnesses become executable scripts that receive environment variables (MODEL, SYSTEM_PROMPT, ALLOW_ALL, etc.) and write the command line to stdout. The Go code will parse the script output and build exec.Cmd from it.
-
-This simplifies the system by:
-1. Eliminating complex YAML parsing and template rendering logic
-2. Making harnesses directly inspectable as shell code
-3. Allowing harness authors to use standard shell tools for conditional logic
-4. Reducing the Go code surface area (no more TemplateAdapter)
+Replace the YAML template system with shell scripts that output command arguments as newline-separated strings. The scripts will receive harness parameters as environment variables and output the full command line (binary + args). The Go code will execute the script and parse its output to build the exec.Cmd.
 
 ## Tasks
-1. [agent-harnesses/claude.yaml → agent-harnesses/claude.sh] — Convert Claude harness to shell script format. Script reads env vars (PROMPT, MODEL, SYSTEM_PROMPT, ALLOW_ALL, ALLOWED_TOOLS) and outputs command line. Handle stdin via special marker in output.
-   Verify: Script produces correct command line for various input combinations.
+1. [agent-harnesses/claude.yaml → agent-harnesses/claude.sh] — Convert the claude harness YAML template to a shell script. The script receives KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, KO_ALLOWED_TOOLS as env vars. Output format: first line is the binary path, subsequent lines are arguments (one per line). Empty variables should result in omitted flags.
+   Verify: `./agent-harnesses/claude.sh` is executable and produces expected output when env vars are set.
 
-2. [agent-harnesses/cursor.yaml → agent-harnesses/cursor.sh] — Convert Cursor harness to shell script with binary fallback logic (try cursor-agent, then agent). Use prompt_with_system pattern (inline system prompt into user prompt).
-   Verify: Script produces correct command line and handles binary fallbacks.
+2. [agent-harnesses/cursor.yaml → agent-harnesses/cursor.sh] — Convert the cursor harness YAML template to a shell script. Handle binary_fallbacks by trying cursor-agent first, then agent, outputting the first found. Inline system prompt into the main prompt (KO_PROMPT_WITH_SYSTEM variable).
+   Verify: `./agent-harnesses/cursor.sh` is executable and handles binary fallbacks correctly.
 
-3. [harness.go:LoadHarness] — Update to search for .sh files instead of .yaml. Remove YAML parsing (parseHarness function). Add script execution logic that passes env vars and captures stdout.
-   Verify: LoadHarness returns executable path and env var template.
+3. [harness.go:Harness struct] — Replace YAML-based Harness struct with a simpler structure that just points to a shell script path. Remove Binary, BinaryFallbacks, and Args fields. Add ScriptPath string field.
+   Verify: Code compiles with new struct definition.
 
-4. [harness.go:Harness struct] — Simplify struct to hold just the script path. Remove Binary, BinaryFallbacks, Args fields that were YAML-specific.
-   Verify: Struct matches new script-based approach.
+4. [harness.go:LoadHarness] — Update LoadHarness to search for `.sh` files instead of `.yaml` files. Update filename from `name + ".yaml"` to `name + ".sh"`. Update embed directive to `//go:embed agent-harnesses/*.sh`.
+   Verify: LoadHarness("claude") finds claude.sh instead of claude.yaml.
 
-5. [harness.go:TemplateAdapter → ScriptAdapter] — Replace TemplateAdapter with ScriptAdapter that executes the harness script with appropriate env vars, parses the output, and builds exec.Cmd. Handle stdin detection from script output.
-   Verify: Adapter builds correct commands for both Claude and Cursor cases.
+5. [harness.go:TemplateAdapter → ScriptAdapter] — Replace TemplateAdapter with ScriptAdapter that executes the shell script and parses its output. The adapter's BuildCommand method should: set env vars (KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, KO_ALLOWED_TOOLS, KO_PROMPT_WITH_SYSTEM), execute the script, parse output (first line = binary, remaining lines = args), build exec.Cmd. Remove all template rendering logic (resolveBinary, vars map, string substitution).
+   Verify: Code compiles and adapter interface is preserved.
 
-6. [adapter.go:LookupAdapter] — Update to create ScriptAdapter instead of TemplateAdapter. No other changes needed since it returns AgentAdapter interface.
-   Verify: LookupAdapter continues to work with new adapter type.
+6. [harness_test.go] — Update all tests to work with shell scripts. TestLoadHarness_BuiltInClaude should verify claude.sh loads. TestLoadHarness_UserOverride should write a test .sh file instead of .yaml. TestTemplateAdapter_ClaudeCommand should become TestScriptAdapter_ClaudeCommand and verify the script execution produces correct args. Add tests for script parsing edge cases (empty output, malformed output, script errors).
+   Verify: `go test ./... -run TestLoadHarness` passes; `go test ./... -run TestScriptAdapter` passes.
 
-7. [harness_test.go] — Update all tests to work with shell script harnesses instead of YAML. Test script execution, command building, user/project overrides, and error cases.
-   Verify: `go test -run TestLoad ./...` and `go test -run TestTemplate ./...` pass.
+7. [README.md:290-335] — Update the "Custom Agent Harnesses" documentation section. Replace YAML template examples with shell script examples. Update file extension references from `.yaml` to `.sh`. Document the env vars available to scripts (KO_PROMPT, KO_MODEL, etc.) and the expected output format (first line = binary, subsequent lines = args). Remove references to YAML template syntax.
+   Verify: Documentation accurately describes the new shell script approach.
 
-8. [README.md:290-335] — Update Custom Agent Harnesses section to document shell script format instead of YAML. Show example harness scripts with env var handling and output format.
-   Verify: Documentation accurately reflects new shell script approach.
+8. [harness.go:parseHarness] — Remove parseHarness function and yaml.v3 import. No longer needed since scripts don't require YAML parsing.
+   Verify: Code compiles without YAML dependency; `go mod tidy` removes gopkg.in/yaml.v3 if unused elsewhere.
 
-9. [harness.go:14-15] — Update go:embed directive to embed *.sh files instead of *.yaml. Clean up old YAML imports (gopkg.in/yaml.v3).
-   Verify: Build succeeds with embedded shell scripts.
+9. [specs/pipeline.feature:51-76] — Update specs referencing custom harnesses to use `.sh` extension instead of `.yaml`. Update scenario descriptions if needed to reflect shell script approach.
+   Verify: Specs accurately describe expected behavior with shell scripts.
 
-10. [agent-harnesses/*.yaml] — Delete old YAML harness files after verifying shell script versions work.
-    Verify: Built-in harnesses resolve correctly via embedded *.sh files.
+10. [Build and test] — Run full test suite to verify all changes work together. Test custom harness loading from all three locations (project, user, built-in). Test both claude and cursor harnesses produce correct commands.
+    Verify: `go test ./...` passes; `ko agent build` works with both built-in harnesses.
 
 ## Open Questions
-1. **Output format for scripts**: Should scripts output just the command args (one per line), or the full command line? If full command line, how do we handle:
-   - Quoting and escaping (e.g., prompts with newlines or special chars)?
-   - Binary path vs args separation?
-   - Stdin marker (how does the script signal "read prompt from stdin")?
+1. **Backward compatibility**: Should we maintain support for YAML harnesses during a deprecation period, or make a clean break? The ticket says "migrate" which suggests replacing entirely, but user-custom YAML harnesses in `~/.config/` would break immediately. Decision needed on whether to: (a) support both formats with .sh taking precedence, (b) migrate immediately and communicate breaking change, or (c) provide a migration tool.
 
-2. **Binary resolution**: Should the script output the binary path, or should Go still handle binary resolution? Current YAML approach has binary_fallbacks — should scripts return multiple candidates, or just the first available?
+2. **Error handling**: How should the system handle shell script failures (non-zero exit, no output, malformed output)? Should these fall through to the next harness location in the search order, or fail immediately with a clear error?
 
-3. **Backward compatibility**: Should we support YAML harnesses alongside shell scripts during a transition period, or cleanly break with YAML? Affects search order in LoadHarness.
+3. **Security**: Shell scripts executing arbitrary code is more powerful but potentially riskier than declarative YAML. Should there be any sandboxing, validation, or warnings when using custom harnesses? Or is this acceptable given harnesses are already trusted code?
 
-4. **Platform support**: Shell scripts assume Unix/bash. Windows users would need .bat/.ps1 equivalents. Should we:
-   - Require WSL/bash on Windows?
-   - Support multiple script types (.sh, .bat, .ps1)?
-   - Keep YAML for Windows compatibility?
-
-5. **Stdin handling**: Current YAML approach detects `-p` flag without a template variable following it. How should scripts signal stdin mode? Special output prefix like `STDIN:true`? Separate line in output?
-
-6. **Error handling**: If a harness script fails or produces invalid output, should we fall back to a default harness, or fail hard with a clear error message?
+4. **Script permissions**: The plan assumes scripts will be executable (chmod +x). Should LoadHarness check and set execute permissions automatically, or require them to be pre-set? Embedded scripts might need special handling.
