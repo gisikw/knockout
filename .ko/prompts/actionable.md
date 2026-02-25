@@ -8,9 +8,16 @@ Check:
    human input, this plan is NOT actionable. End with a `needs_input` disposition.
    Convert each open question into a structured plan question with:
    - `id`: short slug (e.g. `q1`, `q2`)
-   - `question`: the question text
+   - `question`: the question text, standalone and self-contained
    - `context`: (optional) relevant background from the plan
    - `options`: 2-4 concrete choices, each with `label`, `value`, and optional `description`
+
+   Option formatting rules:
+   - Labels should be concise noun phrases, not prefixed with "Option A" etc.
+   - Do NOT include an "Other" or "Custom" option — that's added by the UI.
+   - When the plan recommends an approach, mark it: "Redis migration (Recommended)"
+   - `value` should be a short snake_case slug (e.g. `redis`, `local_cache`)
+   - `description` is a single sentence expanding on what the option means
 
    The options should represent the realistic choices surfaced by the plan. If the
    plan doesn't suggest specific options, infer the most likely alternatives from
@@ -35,7 +42,7 @@ Your output MUST end with a fenced JSON block. Examples:
 ```
 
 ```json
-{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "Should we keep backwards compatibility?", "context": "INVARIANTS.md requires semver", "options": [{"label": "Deprecation path", "value": "deprecate", "description": "Add warnings, support both for 2 releases"}, {"label": "Hard break", "value": "hard_break", "description": "Remove support immediately"}]}]}
+{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "Should we keep backwards compatibility?", "context": "INVARIANTS.md requires semver", "options": [{"label": "Deprecation path (Recommended)", "value": "deprecate", "description": "Add warnings, support both for 2 releases"}, {"label": "Hard break", "value": "hard_break", "description": "Remove support immediately"}]}]}
 ```
 
 ```json
