@@ -38,9 +38,9 @@ Feature: Ticket Status Management
     Then the command should succeed
     And ticket "test-0001" should have field "status" with value "closed"
 
-  Scenario: Reopen command sets status to open
+  Scenario: Open command sets status to open
     Given ticket "test-0001" has status "closed"
-    When I run "ko reopen test-0001"
+    When I run "ko open test-0001"
     Then the command should succeed
     And ticket "test-0001" should have field "status" with value "open"
 

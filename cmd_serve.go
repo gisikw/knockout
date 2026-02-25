@@ -332,7 +332,7 @@ func cmdServe(args []string) int {
 		"questions": true,
 		"answer":    true,
 		"close":     true,
-		"reopen":    true,
+		"open":      true,
 		"block":     true,
 		"start":     true,
 		"bump":      true,

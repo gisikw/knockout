@@ -133,3 +133,5 @@ loop: ko-1bfc SUCCEED
 loop: building ko-b99d — Remove ko closed and ko resolved commands
 loop: ko-b99d SUCCEED
 loop: building ko-dbe4 — Remove ko add-note alias, keep ko note
+loop: ko-dbe4 SUCCEED
+loop: building ko-70b8 — Rename ko reopen to ko open

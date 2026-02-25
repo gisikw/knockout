@@ -105,7 +105,7 @@ Feature: HTTP Server (ko serve)
         | questions   |
         | answer      |
         | close       |
-        | reopen      |
+        | open        |
         | block       |
         | start       |
         | bump        |

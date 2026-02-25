@@ -31,8 +31,8 @@ func run(args []string) int {
 		return cmdStart(rest)
 	case "close":
 		return cmdClose(rest)
-	case "reopen":
-		return cmdReopen(rest)
+	case "open":
+		return cmdOpen(rest)
 	case "serve":
 		return cmdServe(rest)
 	case "block":
@@ -128,7 +128,7 @@ Commands:
   status <id> <s>    Set ticket status
   start <id>         Set status to in_progress
   close <id>         Set status to closed
-  reopen <id>        Set status to open
+  open <id>          Set status to open
   block <id>         Set status to blocked
   serve [-p port]    Start HTTP daemon (default :9876)
 

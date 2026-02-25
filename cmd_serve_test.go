@@ -33,7 +33,7 @@ func TestServeHandler(t *testing.T) {
 		"questions": true,
 		"answer":    true,
 		"close":     true,
-		"reopen":    true,
+		"open":      true,
 		"block":     true,
 		"start":     true,
 		"bump":      true,
@@ -202,7 +202,7 @@ func TestServeWhitelist(t *testing.T) {
 	expectedCommands := []string{
 		"ls", "ready", "blocked",
 		"query", "show", "questions", "answer", "close",
-		"reopen", "block", "start", "bump", "note",
+		"open", "block", "start", "bump", "note",
 		"status", "dep", "undep", "agent",
 	}
 
@@ -215,7 +215,7 @@ func TestServeWhitelist(t *testing.T) {
 		"questions": true,
 		"answer":    true,
 		"close":     true,
-		"reopen":    true,
+		"open":      true,
 		"block":     true,
 		"start":     true,
 		"bump":      true,

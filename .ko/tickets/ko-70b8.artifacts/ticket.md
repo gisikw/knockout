@@ -1,6 +1,6 @@
 ---
 id: ko-70b8
-status: closed
+status: open
 deps: []
 created: 2026-02-25T19:26:13Z
 type: task
@@ -9,7 +9,3 @@ priority: 2
 # Rename ko reopen to ko open
 
 Rename 'ko reopen' to 'ko open'. More consistent — status is 'open', command should be 'open'.
-
-## Notes
-
-**2026-02-25 22:23:47 UTC:** ko: SUCCEED

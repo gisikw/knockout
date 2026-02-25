@@ -3,8 +3,8 @@ exec ko block test-0001
 exec ko ready
 ! stdout 'test-0001'
 
-# Reopen, then set to captured — also excluded
-exec ko reopen test-0001
+# Open, then set to captured — also excluded
+exec ko open test-0001
 exec ko status test-0001 captured
 exec ko ready
 ! stdout 'test-0001'

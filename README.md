@@ -21,7 +21,7 @@ Commands:
   status <id> <s>    Set ticket status
   start <id>         Set status to in_progress
   close <id>         Set status to closed
-  reopen <id>        Set status to open
+  open <id>          Set status to open
   block <id>         Set status to blocked
   resolved <id>      Set status to resolved
 

@@ -69,9 +69,9 @@ func cmdClose(args []string) int {
 	return cmdStatus(append(args, "closed"))
 }
 
-func cmdReopen(args []string) int {
+func cmdOpen(args []string) int {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "ko reopen: ticket ID required")
+		fmt.Fprintln(os.Stderr, "ko open: ticket ID required")
 		return 1
 	}
 	return cmdStatus(append(args, "open"))

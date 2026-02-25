@@ -8,8 +8,8 @@ exec ko close test-0001
 exec ko show test-0001
 stdout 'status: closed'
 
-# Reopen command
-exec ko reopen test-0001
+# Open command
+exec ko open test-0001
 exec ko show test-0001
 stdout 'status: open'
 
