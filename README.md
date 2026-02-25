@@ -23,6 +23,7 @@ Commands:
   close <id>         Set status to closed
   reopen <id>        Set status to open
   block <id>         Set status to blocked
+  resolved <id>      Set status to resolved
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency
@@ -31,6 +32,8 @@ Commands:
   note <id> <text>      Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
   query                 Output all tickets as JSONL
+  questions <id>        Show plan questions as JSON
+  answer <id> <json>    Submit answers to plan questions
 
   init <prefix>      Initialize project with ticket prefix
 
@@ -83,6 +86,7 @@ at the limit, tickets get blocked for human review instead of further decomposed
 | `open` | Ready to be worked (eligible for `ko ready`) |
 | `in_progress` | Currently being worked |
 | `closed` | Done |
+| `resolved` | Done, pending human review before close |
 | `blocked` | Needs human attention |
 
 `ko ready` only returns `open` and `in_progress` tickets with all deps resolved.
@@ -129,6 +133,7 @@ Valid dispositions:
 | `blocked` | Wire a dependency | `block_on`, `reason` |
 | `route` | Jump to a different workflow | `workflow` |
 | `decompose` | Split into subtasks | `subtasks` (array) |
+| `resolved` | Mark for human review | `reason` (optional) |
 
 Route targets must be declared in the node's `routes` field — a decision node
 cannot route to a workflow it hasn't declared. This prevents prompt injection
@@ -183,8 +188,9 @@ ko agent stop                     # kill + cleanup
 
 Stale PID files (process died) are automatically cleaned up on `start` and `status`.
 
-`ko agent stop` kills the agent process immediately (SIGKILL), then resets
-any in-progress ticket to `open` and runs `on_fail` hooks (worktree cleanup).
+`ko agent stop` sends SIGTERM (allowing the loop to log the signal and clean
+up), then escalates to SIGKILL after 5 seconds if needed. Any in-progress
+ticket is reset to `open` and `on_fail` hooks run (worktree cleanup).
 
 ### Project Registry
 
@@ -326,6 +332,30 @@ Use the custom harness in `pipeline.yml`:
 ```yaml
 agent: mycli
 ```
+
+### Plan Questions
+
+When a build plan has open questions requiring human input, the pipeline can
+block the ticket with structured questions:
+
+```bash
+ko block ko-f65e --questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Spaces","value":"spaces"},{"label":"Tabs","value":"tabs"}]}]'
+```
+
+Read questions for a blocked ticket:
+
+```bash
+ko questions ko-f65e    # outputs JSON array
+```
+
+Answer questions (partial or full):
+
+```bash
+ko answer ko-f65e '{"q1":"spaces"}'
+```
+
+Each answer is recorded as a note. When all questions are answered, the ticket
+automatically unblocks (status returns to `open`).
 
 ## Data Model
 

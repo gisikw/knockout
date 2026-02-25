@@ -31,9 +31,13 @@ func cmdQuestions(args []string) int {
 	}
 
 	// Output plan-questions as JSON, or empty array if none exist
+	questions := t.PlanQuestions
+	if questions == nil {
+		questions = []PlanQuestion{}
+	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(t.PlanQuestions); err != nil {
+	if err := enc.Encode(questions); err != nil {
 		fmt.Fprintf(os.Stderr, "ko questions: failed to encode JSON: %v\n", err)
 		return 1
 	}
