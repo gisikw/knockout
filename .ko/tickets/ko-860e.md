@@ -1,0 +1,36 @@
+---
+id: ko-860e
+status: open
+deps: []
+created: 2026-02-25T20:06:49Z
+type: task
+priority: 2
+---
+# Consolidate block/questions/answer into ko triage
+
+Replace three commands with one:
+
+ko triage <id>                          # show triage state (questions, block status)
+ko triage <id> --questions '[...]'      # block with plan questions
+ko triage <id> --answers '{...}'        # answer questions, auto-unblock when all answered
+ko triage <id> 'block reason'           # block with reason text
+
+Replaces: ko block --questions, ko questions, ko answer
+
+Open question: should bare 'ko block <id>' (no reason) still be supported, or require a reason? Leaning toward requiring a reason — if you're blocking, say why.
+
+## Notes
+
+**2026-02-25 20:09:47 UTC:** Revised design:
+
+ko triage <id>                           # show block reason + open questions
+ko triage <id> --block ['reason']        # set to blocked, optional reason added as note
+ko triage <id> --questions 'json'        # add questions, implicitly blocks
+ko triage <id> --answers 'json'          # answer questions, implicitly opens when all answered
+
+Status transitions are implicit:
+- --questions → status=blocked (you're saying 'this needs answers before it can proceed')
+- --answers that resolve all questions → status=open (unblocked)
+- --block → status=blocked (explicit block with optional reason)
+
+Replaces: ko block, ko block --questions, ko questions, ko answer
