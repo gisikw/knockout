@@ -12,4 +12,4 @@ install:
 
 restart:
     just install
-    fort ratched systemd restart knockout
+    fort ratched systemd '{"action": "restart", "unit": "knockout"}'
