@@ -300,49 +300,89 @@ is still supported. The system checks for `config.yaml` first, then falls back t
 
 ### Custom Agent Harnesses
 
-Agent harnesses are YAML configs that describe how to invoke an agent CLI.
-Built-in harnesses (`claude`, `cursor`) ship with `ko`. You can add custom
-harnesses to extend support for other agents.
+Agent harnesses are executable shell scripts that receive parameters via
+KO_-namespaced environment variables and invoke an agent CLI. Built-in harnesses
+(`claude`, `cursor`) ship with `ko`. You can add custom harnesses to extend
+support for other agents.
 
 Harness search order:
-1. `.ko/agent-harnesses/<name>.yaml` — project-local overrides
-2. `~/.config/knockout/agent-harnesses/<name>.yaml` — user-global harnesses
+1. `.ko/agent-harnesses/<name>` — project-local overrides (executable file)
+2. `~/.config/knockout/agent-harnesses/<name>` — user-global harnesses (executable file)
 3. Built-in harnesses (embedded in the `ko` binary)
 
-Example custom harness (`.ko/agent-harnesses/mycli.yaml`):
+#### Environment Variables
 
-```yaml
-# Binary to execute (or use binary_fallbacks for multiple options)
-binary: mycli
+Shell harnesses receive the following environment variables:
 
-# Command arguments template
-# Variables: ${prompt}, ${model}, ${system_prompt}, ${allow_all}
-# Conditional flags: if a template variable is empty, it's omitted
-args:
-  - "-p"                    # Prompt via stdin (following arg doesn't contain ${prompt})
-  - "--output-format"
-  - "text"
-  - "${model}"              # Expands to "--model\nsonnet" when model is set
-  - "${system_prompt}"      # Expands to "--append-system-prompt\n<text>" when set
-  - "${allow_all}"          # Expands to flag when allowAll=true
+- **`KO_PROMPT`** — The full prompt text to pass to the agent
+- **`KO_MODEL`** — The model name (e.g., "sonnet", "opus"), may be empty
+- **`KO_SYSTEM_PROMPT`** — System prompt text, may be empty
+- **`KO_ALLOW_ALL`** — "true" or "false" indicating whether all tools are allowed
+- **`KO_ALLOWED_TOOLS`** — Comma-separated list of allowed tools (e.g., "read,write,bash"), may be empty
+
+#### Example Custom Harness
+
+Example harness (`.ko/agent-harnesses/mycli`):
+
+```bash
+#!/bin/sh
+# Custom harness for mycli agent
+set -e
+
+# Build command arguments
+args="--output-format text"
+
+# Add conditional flags only if set
+if [ -n "$KO_MODEL" ]; then
+  args="$args --model $KO_MODEL"
+fi
+
+if [ -n "$KO_SYSTEM_PROMPT" ]; then
+  args="$args --system-prompt $KO_SYSTEM_PROMPT"
+fi
+
+if [ "$KO_ALLOW_ALL" = "true" ]; then
+  args="$args --allow-all"
+fi
+
+if [ -n "$KO_ALLOWED_TOOLS" ]; then
+  args="$args --allowed-tools $KO_ALLOWED_TOOLS"
+fi
+
+# Pass prompt via stdin (or as argument, depending on your agent)
+echo "$KO_PROMPT" | mycli $args
 ```
 
-For agents that take the prompt as an argument (not stdin):
+Make it executable:
 
-```yaml
-binary: other-agent
-args:
-  - "-p"
-  - "${prompt_with_system}"  # Inlines system prompt into user prompt
-  - "--model"
-  - "${model}"
+```bash
+chmod +x .ko/agent-harnesses/mycli
 ```
 
-Use the custom harness in `config.yaml`:
+Use the custom harness in `.ko/pipeline.yml`:
 
 ```yaml
-pipeline:
-  agent: mycli
+agent: mycli
+```
+
+#### Binary Fallback
+
+For agents with multiple binary names, use `command -v` to resolve:
+
+```bash
+#!/bin/sh
+# Try multiple binary names
+if command -v mycli-agent >/dev/null 2>&1; then
+  BINARY="mycli-agent"
+elif command -v mycli >/dev/null 2>&1; then
+  BINARY="mycli"
+else
+  echo "Error: mycli not found" >&2
+  exit 1
+fi
+
+# Use $BINARY in your command
+echo "$KO_PROMPT" | $BINARY --output-format text
 ```
 
 ### Plan Questions

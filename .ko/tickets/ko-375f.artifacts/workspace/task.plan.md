@@ -1,22 +1,21 @@
-The plan has been written to `/home/dev/Projects/knockout/.ko/tickets/ko-375f.artifacts/plan.md`. 
+Perfect! I've updated the plan to incorporate the latest ticket note that clarifies the prompt passing mechanism. The plan is now complete and ready for review.
 
 ## Summary
 
-I've updated the plan based on the ticket notes which answered all the open questions from the prior plan:
+I've updated the existing plan at `.ko/tickets/ko-375f.artifacts/plan.md` to incorporate the newest context from the ticket notes. The key update is that the open question about prompt passing has been resolved:
 
-**Key Decisions (from ticket notes):**
-- **Architecture**: Executable wrapper scripts that receive parameters via KO_-namespaced environment variables
-- **Migration strategy**: Replace YAML entirely — convert built-in and user harnesses to shell, deprecate YAML support  
-- **Binary fallback**: Move logic from Go to shell scripts using `command -v` or similar
+**Resolution**: Shell harnesses receive the prompt via `KO_PROMPT` environment variable only, and the scripts decide how to pass it to their agent (stdin, argument, etc.).
 
-**Approach:**
-Create a new `ShellAdapter` that executes shell scripts which receive KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, and KO_ALLOWED_TOOLS as environment variables. The shell scripts handle binary fallback internally and construct the appropriate CLI commands.
+The plan is comprehensive and covers:
 
-**Migration Path:**
-1. Create shell versions of built-in harnesses (claude.sh, cursor.sh)
-2. Add ShellAdapter to execute shell harnesses  
-3. Update LoadHarness to search for shell scripts first (backward compat with YAML during transition)
-4. Remove all YAML support (TemplateAdapter, parseHarness YAML logic, .yaml files)
-5. Update tests and documentation
+1. **Goal**: Replace YAML harness templates with shell scripts using KO_-namespaced env vars
+2. **Context**: Detailed analysis of current YAML architecture, test patterns, and project constraints
+3. **Approach**: Shell scripts receive KO_PROMPT, KO_MODEL, KO_SYSTEM_PROMPT, KO_ALLOW_ALL, KO_ALLOWED_TOOLS via environment and handle their own binary fallback and argument construction
+4. **Tasks**: 17 ordered tasks covering:
+   - Creating specs and shell scripts for claude/cursor harnesses
+   - Implementing ShellAdapter in Go
+   - Migrating tests to shell-based approach
+   - Removing YAML support entirely
+   - Updating documentation
 
-The plan includes 17 concrete tasks with file paths and verification steps, progressing from specs → implementation → testing → cleanup.
+All open questions have been resolved with answers from the ticket notes.

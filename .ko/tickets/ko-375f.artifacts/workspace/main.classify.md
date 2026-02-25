@@ -1,21 +1,34 @@
-Looking at this ticket, I need to classify the type of work it requires.
+I'll analyze this ticket to determine the appropriate classification.
 
-**Analysis:**
+## Analysis
 
-The ticket is titled "Migrate agent harnesses from YAML templates to shell scripts" and the notes section clearly shows:
-- The motivation is established (ensure agent invocation intent carries through regardless of harness syntax)
-- The architecture is decided (executable wrapper with KO_ namespaced env vars)
-- The approach is determined (replace YAML with shell scripts, deprecate YAML)
-- Implementation details are clear (shell handles fallback logic using command -v)
+**Ticket Summary:**
+"Migrate agent harnesses from YAML templates to shell scripts"
 
-This is a **task ticket** because:
-1. It explicitly describes what to build: migrate YAML templates to shell scripts
-2. The expected output is committed code implementing this migration
-3. The architectural decisions have been made and answered in the notes
-4. It's not asking "can we do this?" or "what would it take?" - those questions have been answered
-5. It's not reporting unexpected behavior - it's requesting a specific implementation
+**Key Indicators:**
 
-The ticket has moved past the research/design phase and is ready for implementation work.
+1. **Clear Scope**: The ticket explicitly describes *what to build* - a migration from YAML-based harnesses to shell scripts.
+
+2. **Defined Architecture**: The notes indicate decisions have already been made:
+   - Use executable wrapper approach
+   - Namespace env vars with `KO_`
+   - Replace (not maintain) YAML harnesses
+   - Move binary fallback logic to shell
+   - Pass prompt via `KO_PROMPT` environment variable
+
+3. **Expected Output**: Code changes - converting existing YAML harnesses to shell scripts and removing YAML support.
+
+4. **Not a Bug**: There's no assertion that something is broken or malfunctioning. This is a deliberate architectural change to ensure "agent invocation intent carries through, regardless of the actual agent harness."
+
+5. **Not Research**: The fundamental questions have been answered (motivation, architecture, env var approach). The ticket is ready for implementation, not investigation.
+
+**Classification: TASK**
+
+This is clearly a code change request with defined requirements and architectural decisions already made. The work involves:
+- Creating shell script harnesses
+- Migrating built-in and user harnesses
+- Removing YAML support
+- Implementing the env var pattern
 
 ```json
 {"disposition": "route", "workflow": "task"}

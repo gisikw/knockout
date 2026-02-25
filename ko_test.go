@@ -60,3 +60,7 @@ func TestProjectRegistry(t *testing.T) {
 func TestLoop(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/loop"})
 }
+
+func TestAgentHarnesses(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/agent_harnesses"})
+}

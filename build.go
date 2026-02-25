@@ -455,11 +455,20 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 	cmdCtx.Stdin = cmd.Stdin
 	cmdCtx.Stdout = cmd.Stdout
 	cmdCtx.Stderr = cmd.Stderr
-	cmdCtx.Env = append(os.Environ(),
-		"KO_TICKET_WORKSPACE="+wsDir,
-		"KO_ARTIFACT_DIR="+artifactDir,
-		"KO_BUILD_HISTORY="+histPath,
-	)
+	// Preserve any Env set by the adapter, then add our workspace vars
+	if cmd.Env != nil {
+		cmdCtx.Env = append(cmd.Env,
+			"KO_TICKET_WORKSPACE="+wsDir,
+			"KO_ARTIFACT_DIR="+artifactDir,
+			"KO_BUILD_HISTORY="+histPath,
+		)
+	} else {
+		cmdCtx.Env = append(os.Environ(),
+			"KO_TICKET_WORKSPACE="+wsDir,
+			"KO_ARTIFACT_DIR="+artifactDir,
+			"KO_BUILD_HISTORY="+histPath,
+		)
+	}
 
 	if verbose {
 		return runCmdVerbose(cmdCtx, wfName, node.Name)

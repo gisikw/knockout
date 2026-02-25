@@ -82,3 +82,18 @@ stopped: empty
 loop: building ko-375f — Migrate agent harnesses from YAML templates to shell scripts
 loop: ko-375f FAIL
 loop: building ko-f65e — Consolidate .ko/ top-level files into .ko/config.yaml
+loop: ko-f65e SUCCEED
+loop complete: 2 processed (1 succeeded, 1 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":1072.110033315,"stop_reason":"empty","succeeded":1,"tickets_processed":2,"ts":"2026-02-25T03:00:04Z"}
+loop: building ko-375f — Migrate agent harnesses from YAML templates to shell scripts
+loop: ko-375f FAIL
+loop complete: 1 processed (0 succeeded, 1 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":153.423367655,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-25T03:33:52Z"}
+loop: building ko-375f — Migrate agent harnesses from YAML templates to shell scripts
+loop: ko-375f FAIL
+loop complete: 1 processed (0 succeeded, 1 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":151.746603184,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-25T04:07:44Z"}
+loop: building ko-375f — Migrate agent harnesses from YAML templates to shell scripts

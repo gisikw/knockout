@@ -7,166 +7,92 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
-//go:embed agent-harnesses/*.yaml
+//go:embed agent-harnesses/*.sh
 var embeddedHarnesses embed.FS
 
-// Harness describes how to build a command for an agent.
-type Harness struct {
-	Binary          string   `yaml:"binary"`
-	BinaryFallbacks []string `yaml:"binary_fallbacks"`
-	Args            []string `yaml:"args"`
+// HarnessConfig represents a loaded shell harness.
+type HarnessConfig struct {
+	ScriptPath string
 }
 
-// LoadHarness loads a harness by name from project config, user config, or built-ins.
+// LoadHarness loads a shell harness by name from project config, user config, or built-ins.
 // Search order: .ko/agent-harnesses/ → ~/.config/knockout/agent-harnesses/ → embedded built-ins
-func LoadHarness(name string) (*Harness, error) {
-	filename := name + ".yaml"
-
+func LoadHarness(name string) (*HarnessConfig, error) {
 	// Try project-local config
-	projectPath := filepath.Join(".ko", "agent-harnesses", filename)
-	if data, err := os.ReadFile(projectPath); err == nil {
-		return parseHarness(data)
+	projectShellPath := filepath.Join(".ko", "agent-harnesses", name)
+	if info, err := os.Stat(projectShellPath); err == nil && info.Mode()&0111 != 0 {
+		return &HarnessConfig{
+			ScriptPath: projectShellPath,
+		}, nil
 	}
 
 	// Try user config
 	if home, err := os.UserHomeDir(); err == nil {
-		userPath := filepath.Join(home, ".config", "knockout", "agent-harnesses", filename)
-		if data, err := os.ReadFile(userPath); err == nil {
-			return parseHarness(data)
+		userShellPath := filepath.Join(home, ".config", "knockout", "agent-harnesses", name)
+		if info, err := os.Stat(userShellPath); err == nil && info.Mode()&0111 != 0 {
+			return &HarnessConfig{
+				ScriptPath: userShellPath,
+			}, nil
 		}
 	}
 
 	// Try embedded built-ins
-	embeddedPath := filepath.Join("agent-harnesses", filename)
-	if data, err := embeddedHarnesses.ReadFile(embeddedPath); err == nil {
-		return parseHarness(data)
+	embeddedShellPath := filepath.Join("agent-harnesses", name+".sh")
+	if data, err := embeddedHarnesses.ReadFile(embeddedShellPath); err == nil {
+		// Write to temp location with exec permissions
+		tmpFile, err := os.CreateTemp("", "ko-harness-"+name+"-*.sh")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp file for harness: %w", err)
+		}
+		if err := os.WriteFile(tmpFile.Name(), data, 0755); err != nil {
+			return nil, fmt.Errorf("failed to write harness script: %w", err)
+		}
+		return &HarnessConfig{
+			ScriptPath: tmpFile.Name(),
+		}, nil
 	}
 
 	return nil, fmt.Errorf("harness %q not found", name)
 }
 
-func parseHarness(data []byte) (*Harness, error) {
-	var h Harness
-	if err := yaml.Unmarshal(data, &h); err != nil {
-		return nil, fmt.Errorf("invalid harness YAML: %w", err)
-	}
-	return &h, nil
+
+// ShellAdapter implements AgentAdapter by executing a shell script with KO_* env vars.
+type ShellAdapter struct {
+	scriptPath string
 }
 
-// TemplateAdapter implements AgentAdapter by rendering a harness template.
-type TemplateAdapter struct {
-	harness *Harness
+// NewShellAdapter creates a ShellAdapter from a script path.
+func NewShellAdapter(scriptPath string) *ShellAdapter {
+	return &ShellAdapter{scriptPath: scriptPath}
 }
 
-// NewTemplateAdapter creates a TemplateAdapter from a harness.
-func NewTemplateAdapter(h *Harness) *TemplateAdapter {
-	return &TemplateAdapter{harness: h}
-}
+// BuildCommand sets KO_* environment variables and executes the shell script.
+func (a *ShellAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd {
+	cmd := exec.Command(a.scriptPath)
 
-// BuildCommand renders the harness template and returns a ready-to-run Cmd.
-func (a *TemplateAdapter) BuildCommand(prompt, model, systemPrompt string, allowAll bool, allowedTools []string) *exec.Cmd {
-	// Resolve binary
-	bin := a.resolveBinary()
+	// Set KO_* environment variables
+	cmd.Env = append(os.Environ(),
+		"KO_PROMPT="+prompt,
+		"KO_MODEL="+model,
+		"KO_SYSTEM_PROMPT="+systemPrompt,
+	)
 
-	// Build template variables
-	vars := map[string]string{
-		"prompt":             prompt,
-		"model":              model,
-		"system_prompt":      systemPrompt,
-		"prompt_with_system": buildPromptWithSystem(prompt, systemPrompt),
-		"allow_all":          "",
-		"cursor_allow_all":   "",
-		"allowed_tools":      "",
-	}
-
-	// Set conditional flags
-	if model != "" {
-		vars["model"] = "--model\n" + model
-	}
-	if systemPrompt != "" {
-		vars["system_prompt"] = "--append-system-prompt\n" + systemPrompt
-	}
+	// Set KO_ALLOW_ALL as "true" or "false"
 	if allowAll {
-		vars["allow_all"] = "--dangerously-skip-permissions"
-		vars["cursor_allow_all"] = "--force"
+		cmd.Env = append(cmd.Env, "KO_ALLOW_ALL=true")
+	} else {
+		cmd.Env = append(cmd.Env, "KO_ALLOW_ALL=false")
 	}
+
+	// Set KO_ALLOWED_TOOLS as comma-separated string
 	if len(allowedTools) > 0 {
 		toolsCSV := strings.Join(allowedTools, ",")
-		vars["allowed_tools"] = "--allowed-prompts\n" + toolsCSV
-	}
-
-	// Render args
-	var renderedArgs []string
-	useStdin := false
-	for i, arg := range a.harness.Args {
-		// Check if this is the stdin marker (standalone "-p" without template variable following)
-		if arg == "-p" && (i+1 >= len(a.harness.Args) || !strings.Contains(a.harness.Args[i+1], "${prompt")) {
-			renderedArgs = append(renderedArgs, arg)
-			useStdin = true
-			continue
-		}
-
-		// Render template variables
-		rendered := arg
-		for key, val := range vars {
-			rendered = strings.ReplaceAll(rendered, "${"+key+"}", val)
-		}
-
-		// If this was a pure template variable for flags (model, system_prompt, allow_all),
-		// split on newlines to allow conditional multi-arg expansion.
-		// Don't split prompt content (prompt, prompt_with_system) which may contain newlines.
-		isPromptContent := arg == "${prompt}" || arg == "${prompt_with_system}"
-		if strings.HasPrefix(arg, "${") && strings.HasSuffix(arg, "}") && !isPromptContent {
-			// Pure template variable for flags - split on newlines for multi-arg expansion
-			parts := strings.Split(rendered, "\n")
-			for _, part := range parts {
-				if part != "" {
-					renderedArgs = append(renderedArgs, part)
-				}
-			}
-		} else {
-			// Prompt content, mixed content, or literal - keep as-is
-			if rendered != "" {
-				renderedArgs = append(renderedArgs, rendered)
-			}
-		}
-	}
-
-	cmd := exec.Command(bin, renderedArgs...)
-
-	// Set stdin if using -p flag for stdin
-	if useStdin {
-		cmd.Stdin = strings.NewReader(prompt)
+		cmd.Env = append(cmd.Env, "KO_ALLOWED_TOOLS="+toolsCSV)
+	} else {
+		cmd.Env = append(cmd.Env, "KO_ALLOWED_TOOLS=")
 	}
 
 	return cmd
-}
-
-// resolveBinary resolves the binary path, trying fallbacks if defined.
-func (a *TemplateAdapter) resolveBinary() string {
-	// If binary_fallbacks is defined, try each in order
-	if len(a.harness.BinaryFallbacks) > 0 {
-		for _, bin := range a.harness.BinaryFallbacks {
-			if path, err := exec.LookPath(bin); err == nil {
-				return path
-			}
-		}
-		// Fall back to first option (will fail at exec time with clear error)
-		return a.harness.BinaryFallbacks[0]
-	}
-
-	// Otherwise use the binary field directly
-	return a.harness.Binary
-}
-
-// buildPromptWithSystem combines system prompt and user prompt for agents that don't support separate system prompts.
-func buildPromptWithSystem(prompt, systemPrompt string) string {
-	if systemPrompt == "" {
-		return prompt
-	}
-	return systemPrompt + "\n\n" + prompt
 }

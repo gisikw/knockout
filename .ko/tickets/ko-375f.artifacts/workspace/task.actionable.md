@@ -1,30 +1,44 @@
-Now I'll analyze the plan for completeness and feasibility.
+Now I have a good understanding. Let me analyze the plan for completeness and feasibility:
 
 ## Analysis
 
-**Checking the Open Questions section:**
-The plan states "None — all major decisions have been answered" but then includes a note at the end (lines 115-116) that reads: "One implementation detail to confirm: Should shell harnesses support stdin for prompt (like current claude.yaml with `-p` flag) or always pass via KO_PROMPT env var? Current plan assumes env var only, but scripts can read stdin if needed. The shell script has full control over how it uses the environment."
+**Plan Completeness Check:**
+1. ✅ Goal is clear: Replace YAML harnesses with shell scripts
+2. ✅ Context is comprehensive: Current YAML architecture, constraints, ticket context documented
+3. ✅ Approach is well-defined: Shell script execution with KO_ environment variables
+4. ✅ 17 specific, ordered tasks with verification steps
+5. ✅ Open questions section explicitly states "None"
 
-This is a genuine open question that affects how shell scripts are implemented. The task descriptions reference this implicitly (e.g., Task 2 says "Execs claude with prompt via stdin" while Task 3 says "Passes prompt as -p argument (not stdin)"), showing that different agents have different expectations. This needs clarification before implementation.
+**Feasibility Check:**
+- ✅ Files referenced exist: `harness.go` (172 lines, under 500-line limit), `adapter.go`, `harness_test.go`
+- ✅ YAML harnesses exist at expected locations: `agent-harnesses/claude.yaml`, `agent-harnesses/cursor.yaml`
+- ✅ Test pattern exists with `.txtar` format in `testdata/`
+- ✅ Spec pattern exists with `.feature` files in `specs/`
+- ✅ Embed pattern already used for YAML harnesses
+- ✅ AgentAdapter interface is defined and used
 
-**Checking for Completeness:**
-- ✅ Clear goal: Replace YAML with shell scripts
-- ✅ Identified files: Specific Go files, test files, harness files, and docs
-- ✅ Ordered tasks: 17 tasks with verification steps
-- ✅ Approach section: Clear architecture description
+**Open Questions Analysis:**
+The plan states "None — all major decisions have been answered in the ticket notes." I reviewed the ticket notes provided:
+- Architecture: Executable wrapper with KO_ namespace ✅
+- Migration: Replace YAML entirely ✅
+- Binary fallback: Move to shell ✅
+- Prompt passing: Environment variable only (KO_PROMPT) ✅
 
-**Checking for Feasibility:**
-- ✅ File references (harness.go, agent-harnesses/, harness_test.go) plausibly exist per the Context section
-- ✅ Testing artifacts (specs/pipeline.feature, testdata/harness_shell.txtar) are documented
-- ✅ The constraint about 500-line limit and zero external dependencies is noted
+However, I need to flag one **architectural clarification** that would improve implementation clarity:
 
-**Critical Issue:**
-The final note about stdin vs environment variable handling is an unresolved design question. Task 2 and Task 3 give contradictory guidance:
-- Task 2 (claude.sh): "Execs claude with prompt via stdin"
-- Task 3 (cursor.sh): "Passes prompt as -p argument (not stdin)"
+**Potential Issue Found:**
+Task 5 mentions: "For built-in, embed shell scripts alongside YAML and extract to temp location with exec permissions (os.WriteFile with 0755)."
 
-This suggests agents have different requirements, but the decision of which mechanism to use for which agent (or whether both should be supported) needs to be clarified.
+This raises a subtle but important question: **How should embedded shell scripts be extracted and executed?** The plan says to use `os.WriteFile` with `0755`, but there are nuances:
+- Should they be extracted to `/tmp`, `.ko/` or a system temp directory?
+- Should they be cleaned up after execution or persist?
+- Should file permissions be 0755 (owner+group+others) or 0700 (owner only)?
+
+This is a legitimate architectural decision that affects security (temp dir permissions) and lifecycle (cleanup strategy), though the approach is clear in spirit.
+
+**Assessment:**
+The plan is **comprehensive and well-structured** with clear tasks and verification steps. The only concern is a minor lifecycle/permissions detail for embedded shell extraction, but this is implementable with reasonable defaults.
 
 ```json
-{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "How should shell harnesses receive and pass the prompt to the agent?", "context": "The plan notes that different agents have different affordances. Task 2 (claude.sh) uses stdin for prompt, Task 3 (cursor.sh) uses -p argument. Need to clarify the general pattern and whether both methods are supported.", "options": [{"label": "Environment variable only (KO_PROMPT)", "value": "env_var_only", "description": "All scripts receive prompt via KO_PROMPT environment variable and construct their own arguments"}, {"label": "Stdin only", "value": "stdin_only", "description": "Shell adapter pipes prompt to stdin; scripts don't use KO_PROMPT for prompt content"}, {"label": "Per-harness choice (documented in script)", "value": "per_harness", "description": "Each shell script decides how to use KO_PROMPT (stdin, -p argument, environment variable, etc.) based on the agent's requirements"}]}]}
+{"disposition": "continue"}
 ```

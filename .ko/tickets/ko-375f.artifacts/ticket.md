@@ -24,3 +24,7 @@ Migrate built-in and user harnesses to shell; YAML support is removed
 **2026-02-25 04:05:10 UTC:** Question: Should binary fallback logic stay in Go or move to shell?
 Answer: Move to shell: Shell handles fallback logic
 Shell scripts use command -v or similar to find the binary
+
+**2026-02-25 04:19:22 UTC:** Question: How should shell harnesses receive and pass the prompt to the agent?
+Answer: Environment variable only (KO_PROMPT)
+All scripts receive prompt via KO_PROMPT environment variable and construct their own arguments

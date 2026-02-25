@@ -1,0 +1,48 @@
+# Shell harness receives KO_* environment variables and executes
+chmod 755 .ko/agent-harnesses/test-agent
+chmod 755 fake-llm-wrapper
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+# Check that test-agent received the correct env vars
+exec cat env-captured.txt
+stdout 'KO_PROMPT='
+stdout 'KO_MODEL='
+stdout 'KO_SYSTEM_PROMPT='
+stdout 'KO_ALLOW_ALL='
+stdout 'KO_ALLOWED_TOOLS='
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test shell harness
+-- .ko/pipeline.yml --
+agent: test-agent
+model: sonnet
+allow_all: true
+system_prompt: "Test system prompt"
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+-- .ko/prompts/triage.md --
+Test prompt for agent.
+-- .ko/agent-harnesses/test-agent --
+#!/bin/sh
+# Mock shell harness that captures env vars and calls fake LLM
+env | grep ^KO_ > env-captured.txt
+exec ./fake-llm-wrapper
+-- fake-llm-wrapper --
+#!/bin/sh
+# Fake LLM that returns continue disposition
+echo "Processing..."
+echo '```json'
+echo '{"disposition": "continue"}'
+echo '```'

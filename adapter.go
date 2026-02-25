@@ -15,11 +15,11 @@ type AgentAdapter interface {
 
 // LookupAdapter returns the adapter for a given agent name, or nil if unknown.
 func LookupAdapter(name string) AgentAdapter {
-	harness, err := LoadHarness(name)
+	config, err := LoadHarness(name)
 	if err != nil {
 		return nil
 	}
-	return NewTemplateAdapter(harness)
+	return NewShellAdapter(config.ScriptPath)
 }
 
 // RawCommandAdapter wraps a raw command string (the legacy command: path).
