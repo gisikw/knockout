@@ -332,6 +332,13 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 		hist.WorkflowStart(t.ID, disp.Workflow)
 		return runWorkflow(ticketsDir, t, p, disp.Workflow, visits, wsDir, artifactDir, log, hist, verbose)
 
+	case "needs_input":
+		t.PlanQuestions = disp.PlanQuestions
+		note := fmt.Sprintf("ko: NEEDS_INPUT at node '%s' — %d question(s)", node.Name, len(disp.PlanQuestions))
+		AddNote(t, note)
+		setStatus(ticketsDir, t, "blocked")
+		return OutcomeFail, "", nil
+
 	case "resolved":
 		note := fmt.Sprintf("ko: RESOLVED at node '%s'", node.Name)
 		if disp.Reason != "" {

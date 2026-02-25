@@ -118,6 +118,31 @@ func TestParseDisposition(t *testing.T) {
 			input:   `{"disposition": "decompose"}`,
 			wantErr: true,
 		},
+		{
+			name:     "needs_input with valid questions",
+			input:    `{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "Which approach?", "options": [{"label": "A", "value": "a"}, {"label": "B", "value": "b"}]}]}`,
+			wantType: "needs_input",
+		},
+		{
+			name:    "needs_input without questions",
+			input:   `{"disposition": "needs_input"}`,
+			wantErr: true,
+		},
+		{
+			name:    "needs_input with empty questions",
+			input:   `{"disposition": "needs_input", "plan_questions": []}`,
+			wantErr: true,
+		},
+		{
+			name:    "needs_input with invalid question (missing id)",
+			input:   `{"disposition": "needs_input", "plan_questions": [{"question": "Which?", "options": [{"label": "A", "value": "a"}]}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "needs_input with invalid question (missing options)",
+			input:   `{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "Which?"}]}`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

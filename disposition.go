@@ -8,21 +8,23 @@ import (
 
 // Disposition represents a parsed decision node result.
 type Disposition struct {
-	Type     string   `json:"disposition"`          // continue, fail, blocked, decompose, route
-	Reason   string   `json:"reason,omitempty"`     // for fail and blocked
-	BlockOn  string   `json:"block_on,omitempty"`   // for blocked
-	Workflow string   `json:"workflow,omitempty"`    // for route
-	Subtasks []string `json:"subtasks,omitempty"`    // for decompose
+	Type          string         `json:"disposition"`                // continue, fail, blocked, decompose, route, needs_input
+	Reason        string         `json:"reason,omitempty"`           // for fail and blocked
+	BlockOn       string         `json:"block_on,omitempty"`         // for blocked
+	Workflow      string         `json:"workflow,omitempty"`         // for route
+	Subtasks      []string       `json:"subtasks,omitempty"`         // for decompose
+	PlanQuestions []PlanQuestion `json:"plan_questions,omitempty"`   // for needs_input
 }
 
 // Valid disposition types.
 var validDispositions = map[string]bool{
-	"continue":  true,
-	"fail":      true,
-	"blocked":   true,
-	"decompose": true,
-	"route":     true,
-	"resolved":  true,
+	"continue":    true,
+	"fail":        true,
+	"blocked":     true,
+	"decompose":   true,
+	"route":       true,
+	"resolved":    true,
+	"needs_input": true,
 }
 
 // ExtractLastFencedJSON finds the last fenced code block in the output
@@ -88,6 +90,13 @@ func ParseDisposition(jsonStr string) (Disposition, error) {
 		if len(d.Subtasks) == 0 {
 			return Disposition{}, fmt.Errorf("'decompose' disposition missing required 'subtasks' field")
 		}
+	case "needs_input":
+		if len(d.PlanQuestions) == 0 {
+			return Disposition{}, fmt.Errorf("'needs_input' disposition missing required 'plan_questions' field")
+		}
+		if err := ValidatePlanQuestions(d.PlanQuestions); err != nil {
+			return Disposition{}, fmt.Errorf("'needs_input' disposition has invalid plan_questions: %v", err)
+		}
 	}
 
 	return d, nil
@@ -124,6 +133,11 @@ Route to a different workflow:
 Decompose into subtasks:
 ` + "```json" + `
 {"disposition": "decompose", "subtasks": ["First subtask", "Second subtask"]}
+` + "```" + `
+
+Needs input (block ticket with structured questions for human):
+` + "```json" + `
+{"disposition": "needs_input", "plan_questions": [{"id": "q1", "question": "Which approach?", "context": "Optional background", "options": [{"label": "Option A", "value": "a", "description": "Optional detail"}, {"label": "Option B", "value": "b"}]}]}
 ` + "```" + `
 
 Resolve (mark work complete, needs human review before closing):
