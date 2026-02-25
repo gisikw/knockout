@@ -28,7 +28,6 @@ func TestServeHandler(t *testing.T) {
 		"ls":      true,
 		"ready":   true,
 		"blocked": true,
-		"query":   true,
 		"show":      true,
 		"questions": true,
 		"answer":    true,
@@ -201,7 +200,7 @@ func TestServeWhitelist(t *testing.T) {
 	// Verify all expected commands are in whitelist
 	expectedCommands := []string{
 		"ls", "ready", "blocked",
-		"query", "show", "questions", "answer", "close",
+		"show", "questions", "answer", "close",
 		"open", "block", "start", "bump", "note",
 		"status", "dep", "undep", "agent",
 	}
@@ -210,7 +209,6 @@ func TestServeWhitelist(t *testing.T) {
 		"ls":      true,
 		"ready":   true,
 		"blocked": true,
-		"query":   true,
 		"show":    true,
 		"questions": true,
 		"answer":    true,
@@ -235,7 +233,7 @@ func TestServeWhitelist(t *testing.T) {
 	// Verify dangerous commands are NOT in whitelist
 	dangerousCommands := []string{
 		"rm", "mv", "cp", "sh", "bash", "eval", "exec",
-		"create", "add", "init", // explicitly excluded per plan
+		"create", "add", "init", "query", // old command names excluded
 	}
 
 	for _, cmd := range dangerousCommands {

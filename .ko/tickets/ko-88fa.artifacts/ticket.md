@@ -1,6 +1,6 @@
 ---
 id: ko-88fa
-status: closed
+status: open
 deps: [ko-1bfc, ko-b99d, ko-dbe4, ko-70b8, ko-5734, ko-7537, ko-860e]
 created: 2026-02-25T20:14:33Z
 type: task
@@ -23,7 +23,3 @@ Old -> New:
 - block/questions/answer -> triage
 - init/register/default -> project set
 - projects -> project ls
-
-## Notes
-
-**2026-02-25 22:54:14 UTC:** ko: SUCCEED
