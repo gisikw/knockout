@@ -76,6 +76,37 @@ func cmdOpen(args []string) int {
 	return cmdStatus(append(args, "open"))
 }
 
+func cmdBlock(args []string) int {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "ko block: ticket ID required")
+		return 1
+	}
+
+	// Check if --questions flag is present
+	hasQuestions := false
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--questions") {
+			hasQuestions = true
+			break
+		}
+	}
+
+	// If --questions is present, pass through with --status=blocked
+	if hasQuestions {
+		return cmdUpdate(append(args, "--status=blocked"))
+	}
+
+	// If a reason is provided (args[1]), use it
+	if len(args) > 1 {
+		// Collect all remaining args as the reason
+		reason := strings.Join(args[1:], " ")
+		return cmdUpdate([]string{args[0], "--status=blocked", "-d", reason})
+	}
+
+	// No reason provided, just set status to blocked
+	return cmdUpdate([]string{args[0], "--status=blocked"})
+}
+
 // ValidatePlanQuestions validates a slice of PlanQuestions.
 // Returns an error if any required fields are missing or invalid.
 func ValidatePlanQuestions(questions []PlanQuestion) error {
