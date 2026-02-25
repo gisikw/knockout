@@ -49,6 +49,9 @@ func LoadHarness(name string) (*HarnessConfig, error) {
 		if err := os.WriteFile(tmpFile.Name(), data, 0755); err != nil {
 			return nil, fmt.Errorf("failed to write harness script: %w", err)
 		}
+		if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+			return nil, fmt.Errorf("failed to set harness exec permissions: %w", err)
+		}
 		return &HarnessConfig{
 			ScriptPath: tmpFile.Name(),
 		}, nil
