@@ -13,9 +13,9 @@ exec ko add 'Build splash page #marketing-site'
 
 # Verify ticket in default project with status captured and tag preserved
 env TICKETS_DIR=$WORK/default-proj/.ko/tickets
-exec ko query
+exec ko ls --json --status=captured
 stdout 'Build splash page'
-stdout '"status":"captured"'
+stdout '"status":\s*"captured"'
 stdout 'marketing-site'
 
 -- .ko/tickets/ko-seed.md --

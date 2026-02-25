@@ -137,3 +137,5 @@ loop: ko-dbe4 SUCCEED
 loop: building ko-70b8 — Rename ko reopen to ko open
 loop: ko-70b8 SUCCEED
 loop: building ko-860e — Consolidate block/questions/answer into ko triage
+loop: ko-860e SUCCEED
+loop: building ko-5734 — Remove ko query command (redundant with --json on list commands)

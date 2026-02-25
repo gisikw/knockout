@@ -1,22 +1,22 @@
 # Create with description
 exec ko add -d 'This is the description' 'Test ticket'
-exec ko query
+exec ko ls --json
 stdout 'Test ticket'
 
 # Create with type
 exec ko add -t bug 'Bug ticket'
-exec ko query
-stdout '"type":"bug"'
+exec ko ls --json
+stdout '"type":\s*"bug"'
 
 # Create with priority
 exec ko add -p 0 'High priority'
-exec ko query
-stdout '"priority":0'
+exec ko ls --json
+stdout '"priority":\s*0'
 
 # Create with assignee
 exec ko add -a 'John Doe' 'Assigned ticket'
-exec ko query
-stdout '"assignee":"John Doe"'
+exec ko ls --json
+stdout '"assignee":\s*"John Doe"'
 
 -- .ko/tickets/ko-seed.md --
 ---

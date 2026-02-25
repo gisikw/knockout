@@ -1,5 +1,0 @@
-# Query with no tickets produces no output
-exec ko query
-! stdout '.'
-
--- .ko/tickets/.keep --

@@ -51,8 +51,6 @@ func run(args []string) int {
 		return cmdAddNote(rest)
 	case "bump":
 		return cmdBump(rest)
-	case "query":
-		return cmdQuery(rest)
 	case "agent":
 		return cmdAgent(rest)
 	case "project":
@@ -138,7 +136,6 @@ Commands:
 
   note <id> <text>      Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
-  query                 Output all tickets as JSONL
   clear --force         Remove all local tickets
 
   agent build <id>   Run build pipeline against a single ticket

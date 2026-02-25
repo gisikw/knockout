@@ -9,7 +9,7 @@ stdout 'My first ticket'
 # Create a ticket with default title
 exec ko add
 stdout '^ko-[0-9a-f]{4}$'
-exec ko query
+exec ko ls --json
 stdout 'Untitled'
 
 -- .ko/tickets/ko-seed.md --

@@ -37,10 +37,6 @@ func TestTicketNotes(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/ticket_notes"})
 }
 
-func TestTicketQuery(t *testing.T) {
-	testscript.Run(t, testscript.Params{Dir: "testdata/ticket_query"})
-}
-
 func TestServe(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/serve"})
 }

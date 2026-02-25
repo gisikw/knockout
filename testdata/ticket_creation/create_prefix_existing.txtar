@@ -1,7 +1,7 @@
 # Prefix matches existing tickets when present
 exec ko add 'New ticket'
-exec ko query
-stdout '"id":"myproj-[0-9a-f]{4}"'
+exec ko ls --json
+stdout '"id":\s*"myproj-[0-9a-f]{4}"'
 
 -- .ko/tickets/myproj-a001.md --
 ---

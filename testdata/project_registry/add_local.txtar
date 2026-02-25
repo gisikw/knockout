@@ -2,9 +2,9 @@
 env HOME=$WORK/home
 mkdir $WORK/home
 exec ko add 'Fix the flaky test'
-exec ko query
+exec ko ls --json
 stdout 'Fix the flaky test'
-stdout '"status":"open"'
+stdout '"status":\s*"open"'
 
 -- .ko/tickets/ko-seed.md --
 ---

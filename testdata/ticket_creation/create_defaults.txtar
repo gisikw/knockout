@@ -1,10 +1,10 @@
 # Ticket has correct defaults
 exec ko add 'Default ticket'
-exec ko query
-stdout '"status":"open"'
-stdout '"priority":2'
-stdout '"type":"task"'
-stdout '"deps":\[\]'
+exec ko ls --json
+stdout '"status":\s*"open"'
+stdout '"priority":\s*2'
+stdout '"type":\s*"task"'
+stdout '"deps":\s*\[\]'
 
 -- .ko/tickets/ko-seed.md --
 ---
