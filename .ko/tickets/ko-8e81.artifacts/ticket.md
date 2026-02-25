@@ -1,6 +1,6 @@
 ---
 id: ko-8e81
-status: blocked
+status: open
 deps: []
 created: 2026-02-25T05:49:39Z
 type: task
@@ -31,7 +31,3 @@ Implementation:
 
 Do NOT add SSE, WebSocket, or any subscription mechanism — that's a separate ticket.
 Do NOT add CORS, TLS, or reverse proxy concerns.
-
-## Notes
-
-**2026-02-25 05:55:54 UTC:** ko: FAIL at node 'classify' — node 'classify' failed after 3 attempts: agent command failed: fork/exec /tmp/ko-harness-claude-3920652410.sh: permission denied
