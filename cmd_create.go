@@ -13,7 +13,7 @@ import (
 
 func cmdCreate(args []string) int {
 	if os.Getenv("KO_NO_CREATE") != "" {
-		fmt.Fprintln(os.Stderr, "ko create: disabled — running in a loop context where creating new tickets could cause runaway expansion and incur significant costs")
+		fmt.Fprintln(os.Stderr, "ko add: disabled — running in a loop context where creating new tickets could cause runaway expansion and incur significant costs")
 		return 1
 	}
 
@@ -35,7 +35,7 @@ func cmdCreate(args []string) int {
 	tags := fs.String("tags", "", "comma-separated tags")
 
 	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
 	}
 
@@ -79,7 +79,7 @@ func cmdCreate(args []string) int {
 	// Find local project context
 	localRoot, err := findProjectRoot()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
 	}
 
@@ -99,7 +99,7 @@ func cmdCreate(args []string) int {
 	// Ensure target tickets directory exists
 	ticketsDir := resolveTicketsDir(decision.TargetPath)
 	if err := EnsureTicketsDir(ticketsDir); err != nil {
-		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
 	}
 
@@ -111,7 +111,7 @@ func cmdCreate(args []string) int {
 		// Resolve parent ID (only valid for local tickets)
 		parentID, err := ResolveID(ticketsDir, *parent)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1
 		}
 		t = NewChildTicket(parentID, decision.Title)
@@ -162,7 +162,7 @@ func cmdCreate(args []string) int {
 	}
 
 	if err := SaveTicket(ticketsDir, t); err != nil {
-		fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
 	}
 
@@ -174,7 +174,7 @@ func cmdCreate(args []string) int {
 	if decision.IsRouted {
 		localTicketsDir := resolveTicketsDir(localRoot)
 		if err := EnsureTicketsDir(localTicketsDir); err != nil {
-			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1
 		}
 		localPrefix := detectPrefix(localTicketsDir)
@@ -182,7 +182,7 @@ func cmdCreate(args []string) int {
 		audit.Status = "closed"
 		AddNote(audit, fmt.Sprintf("routed to #%s as %s", decision.RoutingTag, t.ID))
 		if err := SaveTicket(localTicketsDir, audit); err != nil {
-			fmt.Fprintf(os.Stderr, "ko create: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1
 		}
 		fmt.Printf("%s -> #%s (%s)\n", audit.ID, decision.RoutingTag, t.ID)

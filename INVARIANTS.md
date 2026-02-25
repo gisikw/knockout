@@ -101,9 +101,9 @@ be ticketed for remediation. No grandfathering.
   kills the process (e.g. service restart), the ticket is already closed.
   This prevents deploy loops.
 - **Loop mode prevents ticket creation.** When `ko loop` is running, it sets
-  `KO_NO_CREATE=1`. Both `ko create` and `ko add` refuse to execute when
-  this variable is set. This is a hard gate — spawned agents cannot create
-  tickets during a loop, preventing runaway scope expansion.
+  `KO_NO_CREATE=1`. `ko add` refuses to execute when this variable is set.
+  This is a hard gate — spawned agents cannot create tickets during a loop,
+  preventing runaway scope expansion.
 
 ## Code Organization
 

@@ -1,11 +1,7 @@
-# KO_NO_CREATE blocks create and add during loop
+# KO_NO_CREATE blocks add during loop
 env KO_NO_CREATE=1
 
-! exec ko create 'Should not work'
-stderr 'disabled'
-stderr 'runaway expansion'
-
-! exec ko add 'Should not work either'
+! exec ko add 'Should not work'
 stderr 'disabled'
 stderr 'runaway expansion'
 

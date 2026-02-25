@@ -2,6 +2,6 @@
 # Use a named directory so the derived prefix is predictable
 mkdir myproject
 cd myproject
-exec ko create 'First ticket'
+exec ko add 'First ticket'
 stdout '^myp-[0-9a-f]{4}$'
 exists .ko/tickets

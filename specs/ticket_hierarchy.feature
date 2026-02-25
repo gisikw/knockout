@@ -8,7 +8,7 @@ Feature: Ticket Hierarchy
 
   Scenario: Child ticket ID encodes parent
     Given a ticket exists with ID "ko-a001" and title "Parent ticket"
-    When I run "ko create 'Child ticket' --parent ko-a001"
+    When I run "ko add 'Child ticket' --parent ko-a001"
     Then the command should succeed
     And the created ticket ID should start with "ko-a001."
     And the created ticket ID should have 1 dot
@@ -16,7 +16,7 @@ Feature: Ticket Hierarchy
   Scenario: Grandchild ticket ID encodes full lineage
     Given a ticket exists with ID "ko-a001" and title "Root"
     And a ticket exists with ID "ko-a001.b002" and title "Child" with parent "ko-a001"
-    When I run "ko create 'Grandchild' --parent ko-a001.b002"
+    When I run "ko add 'Grandchild' --parent ko-a001.b002"
     Then the command should succeed
     And the created ticket ID should start with "ko-a001.b002."
     And the created ticket ID should have 2 dots
@@ -38,11 +38,11 @@ Feature: Ticket Hierarchy
     And the output should contain "ko-a001.b002"
 
   Scenario: Parent must exist
-    When I run "ko create 'Orphan' --parent nonexistent"
+    When I run "ko add 'Orphan' --parent nonexistent"
     Then the command should fail
     And the error should contain "ticket 'nonexistent' not found"
 
   Scenario: Child ticket file uses full hierarchical ID
     Given a ticket exists with ID "ko-a001" and title "Parent"
-    When I run "ko create 'Child' --parent ko-a001"
+    When I run "ko add 'Child' --parent ko-a001"
     Then a ticket file should exist matching pattern "ko-a001.*.md"

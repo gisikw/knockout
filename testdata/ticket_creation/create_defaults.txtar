@@ -1,5 +1,5 @@
 # Ticket has correct defaults
-exec ko create 'Default ticket'
+exec ko add 'Default ticket'
 exec ko query
 stdout '"status":"open"'
 stdout '"priority":2'

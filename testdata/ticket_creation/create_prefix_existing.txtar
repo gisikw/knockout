@@ -1,5 +1,5 @@
 # Prefix matches existing tickets when present
-exec ko create 'New ticket'
+exec ko add 'New ticket'
 exec ko query
 stdout '"id":"myproj-[0-9a-f]{4}"'
 

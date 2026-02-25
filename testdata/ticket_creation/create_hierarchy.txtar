@@ -1,9 +1,9 @@
 # Create a parent, then a child ticket
-exec ko create 'Parent ticket'
+exec ko add 'Parent ticket'
 cp stdout parent_id.txt
 
 # Create child with --parent flag
-exec ko create --parent ko-parent 'Child ticket'
+exec ko add --parent ko-parent 'Child ticket'
 stdout '^ko-parent\.'
 
 -- .ko/tickets/ko-parent.md --

@@ -127,3 +127,5 @@ loop: ko-860e FAIL
 loop: building ko-7537 — Consolidate init/register/default/projects into ko project {set,ls}
 loop: ko-7537 SUCCEED
 loop: building ko-ff51 — Ensure in_progress tickets sort ahead of open ones
+loop: ko-ff51 SUCCEED
+loop: building ko-1bfc — Consolidate ko add/create: keep 'add', remove 'create' alias

@@ -1,20 +1,20 @@
 # Create with description
-exec ko create -d 'This is the description' 'Test ticket'
+exec ko add -d 'This is the description' 'Test ticket'
 exec ko query
 stdout 'Test ticket'
 
 # Create with type
-exec ko create -t bug 'Bug ticket'
+exec ko add -t bug 'Bug ticket'
 exec ko query
 stdout '"type":"bug"'
 
 # Create with priority
-exec ko create -p 0 'High priority'
+exec ko add -p 0 'High priority'
 exec ko query
 stdout '"priority":0'
 
 # Create with assignee
-exec ko create -a 'John Doe' 'Assigned ticket'
+exec ko add -a 'John Doe' 'Assigned ticket'
 exec ko query
 stdout '"assignee":"John Doe"'
 

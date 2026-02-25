@@ -2,19 +2,19 @@
 # Multi-segment: my-cool-project -> mcp
 mkdir my-cool-project/.ko/tickets
 cd my-cool-project
-exec ko create 'First ticket'
+exec ko add 'First ticket'
 stdout '^mcp-[0-9a-f]{4}$'
 
 # Single segment: exocortex -> exo (first 3 chars)
 cd $WORK
 mkdir exocortex/.ko/tickets
 cd exocortex
-exec ko create 'First ticket'
+exec ko add 'First ticket'
 stdout '^exo-[0-9a-f]{4}$'
 
 # Underscore separated: fort_nix -> fn
 cd $WORK
 mkdir fort_nix/.ko/tickets
 cd fort_nix
-exec ko create 'First ticket'
+exec ko add 'First ticket'
 stdout '^fn-[0-9a-f]{4}$'

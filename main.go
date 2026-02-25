@@ -23,8 +23,6 @@ func run(args []string) int {
 	switch cmd {
 	case "add":
 		return cmdCreate(rest)
-	case "create":
-		return cmdCreate(rest)
 	case "show":
 		return cmdShow(rest)
 	case "status":

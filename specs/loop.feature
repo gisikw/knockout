@@ -38,13 +38,6 @@ Feature: Build Loop
 
   # Scope containment
 
-  Scenario: Ticket creation is blocked during loop
-    Given a loop is running
-    When a spawned agent runs "ko create 'New task'"
-    Then the command should fail
-    And stderr should contain "disabled"
-    And stderr should contain "runaway expansion"
-
   Scenario: Ticket add is blocked during loop
     Given a loop is running
     When a spawned agent runs "ko add 'New task #exo'"

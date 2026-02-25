@@ -159,9 +159,9 @@ ko agent loop --max-tickets 5    # stop after 5 tickets
 ko agent loop --max-duration 30m # stop after 30 minutes
 ```
 
-**Scope containment:** During a loop, `ko add` (and the legacy `ko create` alias)
-is disabled via the `KO_NO_CREATE` environment variable. This prevents spawned
-agents from creating new tickets, which would cause runaway expansion.
+**Scope containment:** During a loop, `ko add` is disabled via the `KO_NO_CREATE`
+environment variable. This prevents spawned agents from creating new tickets,
+which would cause runaway expansion.
 
 The loop stops when:
 - The ready queue is empty (`stopped: empty`)
