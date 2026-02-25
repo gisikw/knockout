@@ -1,6 +1,6 @@
 ---
 id: ko-05bd
-status: open
+status: in_progress
 deps: []
 created: 2026-02-25T23:48:18Z
 type: task
