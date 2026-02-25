@@ -66,7 +66,20 @@ func cmdAnswer(args []string) int {
 	// Add notes for each answered question
 	for qID, answer := range answers {
 		q := questionMap[qID]
-		note := fmt.Sprintf("Plan answer (%s): %s → %s", qID, q.Question, answer)
+		// Resolve the selected option for human-readable notes
+		label := answer
+		var description string
+		for _, opt := range q.Options {
+			if opt.Value == answer {
+				label = opt.Label
+				description = opt.Description
+				break
+			}
+		}
+		note := fmt.Sprintf("Question: %s\nAnswer: %s", q.Question, label)
+		if description != "" {
+			note += "\n" + description
+		}
 		AddNote(t, note)
 	}
 

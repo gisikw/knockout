@@ -34,25 +34,25 @@ func TestCmdAnswer(t *testing.T) {
 						Question: "Tabs or spaces?",
 						Options: []QuestionOption{
 							{Label: "Tabs", Value: "tabs"},
-							{Label: "Spaces", Value: "spaces"},
+							{Label: "Spaces, 2-wide", Value: "spaces", Description: "Use 2-space indentation"},
 						},
 					},
 					{
 						ID:       "q2",
 						Question: "Fix manually or with script?",
 						Options: []QuestionOption{
-							{Label: "Manual", Value: "manual"},
+							{Label: "Manual fix", Value: "manual", Description: "I will fix manually"},
 							{Label: "Script", Value: "script"},
 						},
 					},
 				},
 			},
-			answersJSON:        `{"q1":"Spaces, 2-wide"}`,
+			answersJSON:        `{"q1":"spaces"}`,
 			wantErr:            false,
 			wantStatus:         "blocked",
 			wantQuestionsCount: 1,
 			wantNotesContain: []string{
-				"Plan answer (q1): Tabs or spaces? → Spaces, 2-wide",
+				"Question: Tabs or spaces?\nAnswer: Spaces, 2-wide\nUse 2-space indentation",
 			},
 		},
 		{
@@ -72,26 +72,26 @@ func TestCmdAnswer(t *testing.T) {
 						Question: "Tabs or spaces?",
 						Options: []QuestionOption{
 							{Label: "Tabs", Value: "tabs"},
-							{Label: "Spaces", Value: "spaces"},
+							{Label: "Spaces, 2-wide", Value: "spaces", Description: "Use 2-space indentation"},
 						},
 					},
 					{
 						ID:       "q2",
 						Question: "Fix manually or with script?",
 						Options: []QuestionOption{
-							{Label: "Manual", Value: "manual"},
+							{Label: "Manual fix", Value: "manual", Description: "I will fix manually"},
 							{Label: "Script", Value: "script"},
 						},
 					},
 				},
 			},
-			answersJSON:        `{"q1":"Spaces, 2-wide","q2":"I will fix manually"}`,
+			answersJSON:        `{"q1":"spaces","q2":"manual"}`,
 			wantErr:            false,
 			wantStatus:         "open",
 			wantQuestionsCount: 0,
 			wantNotesContain: []string{
-				"Plan answer (q1): Tabs or spaces? → Spaces, 2-wide",
-				"Plan answer (q2): Fix manually or with script? → I will fix manually",
+				"Question: Tabs or spaces?\nAnswer: Spaces, 2-wide\nUse 2-space indentation",
+				"Question: Fix manually or with script?\nAnswer: Manual fix\nI will fix manually",
 			},
 		},
 		{
