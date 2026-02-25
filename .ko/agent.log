@@ -125,3 +125,5 @@ stopped: empty
 loop: building ko-860e — Consolidate block/questions/answer into ko triage
 loop: ko-860e FAIL
 loop: building ko-7537 — Consolidate init/register/default/projects into ko project {set,ls}
+loop: ko-7537 SUCCEED
+loop: building ko-ff51 — Ensure in_progress tickets sort ahead of open ones

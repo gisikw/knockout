@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestIsReady(t *testing.T) {
 	tests := []struct {
@@ -452,5 +455,91 @@ func TestPlanQuestionsRoundTrip(t *testing.T) {
 				t.Errorf("Round trip: Options[%d].Description = %q, want %q", j, opt.Description, origOpt.Description)
 			}
 		}
+	}
+}
+
+func TestSortByPriorityThenModified(t *testing.T) {
+	// Create a base time for consistent testing
+	baseTime := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		tickets  []*Ticket
+		expected []string // expected order of ticket IDs
+	}{
+		{
+			name: "in_progress sorts before open within same priority",
+			tickets: []*Ticket{
+				{ID: "open-1", Status: "open", Priority: 1, ModTime: baseTime},
+				{ID: "in_progress-1", Status: "in_progress", Priority: 1, ModTime: baseTime},
+			},
+			expected: []string{"in_progress-1", "open-1"},
+		},
+		{
+			name: "priority takes precedence over status",
+			tickets: []*Ticket{
+				{ID: "open-p2", Status: "open", Priority: 2, ModTime: baseTime},
+				{ID: "in_progress-p1", Status: "in_progress", Priority: 1, ModTime: baseTime},
+			},
+			expected: []string{"in_progress-p1", "open-p2"},
+		},
+		{
+			name: "modtime breaks ties within same priority and status",
+			tickets: []*Ticket{
+				{ID: "open-older", Status: "open", Priority: 1, ModTime: baseTime.Add(-1 * time.Hour)},
+				{ID: "open-newer", Status: "open", Priority: 1, ModTime: baseTime},
+			},
+			expected: []string{"open-newer", "open-older"},
+		},
+		{
+			name: "full ordering: priority, then status, then modtime",
+			tickets: []*Ticket{
+				{ID: "open-p2-newer", Status: "open", Priority: 2, ModTime: baseTime},
+				{ID: "closed-p1-newest", Status: "closed", Priority: 1, ModTime: baseTime.Add(1 * time.Hour)},
+				{ID: "in_progress-p1-older", Status: "in_progress", Priority: 1, ModTime: baseTime.Add(-1 * time.Hour)},
+				{ID: "open-p1-newest", Status: "open", Priority: 1, ModTime: baseTime.Add(2 * time.Hour)},
+				{ID: "resolved-p1-newer", Status: "resolved", Priority: 1, ModTime: baseTime},
+				{ID: "in_progress-p1-newer", Status: "in_progress", Priority: 1, ModTime: baseTime},
+			},
+			expected: []string{
+				"in_progress-p1-newer",   // p1, in_progress (0), newest of in_progress
+				"in_progress-p1-older",   // p1, in_progress (0), older
+				"open-p1-newest",         // p1, open (1), newest
+				"resolved-p1-newer",      // p1, resolved (2)
+				"closed-p1-newest",       // p1, closed (3)
+				"open-p2-newer",          // p2, open (1)
+			},
+		},
+		{
+			name: "blocked status sorts after open",
+			tickets: []*Ticket{
+				{ID: "blocked-1", Status: "blocked", Priority: 1, ModTime: baseTime},
+				{ID: "open-1", Status: "open", Priority: 1, ModTime: baseTime},
+				{ID: "in_progress-1", Status: "in_progress", Priority: 1, ModTime: baseTime},
+			},
+			expected: []string{"in_progress-1", "open-1", "blocked-1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Make a copy to avoid modifying the test data
+			tickets := make([]*Ticket, len(tt.tickets))
+			copy(tickets, tt.tickets)
+
+			// Sort the tickets
+			SortByPriorityThenModified(tickets)
+
+			// Verify the order
+			if len(tickets) != len(tt.expected) {
+				t.Fatalf("got %d tickets, want %d", len(tickets), len(tt.expected))
+			}
+
+			for i, ticket := range tickets {
+				if ticket.ID != tt.expected[i] {
+					t.Errorf("position %d: got ticket %q, want %q", i, ticket.ID, tt.expected[i])
+				}
+			}
+		})
 	}
 }
