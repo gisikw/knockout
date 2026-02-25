@@ -24,6 +24,30 @@ type ticketJSON struct {
 	PlanQuestions     []PlanQuestion `json:"plan-questions,omitempty"`
 }
 
+// ticketToJSON converts a Ticket to ticketJSON format.
+func ticketToJSON(t *Ticket, ticketsDir string) ticketJSON {
+	modified := ""
+	if !t.ModTime.IsZero() {
+		modified = t.ModTime.UTC().Format(time.RFC3339)
+	}
+	return ticketJSON{
+		ID:               t.ID,
+		Title:            t.Title,
+		Status:           t.Status,
+		Type:             t.Type,
+		Priority:         t.Priority,
+		Deps:             t.Deps,
+		Created:          t.Created,
+		Modified:         modified,
+		Assignee:         t.Assignee,
+		Parent:           t.Parent,
+		Tags:             t.Tags,
+		Description:      t.Body,
+		HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
+		PlanQuestions:    t.PlanQuestions,
+	}
+}
+
 func cmdQuery(args []string) int {
 	ticketsDir, _, err := resolveProjectTicketsDir(args)
 	if err != nil {
@@ -40,26 +64,7 @@ func cmdQuery(args []string) int {
 
 	enc := json.NewEncoder(os.Stdout)
 	for _, t := range tickets {
-		modified := ""
-		if !t.ModTime.IsZero() {
-			modified = t.ModTime.UTC().Format(time.RFC3339)
-		}
-		j := ticketJSON{
-			ID:               t.ID,
-			Title:            t.Title,
-			Status:           t.Status,
-			Type:             t.Type,
-			Priority:         t.Priority,
-			Deps:             t.Deps,
-			Created:          t.Created,
-			Modified:         modified,
-			Assignee:         t.Assignee,
-			Parent:           t.Parent,
-			Tags:             t.Tags,
-			Description:      t.Body,
-			HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
-			PlanQuestions:    t.PlanQuestions,
-		}
+		j := ticketToJSON(t, ticketsDir)
 		enc.Encode(j)
 	}
 	return 0

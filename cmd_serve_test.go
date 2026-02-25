@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestServeHandler(t *testing.T) {
@@ -231,6 +237,302 @@ func TestServeWhitelist(t *testing.T) {
 	for _, cmd := range dangerousCommands {
 		if whitelist[cmd] {
 			t.Errorf("dangerous command %q should not be in whitelist", cmd)
+		}
+	}
+}
+
+func TestTailerBasic(t *testing.T) {
+	// Test the tailer in isolation
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, "state")
+	oldState := os.Getenv("XDG_STATE_HOME")
+	os.Setenv("XDG_STATE_HOME", stateDir)
+	defer os.Setenv("XDG_STATE_HOME", oldState)
+
+	projectDir := filepath.Join(tmpDir, "project")
+	ticketsDir := filepath.Join(projectDir, ".ko", "tickets")
+	eventsFile := filepath.Join(stateDir, "knockout", "events.jsonl")
+	os.MkdirAll(ticketsDir, 0755)
+	os.MkdirAll(filepath.Dir(eventsFile), 0755)
+	os.WriteFile(eventsFile, []byte{}, 0644)
+
+	// Create a test ticket
+	testTicket := filepath.Join(ticketsDir, "test-abc.md")
+	ticketContent := `---
+id: test-abc
+title: Test
+status: open
+type: task
+priority: 1
+created: 2024-01-01T00:00:00Z
+---
+
+Body.
+`
+	os.WriteFile(testTicket, []byte(ticketContent), 0644)
+
+	// Create tailer
+	testTailer := &tailer{
+		subscribers: make(map[*subscriber]bool),
+	}
+	testTailer.start()
+
+	// Subscribe
+	ch := make(chan string, 10)
+	sub := testTailer.subscribe(projectDir, ch)
+	defer testTailer.unsubscribe(sub)
+
+	// Write event
+	time.Sleep(500 * time.Millisecond)
+	event := MutationEvent{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Event:     "test",
+		Project:   projectDir,
+		Ticket:    "t-123",
+	}
+	eventJSON, _ := json.Marshal(event)
+	eventJSON = append(eventJSON, '\n')
+	f, _ := os.OpenFile(eventsFile, os.O_APPEND|os.O_WRONLY, 0644)
+	f.Write(eventJSON)
+	f.Close()
+
+	// Wait for broadcast
+	select {
+	case msg := <-ch:
+		if msg == "" {
+			t.Error("received empty message")
+		}
+		t.Logf("Received broadcast (%d bytes): %q", len(msg), msg)
+		// Check format
+		if !strings.Contains(msg, "id:") {
+			t.Error("broadcast missing id field")
+		}
+	case <-time.After(3 * time.Second):
+		t.Error("timeout waiting for broadcast")
+	}
+}
+
+// readSSEEvent reads lines from an SSE stream until a blank line (end of event).
+// Returns all non-blank lines. Returns error on timeout.
+func readSSEEvent(reader *bufio.Reader, timeout time.Duration) ([]string, error) {
+	type result struct {
+		lines []string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		var lines []string
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				ch <- result{lines, err}
+				return
+			}
+			if line == "\n" {
+				ch <- result{lines, nil}
+				return
+			}
+			lines = append(lines, strings.TrimRight(line, "\n"))
+		}
+	}()
+	select {
+	case r := <-ch:
+		return r.lines, r.err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("timeout after %v", timeout)
+	}
+}
+
+func sseHasLine(lines []string, prefix string) bool {
+	for _, l := range lines {
+		if strings.HasPrefix(l, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func setupSSETest(t *testing.T) (projectDir, eventsFile string, testTailer *tailer) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	stateDir := filepath.Join(tmpDir, "state")
+	oldState := os.Getenv("XDG_STATE_HOME")
+	os.Setenv("XDG_STATE_HOME", stateDir)
+	t.Cleanup(func() { os.Setenv("XDG_STATE_HOME", oldState) })
+
+	projectDir = filepath.Join(tmpDir, "testproject")
+	ticketsDir := filepath.Join(projectDir, ".ko", "tickets")
+	eventsFile = filepath.Join(stateDir, "knockout", "events.jsonl")
+	os.MkdirAll(ticketsDir, 0755)
+	os.MkdirAll(filepath.Dir(eventsFile), 0755)
+	os.WriteFile(eventsFile, []byte{}, 0644)
+	os.WriteFile(filepath.Join(ticketsDir, "test-1234.md"), []byte(`---
+id: test-1234
+status: open
+type: task
+priority: 1
+created: 2024-01-01T00:00:00Z
+---
+# Test Ticket
+
+Test ticket body.
+`), 0644)
+
+	oldArgs := os.Args
+	t.Cleanup(func() { os.Args = oldArgs })
+	os.Args = []string{"ko"}
+
+	testTailer = &tailer{subscribers: make(map[*subscriber]bool)}
+	testTailer.start()
+	time.Sleep(500 * time.Millisecond)
+	return
+}
+
+func writeEvent(t *testing.T, eventsFile, projectDir string) {
+	t.Helper()
+	event := MutationEvent{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Event:     "status",
+		Project:   projectDir,
+		Ticket:    "test-1234",
+	}
+	eventJSON, _ := json.Marshal(event)
+	eventJSON = append(eventJSON, '\n')
+	f, _ := os.OpenFile(eventsFile, os.O_APPEND|os.O_WRONLY, 0644)
+	f.Write(eventJSON)
+	f.Close()
+}
+
+func TestSubscribeHandler(t *testing.T) {
+	projectDir, eventsFile, testTailer := setupSSETest(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/subscribe/", func(w http.ResponseWriter, r *http.Request) {
+		handleSubscribeWithTailer(w, r, testTailer)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/subscribe?project=" + projectDir)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("Content-Type = %q, want text/event-stream", ct)
+	}
+
+	reader := bufio.NewReader(resp.Body)
+
+	// Event 1: retry directive
+	retry, err := readSSEEvent(reader, 3*time.Second)
+	if err != nil {
+		t.Fatalf("retry event: %v", err)
+	}
+	if !sseHasLine(retry, "retry:") {
+		t.Errorf("expected retry directive, got: %v", retry)
+	}
+
+	// Event 2: initial snapshot
+	snapshot, err := readSSEEvent(reader, 3*time.Second)
+	if err != nil {
+		t.Fatalf("snapshot event: %v", err)
+	}
+	if !sseHasLine(snapshot, "id: 0") {
+		t.Errorf("snapshot missing id:0, got: %v", snapshot)
+	}
+	if !sseHasLine(snapshot, "data:") {
+		t.Errorf("snapshot missing data, got: %v", snapshot)
+	}
+
+	// Trigger mutation
+	writeEvent(t, eventsFile, projectDir)
+
+	// Event 3: broadcast
+	broadcast, err := readSSEEvent(reader, 5*time.Second)
+	if err != nil {
+		t.Fatalf("broadcast event: %v", err)
+	}
+	hasNonZeroID := false
+	for _, line := range broadcast {
+		if strings.HasPrefix(line, "id:") && !strings.Contains(line, "id: 0") {
+			hasNonZeroID = true
+		}
+	}
+	if !hasNonZeroID {
+		t.Errorf("broadcast missing monotonic ID > 0, got: %v", broadcast)
+	}
+}
+
+func TestSubscribeMultiple(t *testing.T) {
+	projectDir, eventsFile, testTailer := setupSSETest(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/subscribe/", func(w http.ResponseWriter, r *http.Request) {
+		handleSubscribeWithTailer(w, r, testTailer)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	numSubscribers := 3
+	var wg sync.WaitGroup
+	received := make([]bool, numSubscribers)
+	errors := make([]error, numSubscribers)
+
+	for i := 0; i < numSubscribers; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			resp, err := http.Get(server.URL + "/subscribe?project=" + projectDir)
+			if err != nil {
+				errors[idx] = fmt.Errorf("connect: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			reader := bufio.NewReader(resp.Body)
+
+			// Skip retry event
+			if _, err := readSSEEvent(reader, 3*time.Second); err != nil {
+				errors[idx] = fmt.Errorf("retry: %v", err)
+				return
+			}
+			// Skip initial snapshot
+			if _, err := readSSEEvent(reader, 3*time.Second); err != nil {
+				errors[idx] = fmt.Errorf("snapshot: %v", err)
+				return
+			}
+
+			// Wait for broadcast
+			broadcast, err := readSSEEvent(reader, 5*time.Second)
+			if err != nil {
+				errors[idx] = fmt.Errorf("broadcast: %v", err)
+				return
+			}
+			for _, line := range broadcast {
+				if strings.HasPrefix(line, "id:") && !strings.Contains(line, "id: 0") {
+					received[idx] = true
+				}
+			}
+		}(i)
+	}
+
+	// Give subscribers time to connect and consume initial events
+	time.Sleep(1 * time.Second)
+
+	// Emit mutation
+	writeEvent(t, eventsFile, projectDir)
+
+	wg.Wait()
+
+	for i := 0; i < numSubscribers; i++ {
+		if errors[i] != nil {
+			t.Errorf("subscriber %d: %v", i, errors[i])
+		}
+		if !received[i] {
+			t.Errorf("subscriber %d did not receive event", i)
 		}
 	}
 }
