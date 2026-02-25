@@ -1,6 +1,6 @@
 ---
 id: ko-cb41
-status: open
+status: closed
 deps: [ko-9c4a]
 created: 2026-02-25T01:23:51Z
 type: task
