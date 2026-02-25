@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -768,5 +769,181 @@ workflows:
 	task := p.Workflows["task"]
 	if task.OnSuccess != "closed" {
 		t.Errorf("task.OnSuccess = %q, want %q", task.OnSuccess, "closed")
+	}
+}
+
+func TestParseConfigUnified(t *testing.T) {
+	configYAML := `
+project:
+  prefix: myproj
+
+pipeline:
+  model: sonnet
+  max_retries: 1
+  max_depth: 3
+  discretion: high
+  workflows:
+    main:
+      - name: triage
+        type: decision
+        prompt: triage.md
+        routes: [task]
+    task:
+      - name: implement
+        type: action
+        prompt: implement.md
+  on_succeed:
+    - git commit
+`
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	// Project settings
+	if c.Project.Prefix != "myproj" {
+		t.Errorf("Project.Prefix = %q, want %q", c.Project.Prefix, "myproj")
+	}
+
+	// Pipeline settings
+	if c.Pipeline.Model != "sonnet" {
+		t.Errorf("Pipeline.Model = %q, want %q", c.Pipeline.Model, "sonnet")
+	}
+	if c.Pipeline.MaxRetries != 1 {
+		t.Errorf("Pipeline.MaxRetries = %d, want %d", c.Pipeline.MaxRetries, 1)
+	}
+	if c.Pipeline.MaxDepth != 3 {
+		t.Errorf("Pipeline.MaxDepth = %d, want %d", c.Pipeline.MaxDepth, 3)
+	}
+	if c.Pipeline.Discretion != "high" {
+		t.Errorf("Pipeline.Discretion = %q, want %q", c.Pipeline.Discretion, "high")
+	}
+
+	// Workflows
+	if len(c.Pipeline.Workflows) != 2 {
+		t.Fatalf("len(Workflows) = %d, want 2", len(c.Pipeline.Workflows))
+	}
+	if _, ok := c.Pipeline.Workflows["main"]; !ok {
+		t.Error("main workflow missing")
+	}
+	if _, ok := c.Pipeline.Workflows["task"]; !ok {
+		t.Error("task workflow missing")
+	}
+
+	// Hooks
+	if len(c.Pipeline.OnSucceed) != 1 || c.Pipeline.OnSucceed[0] != "git commit" {
+		t.Errorf("OnSucceed = %v, want [git commit]", c.Pipeline.OnSucceed)
+	}
+}
+
+func TestParseConfigWithInlineComment(t *testing.T) {
+	configYAML := `
+project:
+  prefix: ko  # This is the project prefix
+
+pipeline:
+  model: sonnet
+  workflows:
+    main:
+      - name: impl
+        type: action
+        prompt: impl.md
+`
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	// Inline comment should be stripped from prefix
+	if c.Project.Prefix != "ko" {
+		t.Errorf("Project.Prefix = %q, want %q (inline comment should be stripped)", c.Project.Prefix, "ko")
+	}
+}
+
+func TestLoadConfigUnified(t *testing.T) {
+	// Create a temp file with unified config
+	dir := t.TempDir()
+	configPath := dir + "/config.yaml"
+	configYAML := `project:
+  prefix: testproj
+
+pipeline:
+  model: opus
+  workflows:
+    main:
+      - name: impl
+        type: action
+        prompt: impl.md
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	c, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if c.Project.Prefix != "testproj" {
+		t.Errorf("Project.Prefix = %q, want %q", c.Project.Prefix, "testproj")
+	}
+	if c.Pipeline.Model != "opus" {
+		t.Errorf("Pipeline.Model = %q, want %q", c.Pipeline.Model, "opus")
+	}
+}
+
+func TestLoadConfigLegacyPipeline(t *testing.T) {
+	// Create a temp file with legacy pipeline.yml format
+	dir := t.TempDir()
+	configPath := dir + "/pipeline.yml"
+	pipelineYAML := `model: haiku
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	if err := os.WriteFile(configPath, []byte(pipelineYAML), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	c, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	// Legacy format should have empty project.prefix
+	if c.Project.Prefix != "" {
+		t.Errorf("Project.Prefix = %q, want empty for legacy format", c.Project.Prefix)
+	}
+	if c.Pipeline.Model != "haiku" {
+		t.Errorf("Pipeline.Model = %q, want %q", c.Pipeline.Model, "haiku")
+	}
+}
+
+func TestLoadPipelineBackwardsCompat(t *testing.T) {
+	// LoadPipeline should still work for backwards compatibility
+	dir := t.TempDir()
+	configPath := dir + "/pipeline.yml"
+	pipelineYAML := `model: sonnet
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	if err := os.WriteFile(configPath, []byte(pipelineYAML), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	p, err := LoadPipeline(configPath)
+	if err != nil {
+		t.Fatalf("LoadPipeline failed: %v", err)
+	}
+
+	if p.Model != "sonnet" {
+		t.Errorf("Model = %q, want %q", p.Model, "sonnet")
 	}
 }

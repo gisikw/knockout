@@ -27,8 +27,15 @@ func cmdInit(args []string) int {
 
 	ticketsDir := filepath.Join(root, ".ko", "tickets")
 
-	// Check if already initialized
-	if _, err := os.Stat(filepath.Join(root, ".ko", "prefix")); err == nil {
+	// Check if already initialized (check both config.yaml and legacy prefix file)
+	configPath := filepath.Join(root, ".ko", "config.yaml")
+	legacyPrefixPath := filepath.Join(root, ".ko", "prefix")
+	if _, err := os.Stat(configPath); err == nil {
+		existing := ReadPrefix(ticketsDir)
+		fmt.Fprintf(os.Stderr, "ko init: already initialized with prefix %q (in config.yaml)\n", existing)
+		return 1
+	}
+	if _, err := os.Stat(legacyPrefixPath); err == nil {
 		existing := ReadPrefix(ticketsDir)
 		fmt.Fprintf(os.Stderr, "ko init: already initialized with prefix %q\n", existing)
 		return 1
@@ -40,7 +47,8 @@ func cmdInit(args []string) int {
 		return 1
 	}
 
-	if err := WritePrefix(ticketsDir, prefix); err != nil {
+	// Write prefix to config.yaml (new unified format)
+	if err := WriteConfigPrefix(ticketsDir, prefix); err != nil {
 		fmt.Fprintf(os.Stderr, "ko init: %v\n", err)
 		return 1
 	}

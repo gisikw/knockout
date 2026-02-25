@@ -8,6 +8,18 @@ import (
 	"time"
 )
 
+// Config represents a unified .ko/config.yaml file containing both project
+// settings and pipeline configuration.
+type Config struct {
+	Project  ProjectConfig // project-level settings (prefix, etc.)
+	Pipeline Pipeline      // pipeline configuration
+}
+
+// ProjectConfig holds project-level settings from the config.yaml project: section.
+type ProjectConfig struct {
+	Prefix string // ticket ID prefix (e.g., "ko")
+}
+
 // Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
 	Agent        string                // agent adapter name: claude | cursor (default: "claude")
@@ -42,23 +54,77 @@ func (p *Pipeline) Adapter() AgentAdapter {
 	return adapter
 }
 
-// FindPipelineConfig walks up from the tickets directory looking for .ko/pipeline.yml.
-func FindPipelineConfig(ticketsDir string) (string, error) {
+// FindConfig walks up from the tickets directory looking for .ko/config.yaml
+// or .ko/pipeline.yml (legacy). Returns the path to the config file.
+func FindConfig(ticketsDir string) (string, error) {
 	projectRoot := ProjectRoot(ticketsDir)
-	candidate := filepath.Join(projectRoot, ".ko", "pipeline.yml")
-	if _, err := os.Stat(candidate); err == nil {
-		return candidate, nil
+
+	// Try new unified config.yaml first
+	configPath := filepath.Join(projectRoot, ".ko", "config.yaml")
+	if _, err := os.Stat(configPath); err == nil {
+		return configPath, nil
 	}
-	return "", fmt.Errorf("no pipeline config found (expected .ko/pipeline.yml)")
+
+	// Fall back to legacy pipeline.yml
+	pipelinePath := filepath.Join(projectRoot, ".ko", "pipeline.yml")
+	if _, err := os.Stat(pipelinePath); err == nil {
+		return pipelinePath, nil
+	}
+
+	return "", fmt.Errorf("no config found (expected .ko/config.yaml or .ko/pipeline.yml)")
 }
 
-// LoadPipeline reads and parses a pipeline config file.
-func LoadPipeline(path string) (*Pipeline, error) {
+// FindPipelineConfig is deprecated. Use FindConfig instead.
+// Kept for backwards compatibility.
+func FindPipelineConfig(ticketsDir string) (string, error) {
+	return FindConfig(ticketsDir)
+}
+
+// LoadConfig reads and parses a config file (.ko/config.yaml or legacy .ko/pipeline.yml).
+// Returns a Config struct with both project settings and pipeline configuration.
+func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePipeline(string(data))
+
+	content := string(data)
+
+	// Detect format: if we see "pipeline:" or "project:" at top level, it's the new unified format
+	isUnified := false
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "pipeline:" || trimmed == "project:" {
+			isUnified = true
+			break
+		}
+	}
+
+	if isUnified {
+		return ParseConfig(content)
+	}
+
+	// Legacy format: parse as pipeline only
+	pipeline, err := ParsePipeline(content)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		Pipeline: *pipeline,
+		// Project.Prefix will be empty; caller should use ReadPrefix() fallback
+	}, nil
+}
+
+// LoadPipeline is deprecated. Use LoadConfig instead.
+// Kept for backwards compatibility.
+func LoadPipeline(path string) (*Pipeline, error) {
+	config, err := LoadConfig(path)
+	if err != nil {
+		return nil, err
+	}
+	return &config.Pipeline, nil
 }
 
 // ParsePipeline parses pipeline YAML content (v2 format).
@@ -323,6 +389,89 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	}
 
 	return p, nil
+}
+
+// ParseConfig parses unified config.yaml format with project: and pipeline: sections.
+func ParseConfig(content string) (*Config, error) {
+	c := &Config{}
+
+	lines := strings.Split(content, "\n")
+	var section string // "project", "pipeline", or ""
+
+	// Collect pipeline lines to parse separately
+	var pipelineLines []string
+	inPipeline := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comments and blank lines
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			if inPipeline {
+				// For blank/comment lines in pipeline, preserve them but strip 2 spaces if present
+				if len(line) >= 2 && line[0] == ' ' && line[1] == ' ' {
+					pipelineLines = append(pipelineLines, line[2:])
+				} else {
+					pipelineLines = append(pipelineLines, line)
+				}
+			}
+			continue
+		}
+
+		// Detect top-level sections (no indentation)
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			if trimmed == "project:" {
+				section = "project"
+				inPipeline = false
+				continue
+			}
+			if trimmed == "pipeline:" {
+				section = "pipeline"
+				inPipeline = true
+				continue
+			}
+			// Unknown top-level key — might be pipeline content if we're in that section
+			if section == "pipeline" {
+				pipelineLines = append(pipelineLines, line)
+				continue
+			}
+		}
+
+		// Section content
+		switch section {
+		case "project":
+			key, val, ok := parseYAMLLine(trimmed)
+			if !ok {
+				continue
+			}
+			// Strip inline comments from value
+			if idx := strings.Index(val, " #"); idx >= 0 {
+				val = strings.TrimSpace(val[:idx])
+			}
+			switch key {
+			case "prefix":
+				c.Project.Prefix = val
+			}
+		case "pipeline":
+			// Strip the 2-space indentation from pipeline content
+			if len(line) >= 2 && line[0] == ' ' && line[1] == ' ' {
+				pipelineLines = append(pipelineLines, line[2:])
+			} else {
+				pipelineLines = append(pipelineLines, line)
+			}
+		}
+	}
+
+	// Parse the accumulated pipeline content
+	if len(pipelineLines) > 0 {
+		p, err := ParsePipeline(strings.Join(pipelineLines, "\n"))
+		if err != nil {
+			return nil, err
+		}
+		c.Pipeline = *p
+	}
+
+	return c, nil
 }
 
 // applyNodeProperty applies a parsed key-value pair to a node.

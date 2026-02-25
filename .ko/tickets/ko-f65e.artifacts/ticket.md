@@ -1,6 +1,6 @@
 ---
 id: ko-f65e
-status: closed
+status: open
 deps: []
 created: 2026-02-24T07:27:01Z
 type: task
@@ -20,7 +20,3 @@ This would give a single place for:
 Prereq for agent harness extraction (ko-1930) — need to know the config
 surface before deciding where harness overrides live.
 
-
-## Notes
-
-**2026-02-25 03:00:04 UTC:** ko: SUCCEED

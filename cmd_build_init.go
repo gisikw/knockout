@@ -21,11 +21,16 @@ func cmdAgentInit(args []string) int {
 	}
 
 	koDir := filepath.Join(projectRoot, ".ko")
-	configPath := filepath.Join(koDir, "pipeline.yml")
+	configPath := filepath.Join(koDir, "config.yaml")
 
-	// Don't overwrite existing config
+	// Don't overwrite existing config (check both new and legacy formats)
 	if _, err := os.Stat(configPath); err == nil {
 		fmt.Fprintf(os.Stderr, "ko agent init: %s already exists\n", configPath)
+		return 1
+	}
+	legacyPath := filepath.Join(koDir, "pipeline.yml")
+	if _, err := os.Stat(legacyPath); err == nil {
+		fmt.Fprintf(os.Stderr, "ko agent init: %s already exists (legacy format)\n", legacyPath)
 		return 1
 	}
 
@@ -46,8 +51,8 @@ func cmdAgentInit(args []string) int {
 	// Gitignore agent runtime files in .ko/
 	os.WriteFile(filepath.Join(koDir, ".gitignore"), []byte("agent.lock\nagent.pid\nagent.log\nagent.heartbeat\n"), 0644)
 
-	// Write pipeline config
-	if err := os.WriteFile(configPath, []byte(defaultPipelineYML), 0644); err != nil {
+	// Write unified config
+	if err := os.WriteFile(configPath, []byte(defaultConfigYML), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent init: %v\n", err)
 		return 1
 	}
@@ -66,55 +71,64 @@ func cmdAgentInit(args []string) int {
 		}
 	}
 
-	fmt.Println("initialized .ko/pipeline.yml")
+	fmt.Println("initialized .ko/config.yaml")
 	fmt.Println("  .ko/prompts/triage.md")
 	fmt.Println("  .ko/prompts/implement.md")
 	fmt.Println("  .ko/prompts/review.md")
 	return 0
 }
 
-const defaultPipelineYML = `# Build pipeline -- triage, implement, verify, review
-#
-# Triage is a decision node: it evaluates the ticket and either continues
-# to implementation or signals fail/blocked/decompose via a JSON disposition.
-#
-# Implement and verify are action nodes: they just do work, no output parsing.
-#
-# Review is a decision node: it evaluates the implementation and either
-# continues (succeed) or signals fail.
-model: claude-sonnet-4-5-20250929
-max_retries: 2
-max_depth: 2
-discretion: medium
+const defaultConfigYML = `# Knockout unified configuration
+# This file contains both project settings and pipeline configuration.
 
-workflows:
-  main:
-    - name: triage
-      type: decision
-      prompt: triage.md
-    - name: implement
-      type: action
-      prompt: implement.md
-    - name: verify
-      type: action
-      run: just test
-    - name: review
-      type: decision
-      prompt: review.md
+# Project-level settings
+project:
+  prefix: ko  # Update this to your project's ticket prefix
 
-# Commands to run after all nodes succeed (before ticket is closed).
-# $TICKET_ID, $CHANGED_FILES, and $KO_TICKET_WORKSPACE are available.
-# on_succeed:
-#   - git add -A
-#   - git commit -m "ko: implement ${TICKET_ID}"
+# Pipeline configuration
+pipeline:
+  # Build pipeline -- triage, implement, verify, review
+  #
+  # Triage is a decision node: it evaluates the ticket and either continues
+  # to implementation or signals fail/blocked/decompose via a JSON disposition.
+  #
+  # Implement and verify are action nodes: they just do work, no output parsing.
+  #
+  # Review is a decision node: it evaluates the implementation and either
+  # continues (succeed) or signals fail.
+  model: claude-sonnet-4-5-20250929
+  max_retries: 2
+  max_depth: 2
+  discretion: medium
 
-# Commands to run on build failure (cleanup worktree, reset state, etc.).
-# on_fail:
-#   - git checkout -- .
+  workflows:
+    main:
+      - name: triage
+        type: decision
+        prompt: triage.md
+      - name: implement
+        type: action
+        prompt: implement.md
+      - name: verify
+        type: action
+        run: just test
+      - name: review
+        type: decision
+        prompt: review.md
 
-# Commands to run after ticket is closed (safe for deploys).
-# on_close:
-#   - git push
+  # Commands to run after all nodes succeed (before ticket is closed).
+  # $TICKET_ID, $CHANGED_FILES, and $KO_TICKET_WORKSPACE are available.
+  # on_succeed:
+  #   - git add -A
+  #   - git commit -m "ko: implement ${TICKET_ID}"
+
+  # Commands to run on build failure (cleanup worktree, reset state, etc.).
+  # on_fail:
+  #   - git checkout -- .
+
+  # Commands to run after ticket is closed (safe for deploys).
+  # on_close:
+  #   - git push
 `
 
 const defaultTriagePrompt = `You are triaging a ticket to determine if it's ready for automated implementation.

@@ -97,8 +97,9 @@ of its priority tier without changing its content.
 ### Build Pipeline
 
 `ko agent build <ticket-id>` runs a workflow-based pipeline against a ticket. The
-pipeline config lives in `.ko/pipeline.yml` and declares named **workflows**
-containing typed **nodes**. Every ticket enters the `main` workflow.
+pipeline config lives in `.ko/config.yaml` (or legacy `.ko/pipeline.yml`) and
+declares named **workflows** containing typed **nodes**. Every ticket enters the
+`main` workflow.
 
 There are two node types:
 
@@ -207,46 +208,56 @@ Registry lives at `~/.config/knockout/projects.yml`.
 
 ## Pipeline Configuration
 
-Pipeline config lives in `.ko/pipeline.yml`, prompts in `.ko/prompts/`.
+Pipeline config lives in `.ko/config.yaml`, prompts in `.ko/prompts/`.
 Run `ko agent init` to scaffold a starter pipeline, or see `examples/` for
 templates.
 
+The config file contains both project settings and pipeline configuration:
+
 ```yaml
-# .ko/pipeline.yml
-model: claude-sonnet-4-5-20250929
-max_retries: 2
-max_depth: 2
-discretion: high
+# .ko/config.yaml
+project:
+  prefix: ko  # Ticket ID prefix
 
-workflows:
-  main:
-    - name: triage
-      type: decision
-      prompt: triage.md
-      routes:
-        - hotfix
-    - name: implement
-      type: action
-      prompt: implement.md
-    - name: verify
-      type: action
-      run: just test
-    - name: review
-      type: decision
-      prompt: review.md
+pipeline:
+  model: claude-sonnet-4-5-20250929
+  max_retries: 2
+  max_depth: 2
+  discretion: high
 
-  hotfix:
-    - name: implement
-      type: action
-      prompt: implement.md
+  workflows:
+    main:
+      - name: triage
+        type: decision
+        prompt: triage.md
+        routes:
+          - hotfix
+      - name: implement
+        type: action
+        prompt: implement.md
+      - name: verify
+        type: action
+        run: just test
+      - name: review
+        type: decision
+        prompt: review.md
 
-on_succeed:
-  - git add -A
-  - git commit -m "ko: implement ${TICKET_ID}"
+    hotfix:
+      - name: implement
+        type: action
+        prompt: implement.md
 
-on_close:
-  - git push
+  on_succeed:
+    - git add -A
+    - git commit -m "ko: implement ${TICKET_ID}"
+
+  on_close:
+    - git push
 ```
+
+**Backwards compatibility:** Legacy `.ko/pipeline.yml` (without `project:` section)
+is still supported. The system checks for `config.yaml` first, then falls back to
+`pipeline.yml` if not found.
 
 ### Pipeline options
 
@@ -327,10 +338,11 @@ args:
   - "${model}"
 ```
 
-Use the custom harness in `pipeline.yml`:
+Use the custom harness in `config.yaml`:
 
 ```yaml
-agent: mycli
+pipeline:
+  agent: mycli
 ```
 
 ### Plan Questions

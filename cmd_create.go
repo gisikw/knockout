@@ -180,10 +180,21 @@ func cmdCreate(args []string) int {
 	return 0
 }
 
-// ReadPrefix reads the persisted prefix from .ko/prefix.
-// Returns "" if the file doesn't exist.
+// ReadPrefix reads the persisted prefix from .ko/config.yaml (project.prefix)
+// or falls back to .ko/prefix file for backwards compatibility.
+// Returns "" if neither exists.
 func ReadPrefix(ticketsDir string) string {
 	root := ProjectRoot(ticketsDir)
+
+	// Try reading from unified config.yaml first
+	configPath := filepath.Join(root, ".ko", "config.yaml")
+	if _, err := os.Stat(configPath); err == nil {
+		if config, err := LoadConfig(configPath); err == nil && config.Project.Prefix != "" {
+			return config.Project.Prefix
+		}
+	}
+
+	// Fall back to legacy .ko/prefix file
 	data, err := os.ReadFile(filepath.Join(root, ".ko", "prefix"))
 	if err != nil {
 		return ""
@@ -191,7 +202,9 @@ func ReadPrefix(ticketsDir string) string {
 	return strings.TrimSpace(string(data))
 }
 
-// WritePrefix persists the prefix to .ko/prefix.
+// WritePrefix persists the prefix to .ko/prefix (legacy format).
+// Deprecated: New code should write to .ko/config.yaml instead.
+// Kept for backwards compatibility with older pipelines.
 func WritePrefix(ticketsDir, prefix string) error {
 	root := ProjectRoot(ticketsDir)
 	koDir := filepath.Join(root, ".ko")
@@ -199,6 +212,69 @@ func WritePrefix(ticketsDir, prefix string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(koDir, "prefix"), []byte(prefix+"\n"), 0644)
+}
+
+// WriteConfigPrefix writes the prefix to .ko/config.yaml.
+// If config.yaml already exists, it updates the project.prefix field.
+// If it doesn't exist, it creates a minimal config with just the project section.
+func WriteConfigPrefix(ticketsDir, prefix string) error {
+	root := ProjectRoot(ticketsDir)
+	koDir := filepath.Join(root, ".ko")
+	if err := os.MkdirAll(koDir, 0755); err != nil {
+		return err
+	}
+
+	configPath := filepath.Join(koDir, "config.yaml")
+
+	// Check if config.yaml already exists
+	existingData, err := os.ReadFile(configPath)
+	if err == nil {
+		// Config exists - update the project.prefix field
+		content := string(existingData)
+		lines := strings.Split(content, "\n")
+		var result []string
+		inProject := false
+		foundPrefix := false
+
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+
+			// Detect project: section
+			if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+				if trimmed == "project:" {
+					inProject = true
+					result = append(result, line)
+					continue
+				} else if strings.HasSuffix(trimmed, ":") {
+					inProject = false
+				}
+			}
+
+			// If in project section and this is the prefix line, replace it
+			if inProject {
+				if key, _, ok := parseYAMLLine(trimmed); ok && key == "prefix" {
+					result = append(result, "  prefix: "+prefix)
+					foundPrefix = true
+					continue
+				}
+			}
+
+			result = append(result, line)
+		}
+
+		// If we didn't find a prefix line but are in project section, we need to add it
+		// For now, just rewrite if prefix wasn't found
+		if !foundPrefix {
+			// Append to end of project section or create project section
+			return os.WriteFile(configPath, []byte(strings.Join(result, "\n")), 0644)
+		}
+
+		return os.WriteFile(configPath, []byte(strings.Join(result, "\n")), 0644)
+	}
+
+	// Config doesn't exist - create minimal config with just project.prefix
+	minimalConfig := fmt.Sprintf("project:\n  prefix: %s\n", prefix)
+	return os.WriteFile(configPath, []byte(minimalConfig), 0644)
 }
 
 // detectPrefix looks at existing ticket files to infer the project prefix.

@@ -1,10 +1,10 @@
 # build-init scaffolds pipeline config and prompt files
 exec ko agent init
-stdout 'initialized .ko/pipeline.yml'
+stdout 'initialized .ko/config.yaml'
 stdout 'triage.md'
 stdout 'implement.md'
 stdout 'review.md'
-exists .ko/pipeline.yml
+exists .ko/config.yaml
 exists .ko/prompts/triage.md
 exists .ko/prompts/implement.md
 exists .ko/prompts/review.md

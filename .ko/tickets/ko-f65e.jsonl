@@ -13,3 +13,19 @@
 {"attempt":3,"event":"node_fail","node":"actionable","reason":"unknown disposition type 'needs_input'","ticket":"ko-f65e","ts":"2026-02-25T02:36:15Z","workflow":"task"}
 {"event":"node_complete","node":"actionable","result":"error","ticket":"ko-f65e","ts":"2026-02-25T02:36:15Z","workflow":"task"}
 {"event":"build_complete","outcome":"fail","ticket":"ko-f65e","ts":"2026-02-25T02:36:15Z"}
+{"event":"build_start","ticket":"ko-f65e","ts":"2026-02-25T02:44:37Z"}
+{"event":"workflow_start","ticket":"ko-f65e","ts":"2026-02-25T02:44:37Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-f65e","ts":"2026-02-25T02:44:37Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-f65e","ts":"2026-02-25T02:44:45Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-f65e","ts":"2026-02-25T02:44:45Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-f65e","ts":"2026-02-25T02:44:45Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-f65e","ts":"2026-02-25T02:46:38Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-f65e","ts":"2026-02-25T02:46:38Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"continue","ticket":"ko-f65e","ts":"2026-02-25T02:46:49Z","workflow":"task"}
+{"event":"node_start","node":"implement","ticket":"ko-f65e","ts":"2026-02-25T02:46:49Z","workflow":"task"}
+{"event":"node_complete","node":"implement","result":"done","ticket":"ko-f65e","ts":"2026-02-25T02:55:45Z","workflow":"task"}
+{"event":"node_start","node":"verify","ticket":"ko-f65e","ts":"2026-02-25T02:55:45Z","workflow":"task"}
+{"event":"node_complete","node":"verify","result":"done","ticket":"ko-f65e","ts":"2026-02-25T02:55:48Z","workflow":"task"}
+{"event":"node_start","node":"review","ticket":"ko-f65e","ts":"2026-02-25T02:55:48Z","workflow":"task"}
+{"event":"node_complete","node":"review","result":"continue","ticket":"ko-f65e","ts":"2026-02-25T03:00:04Z","workflow":"task"}
+{"event":"build_complete","outcome":"succeed","ticket":"ko-f65e","ts":"2026-02-25T03:00:04Z"}
