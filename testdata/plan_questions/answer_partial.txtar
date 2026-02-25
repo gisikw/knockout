@@ -1,5 +1,5 @@
 # Answer partial plan questions - some remain
-exec ko answer test-0001 '{"q1":"Spaces, 2-wide"}'
+exec ko triage test-0001 --answers '{"q1":"spaces"}'
 stdout 'Answered 1 question\(s\) for test-0001 — 1 question\(s\) remaining'
 
 # Verify status is still blocked
@@ -12,7 +12,8 @@ stdout '  - id: q2'
 ! stdout '  - id: q1'
 
 # Verify note was added
-stdout 'Plan answer \(q1\): Tabs or spaces\? → Spaces, 2-wide'
+stdout 'Question: Tabs or spaces\?'
+stdout 'Answer: Spaces'
 
 -- .ko/tickets/test-0001.md --
 ---

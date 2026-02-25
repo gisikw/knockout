@@ -35,8 +35,8 @@ func run(args []string) int {
 		return cmdOpen(rest)
 	case "serve":
 		return cmdServe(rest)
-	case "block":
-		return cmdBlock(rest)
+	case "triage":
+		return cmdTriage(rest)
 	case "ls":
 		return cmdLs(rest)
 	case "ready":
@@ -49,12 +49,8 @@ func run(args []string) int {
 		return cmdUndep(rest)
 	case "note":
 		return cmdAddNote(rest)
-	case "answer":
-		return cmdAnswer(rest)
 	case "bump":
 		return cmdBump(rest)
-	case "questions":
-		return cmdQuestions(rest)
 	case "query":
 		return cmdQuery(rest)
 	case "agent":
@@ -129,10 +125,12 @@ Commands:
   start <id>         Set status to in_progress
   close <id>         Set status to closed
   open <id>          Set status to open
-  block <id>         Set status to blocked
   serve [-p port]    Start HTTP daemon (default :9876)
 
-  questions <id>     Show plan questions as JSON
+  triage <id>                     Show block reason and open questions
+  triage <id> --block [reason]    Block ticket with optional reason
+  triage <id> --questions '<json>' Add questions, implicitly blocks
+  triage <id> --answers '<json>'   Answer questions, auto-unblock when done
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency

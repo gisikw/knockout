@@ -1,15 +1,25 @@
-I'll classify this ticket based on its content.
+Looking at this ticket, I can identify the key elements:
 
-**Analysis:**
+**What the ticket asks for:**
+- Consolidate three existing commands (`ko block --questions`, `ko questions`, `ko answer`) into a single `ko triage` command
+- Define the new command's syntax and behavior
+- Design status transitions (questions → blocked, answers → open when all answered, block → blocked)
+- Remove the old commands entirely (breaking change, no backward compatibility)
 
-This ticket describes a **feature consolidation**: merging three existing commands (`ko block`, `ko questions`, `ko answer`) into a single `ko triage` command with different flags. The ticket:
+**Expected output:**
+- Code changes implementing the new `ko triage` command
+- Removal of deprecated commands
+- Updated command behavior and state transitions
 
-1. Specifies *what to build*: a new consolidated command with clear syntax for showing triage state, setting questions, answering questions, and blocking with reasons
-2. Includes a revised design with explicit status transitions and implicit blocking behavior
-3. Describes the expected command interface and behavior
-4. Has an open architectural question (whether bare `ko block` requires a reason), but this is a detail to resolve during implementation, not a blocker
+**Classification:**
+This is clearly a **task**. The ticket:
+- Describes exactly what to build (a consolidated `ko triage` command)
+- Specifies the behavior and syntax
+- Defines status transitions explicitly
+- Identifies what needs to be removed
+- Already has design decisions documented (format choices, breaking change approach)
 
-This is clearly a **task** — it's asking for code changes to consolidate existing functionality into a new command interface.
+This is not research (no open investigation questions) and not a bug (no unexpected behavior being reported). It's a straightforward feature consolidation with clear requirements.
 
 ```json
 {"disposition": "route", "workflow": "task"}

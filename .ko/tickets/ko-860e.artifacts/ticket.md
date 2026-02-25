@@ -34,3 +34,15 @@ Status transitions are implicit:
 - --block → status=blocked (explicit block with optional reason)
 
 Replaces: ko block, ko block --questions, ko questions, ko answer
+
+**2026-02-25 21:41:32 UTC:** Question: Should this be a breaking change by removing the old commands entirely, or maintain backward compatibility?
+Answer: Remove entirely (Recommended)
+Delete old commands as specified in ticket, breaking existing scripts
+
+**2026-02-25 21:41:32 UTC:** Question: What format should bare `ko triage <id>` use to display block reason and open questions?
+Answer: Human-readable with JSON (Recommended)
+Show block reason as text, followed by JSON array of questions for machine-readability
+
+**2026-02-25 21:41:32 UTC:** Question: What note format should `ko triage <id> --block <reason>` use when saving the block reason?
+Answer: Parseable format (Recommended)
+Use 'ko: BLOCKED — {reason}' format so ExtractBlockReason can extract it consistently

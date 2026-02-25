@@ -1,13 +1,13 @@
 # Invalid JSON should fail
-! exec ko answer test-0001 'invalid json'
+! exec ko triage test-0001 --answers 'invalid json'
 stderr 'invalid JSON'
 
 # Nonexistent question ID should fail
-! exec ko answer test-0001 '{"q99":"answer"}'
+! exec ko triage test-0001 --answers '{"q99":"answer"}'
 stderr 'question ID q99 not found'
 
 # Ticket with no plan-questions should fail
-! exec ko answer test-0002 '{"q1":"answer"}'
+! exec ko triage test-0002 --answers '{"q1":"answer"}'
 stderr 'has no plan-questions'
 
 -- .ko/tickets/test-0001.md --

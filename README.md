@@ -391,19 +391,25 @@ When a build plan has open questions requiring human input, the pipeline can
 block the ticket with structured questions:
 
 ```bash
-ko block ko-f65e --questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Spaces","value":"spaces"},{"label":"Tabs","value":"tabs"}]}]'
+ko triage ko-f65e --questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Spaces","value":"spaces"},{"label":"Tabs","value":"tabs"}]}]'
 ```
 
-Read questions for a blocked ticket:
+Read block reason and questions for a ticket:
 
 ```bash
-ko questions ko-f65e    # outputs JSON array
+ko triage ko-f65e    # shows block reason and outputs JSON array of questions
 ```
 
 Answer questions (partial or full):
 
 ```bash
-ko answer ko-f65e '{"q1":"spaces"}'
+ko triage ko-f65e --answers '{"q1":"spaces"}'
+```
+
+Block a ticket with an optional reason:
+
+```bash
+ko triage ko-f65e --block "waiting for approval"
 ```
 
 Each answer is recorded as a note. When all questions are answered, the ticket

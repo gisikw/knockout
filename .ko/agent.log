@@ -135,3 +135,5 @@ loop: ko-b99d SUCCEED
 loop: building ko-dbe4 — Remove ko add-note alias, keep ko note
 loop: ko-dbe4 SUCCEED
 loop: building ko-70b8 — Rename ko reopen to ko open
+loop: ko-70b8 SUCCEED
+loop: building ko-860e — Consolidate block/questions/answer into ko triage

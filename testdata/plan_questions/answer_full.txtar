@@ -1,5 +1,5 @@
 # Answer all plan questions - unblocks ticket
-exec ko answer test-0001 '{"q1":"Spaces, 2-wide","q2":"I will fix manually"}'
+exec ko triage test-0001 --answers '{"q1":"spaces","q2":"manual"}'
 stdout 'Answered 2 question\(s\) for test-0001 — all questions resolved, status set to open'
 
 # Verify status is now open
@@ -10,8 +10,10 @@ stdout 'status: open'
 ! stdout 'plan-questions:'
 
 # Verify both notes were added
-stdout 'Plan answer \(q1\): Tabs or spaces\? → Spaces, 2-wide'
-stdout 'Plan answer \(q2\): Fix manually or with script\? → I will fix manually'
+stdout 'Question: Tabs or spaces\?'
+stdout 'Answer: Spaces'
+stdout 'Question: Fix manually or with script\?'
+stdout 'Answer: Manual'
 
 -- .ko/tickets/test-0001.md --
 ---
