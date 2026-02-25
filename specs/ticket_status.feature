@@ -156,3 +156,30 @@ Feature: Ticket Status Management
     When I run "ko answer test-0001 '{\"q1\":\"answer\"}'"
     Then the command should fail
     And the error should contain "has no plan-questions"
+
+  Scenario: Show plan questions as JSON
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Tabs","value":"tabs"},{"label":"Spaces","value":"spaces"}]},{"id":"q2","question":"Fix manually or with script?","options":[{"label":"Manual","value":"manual"},{"label":"Script","value":"script"}]}]'
+    When I run "ko questions test-0001"
+    Then the command should succeed
+    And the output should be valid JSON
+    And the JSON should contain 2 questions
+    And the JSON question 0 should have id "q1"
+    And the JSON question 1 should have id "q2"
+
+  Scenario: Show plan questions for ticket with no questions
+    Given ticket "test-0001" has status "open"
+    When I run "ko questions test-0001"
+    Then the command should succeed
+    And the output should be "[]"
+
+  Scenario: Show plan questions with partial ID
+    Given ticket "test-0001" is blocked with plan-questions '[{"id":"q1","question":"Test?","options":[{"label":"Yes","value":"yes"}]}]'
+    When I run "ko questions 0001"
+    Then the command should succeed
+    And the output should be valid JSON
+    And the JSON should contain 1 question
+
+  Scenario: Show plan questions for nonexistent ticket
+    When I run "ko questions nonexistent"
+    Then the command should fail
+    And the error should contain "not found"

@@ -1,6 +1,6 @@
 ---
 id: ko-3d1f
-status: open
+status: closed
 deps: [ko-9c4a]
 created: 2026-02-24T23:20:18Z
 type: task
@@ -36,3 +36,7 @@ This is the read complement to `ko block --questions` (ko-9c4a) and
 UI for blocked tickets.
 
 Depends on ko-9c4a (plan-questions schema must exist first).
+
+## Notes
+
+**2026-02-25 00:03:25 UTC:** ko: SUCCEED

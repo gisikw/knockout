@@ -59,6 +59,8 @@ func run(args []string) int {
 		return cmdAnswer(rest)
 	case "bump":
 		return cmdBump(rest)
+	case "questions":
+		return cmdQuestions(rest)
 	case "query":
 		return cmdQuery(rest)
 	case "agent":
@@ -142,6 +144,8 @@ Commands:
   close <id>         Set status to closed
   reopen <id>        Set status to open
   block <id>         Set status to blocked
+
+  questions <id>     Show plan questions as JSON
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency
