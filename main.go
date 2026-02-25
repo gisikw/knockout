@@ -35,6 +35,8 @@ func run(args []string) int {
 		return cmdClose(rest)
 	case "reopen":
 		return cmdReopen(rest)
+	case "serve":
+		return cmdServe(rest)
 	case "block":
 		return cmdBlock(rest)
 	case "ls":
@@ -144,6 +146,7 @@ Commands:
   close <id>         Set status to closed
   reopen <id>        Set status to open
   block <id>         Set status to blocked
+  serve [-p port]    Start HTTP daemon (default :9876)
 
   questions <id>     Show plan questions as JSON
 

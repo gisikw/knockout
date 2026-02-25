@@ -1,0 +1,27 @@
+# Test ko serve command exists and accepts flags
+# Note: Full server testing with HTTP requests is done in Go unit tests (cmd_serve_test.go)
+# This integration test verifies the command is wired up correctly
+
+# Verify help shows serve command
+exec ko help
+stdout 'serve \[-p port\]'
+
+# Test invalid port flag format (missing value)
+! exec ko serve -p
+stderr 'flag needs an argument'
+
+# Test custom port flag parsing works
+# We can't actually start a long-running server in testscript, so this test
+# just validates the command exists and flag parsing works
+# The server functionality itself is tested in cmd_serve_test.go unit tests
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection

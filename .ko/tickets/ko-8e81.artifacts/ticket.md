@@ -1,6 +1,6 @@
 ---
 id: ko-8e81
-status: closed
+status: open
 deps: []
 created: 2026-02-25T05:49:39Z
 type: task
@@ -32,7 +32,3 @@ Implementation:
 Do NOT add SSE, WebSocket, or any subscription mechanism — that's a separate ticket.
 Do NOT add CORS, TLS, or reverse proxy concerns.
 
-
-## Notes
-
-**2026-02-25 06:24:28 UTC:** ko: SUCCEED
