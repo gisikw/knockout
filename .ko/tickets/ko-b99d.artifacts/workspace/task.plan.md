@@ -1,0 +1,1 @@
+Perfect! I've written the plan to the artifact directory. The plan identifies all locations where `ko closed` and `ko resolved` commands exist and provides a clear sequence of deletion tasks. This is a straightforward removal of duplicate functionality since the underlying capability is fully preserved through `ko ls --status=closed` and `ko ls --status=resolved`.

@@ -1,9 +1,9 @@
 # Closed shows recently closed tickets
-exec ko closed
+exec ko ls --status=closed
 stdout 'done-0001'
 
 # Closed respects limit
-exec ko closed --limit=1
+exec ko ls --status=closed --limit=1
 stdout -count=1 'done-'
 
 -- .ko/tickets/done-0001.md --

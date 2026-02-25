@@ -43,18 +43,18 @@ exec ko ls --status blocked
 exec ko blocked --limit 1
 stdout 'json-0002'
 
-# Test ko closed --json output (JSON array format)
+# Test ko ls --status=closed --json output (JSON array format)
 exec ko close json-0003
-exec ko closed --json
+exec ko ls --status=closed --json
 stdout '^\['
 stdout '"id": "json-0003"'
 stdout '"status": "closed"'
 stdout '"hasUnresolvedDep": false'
 stdout '^\]'
 
-# Test ko closed --limit flag (already existed, verify it still works)
+# Test ko ls --status=closed --limit flag (already existed, verify it still works)
 exec ko close json-0001
-exec ko closed --limit 1
+exec ko ls --status=closed --limit 1
 stdout 'json-0001'
 ! stdout 'json-0003'
 

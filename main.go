@@ -43,10 +43,6 @@ func run(args []string) int {
 		return cmdReady(rest)
 	case "blocked":
 		return cmdBlocked(rest)
-	case "resolved":
-		return cmdResolved(rest)
-	case "closed":
-		return cmdClosed(rest)
 	case "dep":
 		return cmdDep(rest)
 	case "undep":
@@ -130,8 +126,6 @@ Commands:
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
   blocked [id]       Show blocked tickets or reason for specific ticket
-  resolved           Show resolved tickets (awaiting human review)
-  closed             Show closed tickets
 
   status <id> <s>    Set ticket status
   start <id>         Set status to in_progress

@@ -324,12 +324,10 @@ func cmdServe(args []string) int {
 
 	// Define whitelist of allowed subcommands
 	whitelist := map[string]bool{
-		"ls":        true,
-		"ready":     true,
-		"blocked":   true,
-		"resolved":  true,
-		"closed":    true,
-		"query":     true,
+		"ls":      true,
+		"ready":   true,
+		"blocked": true,
+		"query":   true,
 		"show":      true,
 		"questions": true,
 		"answer":    true,

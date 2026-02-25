@@ -25,12 +25,10 @@ func TestServeHandler(t *testing.T) {
 
 	// Define whitelist (same as in cmdServe)
 	whitelist := map[string]bool{
-		"ls":        true,
-		"ready":     true,
-		"blocked":   true,
-		"resolved":  true,
-		"closed":    true,
-		"query":     true,
+		"ls":      true,
+		"ready":   true,
+		"blocked": true,
+		"query":   true,
 		"show":      true,
 		"questions": true,
 		"answer":    true,
@@ -202,20 +200,18 @@ func TestServeHandler(t *testing.T) {
 func TestServeWhitelist(t *testing.T) {
 	// Verify all expected commands are in whitelist
 	expectedCommands := []string{
-		"ls", "ready", "blocked", "resolved", "closed",
+		"ls", "ready", "blocked",
 		"query", "show", "questions", "answer", "close",
 		"reopen", "block", "start", "bump", "note",
 		"status", "dep", "undep", "agent",
 	}
 
 	whitelist := map[string]bool{
-		"ls":        true,
-		"ready":     true,
-		"blocked":   true,
-		"resolved":  true,
-		"closed":    true,
-		"query":     true,
-		"show":      true,
+		"ls":      true,
+		"ready":   true,
+		"blocked": true,
+		"query":   true,
+		"show":    true,
 		"questions": true,
 		"answer":    true,
 		"close":     true,
