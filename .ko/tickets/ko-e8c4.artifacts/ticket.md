@@ -9,3 +9,9 @@ priority: 2
 # Update README and help text for CLI simplification
 
 After all CLI consolidation tickets are done, update README.md and ko help output to reflect the simplified command surface.
+
+## Notes
+
+**2026-02-25 22:56:33 UTC:** Question: Should we add a migration guide or deprecation note to the README explaining the removed commands?
+Answer: No migration guide
+Only update command listings; users can infer changes from the new command surface and error messages

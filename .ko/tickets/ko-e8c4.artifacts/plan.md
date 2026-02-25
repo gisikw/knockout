@@ -1,5 +1,5 @@
 ## Goal
-Update README.md and main.go help text to reflect the simplified CLI surface after consolidation.
+Update README.md to reflect the simplified CLI surface after consolidation.
 
 ## Context
 The CLI consolidation tickets (ko-1bfc through ko-88fa) made the following changes:
@@ -17,27 +17,33 @@ Current state:
 - `main.go:cmdHelp()` (lines 110-155) has the correct simplified help text
 - README.md still shows the old command surface:
   - Line 18: `blocked` listed without the optional `[id]` argument
-  - Lines 21-26: Shows `block` and `resolved` as status commands
-  - Lines 34-36: Lists `query`, `questions`, `answer` commands
+  - Line 19: `closed` command still listed (removed)
+  - Lines 25-26: Shows `block` and `resolved` as status commands (removed)
+  - Lines 34-36: Lists `query`, `questions`, `answer` commands (removed)
   - "Plan Questions" section (lines 388-416) already correctly uses `ko triage` syntax
 
 The README already correctly shows `ko project set` and `ko project ls` commands (lines 45-47), and the "Plan Questions" section already uses the new `ko triage` syntax.
 
+User decision: No migration guide needed. Users can infer changes from the new command surface and error messages.
+
 ## Approach
-Update the README.md command listing to match main.go's help text. Remove obsolete commands (`block`, `resolved`, `query`, `questions`, `answer`) and update `blocked` to show it accepts an optional ID argument. The "Plan Questions" section already uses correct syntax, so no changes needed there.
+Update the README.md command listing to match main.go's help text. Remove obsolete commands (`closed`, `block`, `resolved`, `query`, `questions`, `answer`) and update `blocked` to show it accepts an optional ID argument. Add `serve` and `triage` commands. Add `clear --force` command. The "Plan Questions" section already uses correct syntax, so no changes needed there.
 
 ## Tasks
 1. [README.md:18] — Update `blocked` command description to show optional `[id]` argument matching the help text: `blocked [id]       Show blocked tickets or reason for specific ticket`
    Verify: Description matches main.go:120
 
-2. [README.md:21-26] — Remove the status shortcut commands `block` and `resolved` from the command listing. These are now redundant with `ko status <id> blocked|resolved`.
-   Verify: Only `status`, `start`, `close`, and `open` remain in that section
+2. [README.md:19] — Remove the `closed` command line entirely. This command was removed in the consolidation.
+   Verify: No `closed` command in the listing
 
-3. [README.md:34-36] — Remove `query`, `questions`, and `answer` commands from the listing. These are replaced by `ko ls --json` and `ko triage` subcommands.
-   Verify: Command list jumps directly from `bump` to `agent build`
+3. [README.md:21-26] — Remove the status shortcut commands `block` and `resolved` from the command listing. These are now redundant with `ko status <id> blocked|resolved`. Keep `status`, `start`, `close`, and `open`. Add the `serve` command after `open`.
+   Verify: Section shows `status`, `start`, `close`, `open`, `serve` only
 
-4. [README.md:127] — Add `serve` command to the help text in main.go after the `open` command, since it exists in the command switch but is missing from help output.
-   Verify: Help text includes `serve [-p port]    Start HTTP daemon (default :9876)` between `open` and the triage section
+4. [README.md:32-36] — Add the `triage` command after `serve` section and before `dep` commands, matching main.go:128-131 format. Remove `query`, `questions`, and `answer` commands.
+   Verify: `triage` command with all four forms is present, old commands are gone
+
+5. [README.md:33] — Add `clear --force` command after `bump` command, matching main.go:139 format.
+   Verify: `clear --force` command is present in the listing
 
 ## Open Questions
-Should we add a migration guide or note about the removed commands to help users who may have scripts using the old syntax? The old commands will fail with "unknown command" errors, but we could add a brief section explaining the consolidations.
+None. User has confirmed that no migration guide is needed.

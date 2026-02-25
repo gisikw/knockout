@@ -15,15 +15,18 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
-  blocked            Show tickets with unresolved deps
-  closed             Show closed tickets
+  blocked [id]       Show blocked tickets or reason for specific ticket
 
   status <id> <s>    Set ticket status
   start <id>         Set status to in_progress
   close <id>         Set status to closed
   open <id>          Set status to open
-  block <id>         Set status to blocked
-  resolved <id>      Set status to resolved
+  serve [-p port]    Start HTTP daemon (default :9876)
+
+  triage <id>                     Show block reason and open questions
+  triage <id> --block [reason]    Block ticket with optional reason
+  triage <id> --questions '<json>' Add questions, implicitly blocks
+  triage <id> --answers '<json>'   Answer questions, auto-unblock when done
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency
@@ -31,9 +34,7 @@ Commands:
 
   note <id> <text>      Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
-  query                 Output all tickets as JSONL
-  questions <id>        Show plan questions as JSON
-  answer <id> <json>    Submit answers to plan questions
+  clear --force         Remove all local tickets
 
   agent build <id>   Run build pipeline against a single ticket
   agent loop         Build all ready tickets until queue is empty
