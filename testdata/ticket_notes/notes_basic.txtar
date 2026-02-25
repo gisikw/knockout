@@ -30,13 +30,12 @@ stdout 'Line one'
 stdout 'Line two'
 stdout 'Line three'
 
-# Stdin takes precedence over args
+# Args take precedence over stdin (stdin skipped when args present)
 stdin stdin_input.txt
-exec ko note note-0001 'This should be ignored'
+exec ko note note-0001 'From args wins'
 stdout 'Note added'
 exec ko show note-0001
-stdout 'From stdin'
-! stdout 'This should be ignored'
+stdout 'From args wins'
 
 # Empty stdin falls back to args (terminal mode)
 exec ko note note-0001 'From command line'

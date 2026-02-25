@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 func cmdAddNote(args []string) int {
@@ -25,30 +26,32 @@ func cmdAddNote(args []string) int {
 		return 1
 	}
 
-	// Determine note content: stdin takes precedence over args if stdin is a pipe
+	// Determine note content: positional args > stdin pipe > error
 	var note string
-	stdinInfo, err := os.Stdin.Stat()
-	isStdinPipe := err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0
-
-	if isStdinPipe {
-		// Stdin is a pipe (not a terminal), read from it
-		stdinBytes, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ko note: failed to read from stdin: %v\n", err)
-			return 1
-		}
-		note = strings.TrimSpace(string(stdinBytes))
-		// If stdin was empty and we have args, use args as fallback
-		if note == "" && len(args) >= 2 {
-			note = strings.Join(args[1:], " ")
-		}
+	if len(args) >= 2 {
+		// Positional args provided — use them, skip stdin
+		note = strings.Join(args[1:], " ")
 	} else {
-		// Stdin is a terminal, require args
-		if len(args) < 2 {
+		// No positional note text — try stdin if it's a pipe
+		stdinInfo, err := os.Stdin.Stat()
+		isStdinPipe := err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0
+		if isStdinPipe {
+			done := make(chan []byte, 1)
+			go func() {
+				b, _ := io.ReadAll(os.Stdin)
+				done <- b
+			}()
+			select {
+			case stdinBytes := <-done:
+				note = strings.TrimSpace(string(stdinBytes))
+			case <-time.After(50 * time.Millisecond):
+				// No data on stdin within 50ms — treat as no input
+			}
+		}
+		if note == "" {
 			fmt.Fprintln(os.Stderr, "ko note: note text required (from args or stdin)")
 			return 1
 		}
-		note = strings.Join(args[1:], " ")
 	}
 
 	// Final check: ensure we have note content

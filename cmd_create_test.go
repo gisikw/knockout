@@ -335,18 +335,18 @@ func TestCreateWithStdinDescription(t *testing.T) {
 			description: "stdin should be used when provided",
 		},
 		{
-			name:        "stdin takes priority over second arg",
+			name:        "second arg takes priority over stdin",
 			stdinInput:  "From stdin",
 			args:        []string{"Test title", "From arg"},
-			wantDesc:    "From stdin",
-			description: "stdin should win over positional arg",
+			wantDesc:    "From arg",
+			description: "positional arg should win over stdin (stdin skipped when args present)",
 		},
 		{
-			name:        "stdin takes priority over -d flag",
+			name:        "-d flag takes priority over stdin",
 			stdinInput:  "From stdin",
 			args:        []string{"-d", "From flag", "Test title"},
-			wantDesc:    "From stdin",
-			description: "stdin should win over -d flag",
+			wantDesc:    "From flag",
+			description: "-d flag should win over stdin (stdin skipped when -d present)",
 		},
 	}
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -44,18 +45,30 @@ func cmdCreate(args []string) int {
 	}
 
 	// Determine description source: stdin > second positional arg > -d flag
+	// Only read stdin if: (a) no -d flag provided, (b) no second positional arg,
+	// and (c) stdin is actually a pipe with data (not just an inherited pipe from
+	// a parent process). We use a 0-byte read with a deadline to avoid blocking
+	// forever on pipes that never send data.
 	var descFromInput string
-	stdinInfo, err := os.Stdin.Stat()
-	isStdinPipe := err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0
-
-	if isStdinPipe {
-		// Stdin is a pipe (not a terminal), read from it
-		stdinBytes, readErr := io.ReadAll(os.Stdin)
-		if readErr != nil {
-			fmt.Fprintf(os.Stderr, "ko create: failed to read from stdin: %v\n", readErr)
-			return 1
+	if *desc == "" && fs.NArg() <= 1 {
+		stdinInfo, err := os.Stdin.Stat()
+		isStdinPipe := err == nil && (stdinInfo.Mode()&os.ModeCharDevice) == 0
+		if isStdinPipe {
+			// Set a short read deadline to avoid blocking on empty pipes.
+			// os.Stdin doesn't support deadlines, so use a non-blocking peek
+			// via a goroutine with a timeout.
+			done := make(chan []byte, 1)
+			go func() {
+				b, _ := io.ReadAll(os.Stdin)
+				done <- b
+			}()
+			select {
+			case stdinBytes := <-done:
+				descFromInput = strings.TrimSpace(string(stdinBytes))
+			case <-time.After(50 * time.Millisecond):
+				// No data on stdin within 50ms — treat as no input
+			}
 		}
-		descFromInput = strings.TrimSpace(string(stdinBytes))
 	}
 
 	// If stdin is empty or not a pipe, check for second positional arg
