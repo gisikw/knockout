@@ -38,22 +38,23 @@ func LoadHarness(name string) (*HarnessConfig, error) {
 		}
 	}
 
-	// Try embedded built-ins
+	// Try embedded built-ins — extract to ~/.cache/knockout/agent-harnesses/
 	embeddedShellPath := filepath.Join("agent-harnesses", name+".sh")
 	if data, err := embeddedHarnesses.ReadFile(embeddedShellPath); err == nil {
-		// Write to temp location with exec permissions
-		tmpFile, err := os.CreateTemp("", "ko-harness-"+name+"-*.sh")
+		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create temp file for harness: %w", err)
+			return nil, fmt.Errorf("failed to get home dir: %w", err)
 		}
-		if err := os.WriteFile(tmpFile.Name(), data, 0755); err != nil {
+		cacheDir := filepath.Join(home, ".cache", "knockout", "agent-harnesses")
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create cache dir: %w", err)
+		}
+		cachePath := filepath.Join(cacheDir, name+".sh")
+		if err := os.WriteFile(cachePath, data, 0755); err != nil {
 			return nil, fmt.Errorf("failed to write harness script: %w", err)
 		}
-		if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
-			return nil, fmt.Errorf("failed to set harness exec permissions: %w", err)
-		}
 		return &HarnessConfig{
-			ScriptPath: tmpFile.Name(),
+			ScriptPath: cachePath,
 		}, nil
 	}
 
