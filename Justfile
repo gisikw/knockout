@@ -14,6 +14,10 @@ restart:
     just install
     fort ratched systemd '{"action": "restart", "unit": "knockout"}'
 
+agent-session-complete:
+    git push
+    just restart
+
 # Symlink this project's pipeline and prompts into another project.
 # Usage: just link-pipeline nerve
 link-pipeline project:
