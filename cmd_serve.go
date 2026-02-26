@@ -324,22 +324,21 @@ func cmdServe(args []string) int {
 
 	// Define whitelist of allowed subcommands
 	whitelist := map[string]bool{
+		"add":     true,
+		"show":    true,
 		"ls":      true,
 		"ready":   true,
-		"blocked": true,
-		"show":      true,
-		"questions": true,
-		"answer":    true,
-		"close":     true,
-		"open":      true,
-		"block":     true,
-		"start":     true,
-		"bump":      true,
-		"note":      true,
-		"status":    true,
-		"dep":       true,
-		"undep":     true,
-		"agent":     true,
+		"update":  true,
+		"status":  true,
+		"start":   true,
+		"close":   true,
+		"open":    true,
+		"dep":     true,
+		"undep":   true,
+		"note":    true,
+		"bump":    true,
+		"agent":   true,
+		"project": true,
 	}
 
 	// Start global event tailer
