@@ -388,6 +388,52 @@ workflows:
 	}
 }
 
+func TestParsePipelineNoteArtifact(t *testing.T) {
+	config := `
+workflows:
+  main:
+    - name: classify
+      type: decision
+      prompt: classify.md
+      routes: [task, research]
+  task:
+    - name: implement
+      type: action
+      prompt: implement.md
+    - name: review
+      type: decision
+      prompt: review.md
+      note_artifact: summary.md
+  research:
+    - name: investigate
+      type: action
+      prompt: investigate.md
+      note_artifact: findings.md
+`
+	p, err := ParsePipeline(config)
+	if err != nil {
+		t.Fatalf("ParsePipeline failed: %v", err)
+	}
+
+	// implement has no note_artifact
+	implement := p.Workflows["task"].Nodes[0]
+	if implement.NoteArtifact != "" {
+		t.Errorf("implement.NoteArtifact = %q, want empty", implement.NoteArtifact)
+	}
+
+	// review has note_artifact
+	review := p.Workflows["task"].Nodes[1]
+	if review.NoteArtifact != "summary.md" {
+		t.Errorf("review.NoteArtifact = %q, want %q", review.NoteArtifact, "summary.md")
+	}
+
+	// investigate has note_artifact
+	investigate := p.Workflows["research"].Nodes[0]
+	if investigate.NoteArtifact != "findings.md" {
+		t.Errorf("investigate.NoteArtifact = %q, want %q", investigate.NoteArtifact, "findings.md")
+	}
+}
+
 func TestParsePipelineSkillsMultiline(t *testing.T) {
 	config := `
 workflows:

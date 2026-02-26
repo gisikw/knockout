@@ -526,6 +526,8 @@ func applyNodeProperty(node *Node, key, val string, inRoutes *bool, inSkills *bo
 			node.AllowedTools = parseYAMLList(val)
 			*inAllowedTools = false
 		}
+	case "note_artifact":
+		node.NoteArtifact = val
 	case "skill":
 		node.Skill = val
 	}

@@ -182,3 +182,7 @@ loop: ko-274f SUCCEED
 loop: building ko-4c33 — Alright, I'm waffling. Can we support #tag as a shorthand for --project=tag where appropriate? e.g. ko ls #punchlist
 {"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":1396.777468671,"stop_reason":"empty","succeeded":6,"tickets_processed":6,"ts":"2026-02-26T06:13:46Z"}
 loop: building ko-1d06 — Could we add pipeline support for an independent workflow for when the agent loop is done? That way we could have general tasks like updating the README or pushing up changes done just once
+loop: ko-1d06 SUCCEED
+loop complete: 1 processed (1 succeeded, 0 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":480.562933277,"stop_reason":"empty","succeeded":1,"tickets_processed":1,"ts":"2026-02-26T12:52:39Z"}

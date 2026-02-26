@@ -22,6 +22,7 @@ type Node struct {
 	Routes       []string // workflows this decision node can route to
 	MaxVisits    int      // max times this node can be entered per build (default: 1)
 	Timeout      string   // optional timeout override (e.g., "5m", "1h30m")
+	NoteArtifact string   // artifact filename to write back to ticket body on success (e.g., "summary.md")
 	Skills       []string // skill directories to make available (future multi-agent harness support)
 	Skill        string   // specific skill to invoke (future multi-agent harness support; mutually exclusive with Prompt/Run)
 }

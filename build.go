@@ -137,6 +137,9 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 		}
 	}
 
+	// Write back note_artifact contents to the ticket body.
+	writeBackNoteArtifacts(t, p, finalWorkflow, artifactDir)
+
 	// Set terminal status first — if the process is killed during on_succeed
 	// hooks, the ticket should stay resolved/closed rather than being reset
 	// to open with committed but untracked changes.
@@ -160,6 +163,29 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	runHooks(ticketsDir, t, p.OnClose, changedFiles, wsDir, hist.Path())
 
 	return OutcomeSucceed, nil
+}
+
+// writeBackNoteArtifacts reads note_artifact files from the final workflow's nodes
+// and appends their contents to the ticket body.
+func writeBackNoteArtifacts(t *Ticket, p *Pipeline, finalWorkflow, artifactDir string) {
+	if finalWorkflow == "" {
+		return
+	}
+	wf, ok := p.Workflows[finalWorkflow]
+	if !ok {
+		return
+	}
+	for _, node := range wf.Nodes {
+		if node.NoteArtifact == "" {
+			continue
+		}
+		path := filepath.Join(artifactDir, node.NoteArtifact)
+		data, err := os.ReadFile(path)
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		AddNote(t, strings.TrimSpace(string(data)))
+	}
 }
 
 // runWorkflow executes a single workflow, following route dispositions to other

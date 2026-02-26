@@ -48,16 +48,19 @@ workflows:
     - name: review
       type: decision
       prompt: review.md
+      note_artifact: summary.md
 
   research:
     - name: investigate
       type: action
       prompt: investigate.md
+      note_artifact: findings.md
 
   bug:
     - name: diagnose
       type: action
       prompt: diagnose.md
+      note_artifact: diagnosis.md
     - name: assess
       type: decision
       prompt: assess.md
