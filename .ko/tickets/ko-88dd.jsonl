@@ -1,0 +1,10 @@
+{"event":"build_start","ticket":"ko-88dd","ts":"2026-02-26T20:30:33Z"}
+{"event":"workflow_start","ticket":"ko-88dd","ts":"2026-02-26T20:30:33Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-88dd","ts":"2026-02-26T20:30:33Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-88dd","ts":"2026-02-26T20:30:38Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-88dd","ts":"2026-02-26T20:30:38Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-88dd","ts":"2026-02-26T20:30:38Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-88dd","ts":"2026-02-26T20:32:16Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-88dd","ts":"2026-02-26T20:32:16Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"needs_input","ticket":"ko-88dd","ts":"2026-02-26T20:32:24Z","workflow":"task"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-88dd","ts":"2026-02-26T20:32:24Z"}

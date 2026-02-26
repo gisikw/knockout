@@ -1,6 +1,6 @@
 ---
 id: ko-ec86
-status: resolved
+status: closed
 deps: []
 created: 2026-02-26T16:47:59Z
 type: task
