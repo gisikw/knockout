@@ -1,4 +1,4 @@
-# Multiple tags: first routes, rest are labels
+# Add with --project and multiple tags
 env HOME=$WORK/home
 mkdir $WORK/home
 
@@ -8,14 +8,13 @@ cd $WORK/target
 exec ko project set '#target'
 cd $WORK
 
-# Add with multiple tags
-exec ko add 'Refactor auth #target #security #urgent'
+# Add with --project and multiple tags
+exec ko add 'Refactor auth' --project=target --tags=security,urgent
 
-# Verify ticket in target has extra tags as labels
+# Verify ticket in target has tags as labels
 env TICKETS_DIR=$WORK/target/.ko/tickets
-exec ko ls --json --status=routed
+exec ko ls --json
 stdout 'Refactor auth'
-stdout '"status":\s*"routed"'
 stdout 'security'
 stdout 'urgent'
 

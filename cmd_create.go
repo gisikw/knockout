@@ -20,7 +20,7 @@ func cmdCreate(args []string) int {
 	args = reorderArgs(args, map[string]bool{
 		"d": true, "t": true, "p": true, "a": true,
 		"parent": true, "external-ref": true, "design": true,
-		"acceptance": true, "tags": true,
+		"acceptance": true, "tags": true, "project": true,
 	})
 
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
@@ -33,6 +33,7 @@ func cmdCreate(args []string) int {
 	design := fs.String("design", "", "design notes")
 	acceptance := fs.String("acceptance", "", "acceptance criteria")
 	tags := fs.String("tags", "", "comma-separated tags")
+	projectTag := fs.String("project", "", "target project tag")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
@@ -83,21 +84,33 @@ func cmdCreate(args []string) int {
 		return 1
 	}
 
-	// Load registry (non-fatal if missing — just route locally)
-	regPath := RegistryPath()
-	reg := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
-	if regPath != "" {
-		loaded, loadErr := LoadRegistry(regPath)
-		if loadErr == nil {
-			reg = loaded
+	// Determine target project from --project flag
+	var targetPath string
+	if *projectTag != "" {
+		// Route to specified project
+		regPath := RegistryPath()
+		if regPath == "" {
+			fmt.Fprintf(os.Stderr, "ko add: cannot determine config directory for project routing\n")
+			return 1
 		}
+		reg, err := LoadRegistry(regPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
+			return 1
+		}
+		projectPath, ok := reg.Projects[*projectTag]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "ko add: unknown project '%s'\n", *projectTag)
+			return 1
+		}
+		targetPath = projectPath
+	} else {
+		// No --project flag: create ticket locally
+		targetPath = localRoot
 	}
 
-	// Route based on hashtags in title
-	decision := RouteTicket(title, reg, localRoot)
-
 	// Ensure target tickets directory exists
-	ticketsDir := resolveTicketsDir(decision.TargetPath)
+	ticketsDir := resolveTicketsDir(targetPath)
 	if err := EnsureTicketsDir(ticketsDir); err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 		return 1
@@ -114,12 +127,12 @@ func cmdCreate(args []string) int {
 			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1
 		}
-		t = NewChildTicket(parentID, decision.Title)
+		t = NewChildTicket(parentID, title)
 	} else {
-		t = NewTicket(prefix, decision.Title)
+		t = NewTicket(prefix, title)
 	}
 
-	t.Status = decision.Status
+	t.Status = "open"
 
 	// Apply strict priority for description: stdin > arg > -d flag
 	if descFromInput != "" {
@@ -146,18 +159,12 @@ func cmdCreate(args []string) int {
 		t.Body += "\n## Acceptance Criteria\n\n" + *acceptance + "\n"
 	}
 
-	// Merge tags: routing tags + explicit -tags flag
-	var ticketTags []string
-	if decision.IsCaptured && decision.RoutingTag != "" {
-		ticketTags = append(ticketTags, decision.RoutingTag)
-	}
-	ticketTags = append(ticketTags, decision.ExtraTags...)
+	// Apply explicit tags from --tags flag
 	if *tags != "" {
+		var ticketTags []string
 		for _, tag := range strings.Split(*tags, ",") {
 			ticketTags = append(ticketTags, strings.TrimSpace(tag))
 		}
-	}
-	if len(ticketTags) > 0 {
 		t.Tags = ticketTags
 	}
 
@@ -170,26 +177,7 @@ func cmdCreate(args []string) int {
 		"title": t.Title,
 	})
 
-	// If routed to a different project, create a closed audit ticket locally
-	if decision.IsRouted {
-		localTicketsDir := resolveTicketsDir(localRoot)
-		if err := EnsureTicketsDir(localTicketsDir); err != nil {
-			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
-			return 1
-		}
-		localPrefix := detectPrefix(localTicketsDir)
-		audit := NewTicket(localPrefix, decision.Title)
-		audit.Status = "closed"
-		AddNote(audit, fmt.Sprintf("routed to #%s as %s", decision.RoutingTag, t.ID))
-		if err := SaveTicket(localTicketsDir, audit); err != nil {
-			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
-			return 1
-		}
-		fmt.Printf("%s -> #%s (%s)\n", audit.ID, decision.RoutingTag, t.ID)
-	} else {
-		fmt.Println(t.ID)
-	}
-
+	fmt.Println(t.ID)
 	return 0
 }
 

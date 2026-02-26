@@ -50,22 +50,28 @@ func ticketToJSON(t *Ticket, ticketsDir string) ticketJSON {
 	}
 }
 
-// resolveProjectTicketsDir checks args for a #project tag and resolves it
+// resolveProjectTicketsDir checks args for a --project flag and resolves it
 // to that project's tickets directory via the registry. Returns the tickets
-// dir and the remaining args (with the tag removed).
-// If no tag is found, returns the local tickets directory.
+// dir and the remaining args (with the flag removed).
+// If no --project flag is found, returns the local tickets directory.
 func resolveProjectTicketsDir(args []string) (string, []string, error) {
-	var tag string
+	// Manually parse --project to avoid consuming other flags
+	var projectTag string
 	var remaining []string
-	for _, a := range args {
-		if strings.HasPrefix(a, "#") && len(a) > 1 && tag == "" {
-			tag = CleanTag(a)
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "--project=") {
+			projectTag = strings.TrimPrefix(arg, "--project=")
+		} else if arg == "--project" && i+1 < len(args) {
+			projectTag = args[i+1]
+			i++ // skip next arg
 		} else {
-			remaining = append(remaining, a)
+			remaining = append(remaining, arg)
 		}
 	}
 
-	if tag == "" {
+	if projectTag == "" {
 		ticketsDir, err := FindTicketsDir()
 		return ticketsDir, remaining, err
 	}
@@ -78,25 +84,25 @@ func resolveProjectTicketsDir(args []string) (string, []string, error) {
 	if err != nil {
 		return "", remaining, err
 	}
-	projectPath, ok := reg.Projects[tag]
+	projectPath, ok := reg.Projects[projectTag]
 	if !ok {
-		return "", remaining, fmt.Errorf("unknown project '#%s'", tag)
+		return "", remaining, fmt.Errorf("unknown project '%s'", projectTag)
 	}
 	ticketsDir := resolveTicketsDir(projectPath)
 	if _, err := os.Stat(ticketsDir); os.IsNotExist(err) {
-		return "", remaining, fmt.Errorf("no tickets directory for '#%s' (%s)", tag, ticketsDir)
+		return "", remaining, fmt.Errorf("no tickets directory for project '%s' (%s)", projectTag, ticketsDir)
 	}
 	return ticketsDir, remaining, nil
 }
 
 func cmdLs(args []string) int {
+	args = reorderArgs(args, map[string]bool{"project": true, "status": true, "limit": true})
+
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
-
-	args = reorderArgs(args, map[string]bool{"status": true, "limit": true})
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
@@ -179,13 +185,13 @@ func cmdLs(args []string) int {
 }
 
 func cmdReady(args []string) int {
+	args = reorderArgs(args, map[string]bool{"project": true, "limit": true})
+
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
 	}
-
-	args = reorderArgs(args, map[string]bool{"limit": true})
 
 	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")

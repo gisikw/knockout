@@ -1,22 +1,22 @@
-# Add with unrecognized tag goes to default project as captured
+# Add with --project and --tags routes to target with tags
 env HOME=$WORK/home
 mkdir $WORK/home
 
-# Register default project and set as default
-mkdir $WORK/default-proj/.ko/tickets
-cd $WORK/default-proj
-exec ko project set '#catchall' --default
+# Register target project
+mkdir $WORK/target/.ko/tickets
+cd $WORK/target
+exec ko project set '#target'
 cd $WORK
 
-# Add with unrecognized tag
-exec ko add 'Build splash page #marketing-site'
+# Add with --project and --tags
+exec ko add 'Build splash page' --project=target --tags=marketing-site,urgent
 
-# Verify ticket in default project with status captured and tag preserved
-env TICKETS_DIR=$WORK/default-proj/.ko/tickets
-exec ko ls --json --status=captured
+# Verify ticket in target project with tags preserved
+env TICKETS_DIR=$WORK/target/.ko/tickets
+exec ko ls --json
 stdout 'Build splash page'
-stdout '"status":\s*"captured"'
 stdout 'marketing-site'
+stdout 'urgent'
 
 -- .ko/tickets/ko-seed.md --
 ---

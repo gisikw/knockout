@@ -55,8 +55,6 @@ func run(args []string) int {
 		return cmdAgent(rest)
 	case "project":
 		return cmdProject(rest)
-	case "clear":
-		return cmdClear(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -140,7 +138,6 @@ Commands:
 
   note <id> <text>      Add a note to a ticket
   bump <id>             Touch ticket file to update mtime (reorder within priority)
-  clear --force         Remove all local tickets
 
   agent build <id>   Run build pipeline against a single ticket
   agent loop         Build all ready tickets until queue is empty

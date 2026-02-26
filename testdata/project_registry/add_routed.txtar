@@ -1,4 +1,4 @@
-# Add with recognized tag routes to target project
+# Add with --project routes to target project
 env HOME=$WORK/home
 mkdir $WORK/home
 
@@ -8,21 +8,15 @@ cd $WORK/target
 exec ko project set '#target'
 cd $WORK
 
-# Add a routed ticket
-exec ko add 'Fix the thing #target'
-stdout '#target'
+# Add a routed ticket with --project flag
+exec ko add 'Fix the thing' --project=target
+stdout .
 
-# Verify ticket exists in target project with status routed
+# Verify ticket exists in target project
 env TICKETS_DIR=$WORK/target/.ko/tickets
-exec ko ls --json --status=routed
+exec ko ls --json
 stdout 'Fix the thing'
-stdout '"status":\s*"routed"'
-
-# Verify audit ticket in local project is closed
-env TICKETS_DIR=$WORK/.ko/tickets
-exec ko ls --json --status=closed
-stdout 'Fix the thing'
-stdout '"status":\s*"closed"'
+stdout '"status":\s*"open"'
 
 -- .ko/tickets/ko-seed.md --
 ---

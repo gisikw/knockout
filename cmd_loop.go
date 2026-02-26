@@ -81,6 +81,10 @@ func writeAgentLogSummary(ticketsDir string, result LoopResult, elapsed time.Dur
 }
 
 func cmdAgentLoop(args []string) int {
+	args = reorderArgs(args, map[string]bool{
+		"project": true, "max-tickets": true, "max-duration": true,
+	})
+
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
@@ -94,10 +98,6 @@ func cmdAgentLoop(args []string) int {
 		return 1
 	}
 	defer lockFile.Close()
-
-	args = reorderArgs(args, map[string]bool{
-		"max-tickets": true, "max-duration": true,
-	})
 
 	fs := flag.NewFlagSet("agent loop", flag.ContinueOnError)
 	maxTickets := fs.Int("max-tickets", 0, "max tickets to process (0 = unlimited)")
