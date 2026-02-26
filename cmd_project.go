@@ -1,11 +1,19 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+type projectJSON struct {
+	Tag       string `json:"tag"`
+	Path      string `json:"path"`
+	IsDefault bool   `json:"is_default"`
+}
 
 func cmdProject(args []string) int {
 	if len(args) == 0 {
@@ -135,6 +143,13 @@ func cmdProjectSet(args []string) int {
 }
 
 func cmdProjectLs(args []string) int {
+	fs := flag.NewFlagSet("project ls", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko project ls: %v\n", err)
+		return 1
+	}
+
 	regPath := RegistryPath()
 	if regPath == "" {
 		fmt.Fprintln(os.Stderr, "ko project ls: cannot determine config directory")
@@ -148,7 +163,11 @@ func cmdProjectLs(args []string) int {
 	}
 
 	if len(reg.Projects) == 0 {
-		fmt.Println("no projects registered")
+		if *jsonOutput {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("no projects registered")
+		}
 		return 0
 	}
 
@@ -159,13 +178,29 @@ func cmdProjectLs(args []string) int {
 	}
 	sortStrings(keys)
 
-	// Print with default marker
-	for _, k := range keys {
-		marker := "  "
-		if k == reg.Default {
-			marker = "* "
+	if *jsonOutput {
+		projects := make([]projectJSON, 0, len(keys))
+		for _, k := range keys {
+			projects = append(projects, projectJSON{
+				Tag:       k,
+				Path:      reg.Projects[k],
+				IsDefault: k == reg.Default,
+			})
 		}
-		fmt.Printf("%s%s\t%s\n", marker, k, reg.Projects[k])
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(projects); err != nil {
+			fmt.Fprintf(os.Stderr, "ko project ls: failed to encode JSON: %v\n", err)
+			return 1
+		}
+	} else {
+		// Print with default marker
+		for _, k := range keys {
+			marker := "  "
+			if k == reg.Default {
+				marker = "* "
+			}
+			fmt.Printf("%s%s\t%s\n", marker, k, reg.Projects[k])
+		}
 	}
 
 	return 0

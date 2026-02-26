@@ -2,9 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 )
+
+type triageStateJSON struct {
+	BlockReason string         `json:"block_reason,omitempty"`
+	Questions   []PlanQuestion `json:"questions"`
+}
 
 func cmdTriage(args []string) int {
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
@@ -19,15 +25,19 @@ func cmdTriage(args []string) int {
 	}
 
 	// Parse flags
-	var blockFlag bool
+	fs := flag.NewFlagSet("triage", flag.ContinueOnError)
+	blockFlag := fs.Bool("block", false, "set ticket status to blocked")
+	questionsFlag := fs.String("questions", "", "add questions as JSON")
+	answersFlag := fs.String("answers", "", "answer questions as JSON")
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+
+	// Manual parsing to support optional positional arguments for --block
 	var blockReason string
-	var questionsJSON string
-	var answersJSON string
 	var ticketID string
 
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--block" {
-			blockFlag = true
+			*blockFlag = true
 			// Check if next arg is a reason (not a flag, not empty)
 			if i+1 < len(args) && !isFlag(args[i+1]) {
 				blockReason = args[i+1]
@@ -38,15 +48,17 @@ func cmdTriage(args []string) int {
 				fmt.Fprintln(os.Stderr, "ko triage: --questions flag requires a JSON argument")
 				return 1
 			}
-			questionsJSON = args[i+1]
+			*questionsFlag = args[i+1]
 			i++ // skip next arg
 		} else if args[i] == "--answers" {
 			if i+1 >= len(args) {
 				fmt.Fprintln(os.Stderr, "ko triage: --answers flag requires a JSON argument")
 				return 1
 			}
-			answersJSON = args[i+1]
+			*answersFlag = args[i+1]
 			i++ // skip next arg
+		} else if args[i] == "--json" {
+			*jsonOutput = true
 		} else if ticketID == "" {
 			ticketID = args[i]
 		}
@@ -70,23 +82,23 @@ func cmdTriage(args []string) int {
 	}
 
 	// Bare invocation: show triage state
-	if !blockFlag && questionsJSON == "" && answersJSON == "" {
-		return showTriageState(t)
+	if !*blockFlag && *questionsFlag == "" && *answersFlag == "" {
+		return showTriageState(t, *jsonOutput)
 	}
 
 	// --block: set status to blocked with optional reason
-	if blockFlag {
+	if *blockFlag {
 		return handleBlock(ticketsDir, id, t, blockReason)
 	}
 
 	// --questions: add questions, implicitly block
-	if questionsJSON != "" {
-		return handleQuestions(ticketsDir, id, t, questionsJSON)
+	if *questionsFlag != "" {
+		return handleQuestions(ticketsDir, id, t, *questionsFlag)
 	}
 
 	// --answers: answer questions, implicitly unblock when all answered
-	if answersJSON != "" {
-		return handleAnswers(ticketsDir, id, t, answersJSON)
+	if *answersFlag != "" {
+		return handleAnswers(ticketsDir, id, t, *answersFlag)
 	}
 
 	return 0
@@ -96,26 +108,39 @@ func isFlag(s string) bool {
 	return len(s) > 0 && s[0] == '-'
 }
 
-func showTriageState(t *Ticket) int {
-	// Show block reason as text
+func showTriageState(t *Ticket, jsonOutput bool) int {
 	reason := ExtractBlockReason(t)
-	if reason != "" {
-		fmt.Printf("Block reason: %s\n\n", reason)
-	} else if t.Status == "blocked" {
-		fmt.Println("Status: blocked (no reason specified)")
-	}
-
-	// Show questions as JSON
-	fmt.Println("Questions:")
 	questions := t.PlanQuestions
 	if questions == nil {
 		questions = []PlanQuestion{}
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(questions); err != nil {
-		fmt.Fprintf(os.Stderr, "ko triage: failed to encode JSON: %v\n", err)
-		return 1
+
+	if jsonOutput {
+		state := triageStateJSON{
+			BlockReason: reason,
+			Questions:   questions,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(state); err != nil {
+			fmt.Fprintf(os.Stderr, "ko triage: failed to encode JSON: %v\n", err)
+			return 1
+		}
+	} else {
+		// Show block reason as text
+		if reason != "" {
+			fmt.Printf("Block reason: %s\n\n", reason)
+		} else if t.Status == "blocked" {
+			fmt.Println("Status: blocked (no reason specified)")
+		}
+
+		// Show questions as JSON
+		fmt.Println("Questions:")
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(questions); err != nil {
+			fmt.Fprintf(os.Stderr, "ko triage: failed to encode JSON: %v\n", err)
+			return 1
+		}
 	}
 
 	return 0

@@ -60,6 +60,19 @@ ko add [title] [-d description] [-t type] [-p priority] [-a assignee]
                [--tags tag1,tag2]
 ```
 
+### JSON output
+
+The following commands support `--json` for machine-readable output:
+
+- `ko show <id> --json` — ticket details with all metadata
+- `ko ls --json` — list of tickets with status and priority
+- `ko ready --json` — ready queue tickets
+- `ko blocked --json` — blocked tickets list
+- `ko triage <id> --json` — block reason and questions as structured JSON
+- `ko agent status --json` — agent provisioned/running status with pid
+- `ko dep tree <id> --json` — dependency tree as nested structure
+- `ko project ls --json` — registered projects with default marker
+
 ## Concepts
 
 ### Ticket IDs

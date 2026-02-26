@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -246,40 +248,84 @@ func cleanupAfterStop(ticketsDir string, p *Pipeline) {
 	}
 }
 
+type agentStatusJSON struct {
+	Provisioned bool   `json:"provisioned"`
+	Running     bool   `json:"running"`
+	Pid         int    `json:"pid,omitempty"`
+	LastLog     string `json:"last_log,omitempty"`
+}
+
 func cmdAgentStatus(args []string) int {
-	ticketsDir, _, err := resolveProjectTicketsDir(args)
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent status: %v\n", err)
 		return 1
 	}
 
+	fs := flag.NewFlagSet("agent status", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent status: %v\n", err)
+		return 1
+	}
+
+	status := agentStatusJSON{}
+
 	// Check if pipeline config exists
 	if _, err := FindPipelineConfig(ticketsDir); err != nil {
-		fmt.Println("not provisioned (no .ko/config.yaml or .ko/pipeline.yml)")
+		if *jsonOutput {
+			json.NewEncoder(os.Stdout).Encode(status)
+		} else {
+			fmt.Println("not provisioned (no .ko/config.yaml or .ko/pipeline.yml)")
+		}
 		return 0
 	}
+	status.Provisioned = true
 
 	pidPath := agentPidPath(ticketsDir)
 	pid, err := readAgentPid(pidPath)
 	if err != nil {
 		// No PID file — check if a lock is held (orphaned agent)
 		if isAgentLocked(ticketsDir) {
-			fmt.Println("running (pid unknown — lock held, pid file missing)")
+			status.Running = true
+			if *jsonOutput {
+				json.NewEncoder(os.Stdout).Encode(status)
+			} else {
+				fmt.Println("running (pid unknown — lock held, pid file missing)")
+			}
 		} else {
-			fmt.Println("not running")
+			if *jsonOutput {
+				json.NewEncoder(os.Stdout).Encode(status)
+			} else {
+				fmt.Println("not running")
+			}
 		}
 		return 0
 	}
 
 	if isProcessAlive(pid) {
-		fmt.Printf("running (pid %d)\n", pid)
+		status.Running = true
+		status.Pid = pid
 		logPath := agentLogPath(ticketsDir)
 		if last := lastLogLine(logPath); last != "" {
-			fmt.Printf("  last: %s\n", last)
+			status.LastLog = last
+		}
+
+		if *jsonOutput {
+			json.NewEncoder(os.Stdout).Encode(status)
+		} else {
+			fmt.Printf("running (pid %d)\n", pid)
+			if status.LastLog != "" {
+				fmt.Printf("  last: %s\n", status.LastLog)
+			}
 		}
 	} else {
 		os.Remove(pidPath)
-		fmt.Println("not running (stale pid file removed)")
+		if *jsonOutput {
+			json.NewEncoder(os.Stdout).Encode(status)
+		} else {
+			fmt.Println("not running (stale pid file removed)")
+		}
 	}
 	return 0
 }

@@ -149,6 +149,137 @@ func TestCmdTriageBare(t *testing.T) {
 	}
 }
 
+func TestCmdTriageJSON(t *testing.T) {
+	tests := []struct {
+		name              string
+		ticket            *Ticket
+		wantBlockReason   string
+		wantQuestionsLen  int
+	}{
+		{
+			name: "blocked with reason and questions",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "blocked",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test ticket",
+				Body:     "## Notes\n\n**2026-01-01 00:00:00 UTC:** ko: BLOCKED — missing requirements",
+				PlanQuestions: []PlanQuestion{
+					{
+						ID:       "q1",
+						Question: "Test question?",
+						Options: []QuestionOption{
+							{Label: "Yes", Value: "yes"},
+							{Label: "No", Value: "no"},
+						},
+					},
+				},
+			},
+			wantBlockReason:  "missing requirements",
+			wantQuestionsLen: 1,
+		},
+		{
+			name: "blocked without reason but with questions",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "blocked",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test ticket",
+				Body:     "",
+				PlanQuestions: []PlanQuestion{
+					{
+						ID:       "q1",
+						Question: "Test question?",
+						Options: []QuestionOption{
+							{Label: "Yes", Value: "yes"},
+						},
+					},
+				},
+			},
+			wantBlockReason:  "",
+			wantQuestionsLen: 1,
+		},
+		{
+			name: "open ticket with no questions",
+			ticket: &Ticket{
+				ID:            "test-0003",
+				Status:        "open",
+				Deps:          []string{},
+				Created:       "2026-01-01T00:00:00Z",
+				Type:          "task",
+				Priority:      2,
+				Title:         "Test ticket",
+				Body:          "",
+				PlanQuestions: nil,
+			},
+			wantBlockReason:  "",
+			wantQuestionsLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			// Capture stdout
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+			defer func() { os.Stdout = oldStdout }()
+
+			args := []string{tt.ticket.ID, "--json"}
+			exitCode := cmdTriage(args)
+
+			w.Close()
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
+
+			if exitCode != 0 {
+				t.Errorf("cmdTriage() = %d, want 0", exitCode)
+				return
+			}
+
+			// Parse JSON output
+			var state triageStateJSON
+			if err := json.Unmarshal([]byte(output), &state); err != nil {
+				t.Fatalf("failed to unmarshal JSON: %v\nOutput: %s", err, output)
+			}
+
+			if state.BlockReason != tt.wantBlockReason {
+				t.Errorf("BlockReason = %q, want %q", state.BlockReason, tt.wantBlockReason)
+			}
+
+			if len(state.Questions) != tt.wantQuestionsLen {
+				t.Errorf("len(Questions) = %d, want %d", len(state.Questions), tt.wantQuestionsLen)
+			}
+		})
+	}
+}
+
 func TestCmdTriageBlock(t *testing.T) {
 	tests := []struct {
 		name       string

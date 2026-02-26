@@ -1,9 +1,18 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 )
+
+type depTreeJSON struct {
+	ID     string         `json:"id"`
+	Status string         `json:"status"`
+	Title  string         `json:"title"`
+	Deps   []*depTreeJSON `json:"deps,omitempty"`
+}
 
 func cmdDep(args []string) int {
 	if len(args) < 1 {
@@ -140,20 +149,80 @@ func cmdDepTree(args []string) int {
 		return 1
 	}
 
-	if len(args) < 1 {
+	args = reorderArgs(args, map[string]bool{})
+
+	fs := flag.NewFlagSet("dep tree", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko dep tree: %v\n", err)
+		return 1
+	}
+
+	if fs.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "ko dep tree: ticket ID required")
 		return 1
 	}
 
-	id, err := ResolveID(ticketsDir, args[0])
+	id, err := ResolveID(ticketsDir, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko dep tree: %v\n", err)
 		return 1
 	}
 
-	visited := make(map[string]bool)
-	printDepTree(ticketsDir, id, "", visited)
+	if *jsonOutput {
+		visited := make(map[string]bool)
+		tree := buildDepTree(ticketsDir, id, visited)
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(tree); err != nil {
+			fmt.Fprintf(os.Stderr, "ko dep tree: failed to encode JSON: %v\n", err)
+			return 1
+		}
+	} else {
+		visited := make(map[string]bool)
+		printDepTree(ticketsDir, id, "", visited)
+	}
 	return 0
+}
+
+func buildDepTree(ticketsDir, id string, visited map[string]bool) *depTreeJSON {
+	if visited[id] {
+		// Return a cycle marker node
+		return &depTreeJSON{
+			ID:     id,
+			Status: "cycle",
+			Title:  "(cycle detected)",
+		}
+	}
+	visited[id] = true
+
+	t, err := LoadTicket(ticketsDir, id)
+	if err != nil {
+		return &depTreeJSON{
+			ID:     id,
+			Status: "not_found",
+			Title:  "(not found)",
+		}
+	}
+
+	node := &depTreeJSON{
+		ID:     t.ID,
+		Status: t.Status,
+		Title:  t.Title,
+	}
+
+	if len(t.Deps) > 0 {
+		node.Deps = make([]*depTreeJSON, 0, len(t.Deps))
+		for _, dep := range t.Deps {
+			// Create a fresh visited map copy to allow different branches to explore independently
+			visitedCopy := make(map[string]bool)
+			for k, v := range visited {
+				visitedCopy[k] = v
+			}
+			node.Deps = append(node.Deps, buildDepTree(ticketsDir, dep, visitedCopy))
+		}
+	}
+
+	return node
 }
 
 func printDepTree(ticketsDir, id, indent string, visited map[string]bool) {

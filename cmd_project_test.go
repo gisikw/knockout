@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -260,3 +262,135 @@ func TestCmdProjectLsShowsDefaultMarker(t *testing.T) {
 	// Output verification would require capturing stdout,
 	// which is tested in the integration smoke test
 }
+
+func TestCmdProjectLsJSON(t *testing.T) {
+	tests := []struct {
+		name          string
+		projects      map[string]string
+		defaultTag    string
+		wantCount     int
+		wantDefault   string
+		checkProjects []struct {
+			tag       string
+			path      string
+			isDefault bool
+		}
+	}{
+		{
+			name:      "empty registry",
+			projects:  map[string]string{},
+			wantCount: 0,
+		},
+		{
+			name: "multiple projects with default",
+			projects: map[string]string{
+				"proj1": "/path/to/proj1",
+				"proj2": "/path/to/proj2",
+				"proj3": "/path/to/proj3",
+			},
+			defaultTag:  "proj2",
+			wantCount:   3,
+			wantDefault: "proj2",
+			checkProjects: []struct {
+				tag       string
+				path      string
+				isDefault bool
+			}{
+				{"proj1", "/path/to/proj1", false},
+				{"proj2", "/path/to/proj2", true},
+				{"proj3", "/path/to/proj3", false},
+			},
+		},
+		{
+			name: "single project",
+			projects: map[string]string{
+				"solo": "/path/to/solo",
+			},
+			defaultTag:  "solo",
+			wantCount:   1,
+			wantDefault: "solo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			regPath := filepath.Join(dir, "knockout", "projects.yml")
+			t.Setenv("XDG_CONFIG_HOME", dir)
+
+			// Create registry
+			reg := &Registry{
+				Default:  tt.defaultTag,
+				Projects: tt.projects,
+				Prefixes: map[string]string{},
+			}
+			SaveRegistry(regPath, reg)
+
+			// Capture stdout
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+			defer func() { os.Stdout = oldStdout }()
+
+			args := []string{"--json"}
+			exitCode := cmdProjectLs(args)
+
+			w.Close()
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
+
+			if exitCode != 0 {
+				t.Errorf("cmdProjectLs() = %d, want 0", exitCode)
+				return
+			}
+
+			// Parse JSON output
+			var projects []projectJSON
+			if err := json.Unmarshal([]byte(output), &projects); err != nil {
+				t.Fatalf("failed to unmarshal JSON: %v\nOutput: %s", err, output)
+			}
+
+			if len(projects) != tt.wantCount {
+				t.Errorf("len(projects) = %d, want %d", len(projects), tt.wantCount)
+			}
+
+			// Check each project if specified
+			if len(tt.checkProjects) > 0 {
+				projectMap := make(map[string]projectJSON)
+				for _, p := range projects {
+					projectMap[p.Tag] = p
+				}
+
+				for _, cp := range tt.checkProjects {
+					p, ok := projectMap[cp.tag]
+					if !ok {
+						t.Errorf("project %q not found in output", cp.tag)
+						continue
+					}
+					if p.Path != cp.path {
+						t.Errorf("project %q: path = %q, want %q", cp.tag, p.Path, cp.path)
+					}
+					if p.IsDefault != cp.isDefault {
+						t.Errorf("project %q: is_default = %v, want %v", cp.tag, p.IsDefault, cp.isDefault)
+					}
+				}
+			}
+
+			// Verify only one project marked as default
+			defaultCount := 0
+			for _, p := range projects {
+				if p.IsDefault {
+					defaultCount++
+					if p.Tag != tt.wantDefault {
+						t.Errorf("default project = %q, want %q", p.Tag, tt.wantDefault)
+					}
+				}
+			}
+			if tt.wantDefault != "" && defaultCount != 1 {
+				t.Errorf("default project count = %d, want 1", defaultCount)
+			}
+		})
+	}
+}
+
