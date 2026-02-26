@@ -44,17 +44,17 @@ type Ticket struct {
 
 // PlanQuestion represents a question that needs to be answered before implementing a ticket.
 type PlanQuestion struct {
-	ID       string           `yaml:"id"`
-	Question string           `yaml:"question"`
-	Context  string           `yaml:"context,omitempty"`
-	Options  []QuestionOption `yaml:"options"`
+	ID       string           `yaml:"id" json:"id"`
+	Question string           `yaml:"question" json:"question"`
+	Context  string           `yaml:"context,omitempty" json:"context,omitempty"`
+	Options  []QuestionOption `yaml:"options" json:"options"`
 }
 
 // QuestionOption represents a possible answer to a plan question.
 type QuestionOption struct {
-	Label       string `yaml:"label"`
-	Value       string `yaml:"value"`
-	Description string `yaml:"description,omitempty"`
+	Label       string `yaml:"label" json:"label"`
+	Value       string `yaml:"value" json:"value"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 }
 
 // ValidStatus reports whether s is a valid ticket status.
