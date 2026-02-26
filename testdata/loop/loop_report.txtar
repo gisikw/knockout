@@ -1,0 +1,63 @@
+# Agent report displays summary from last loop run
+chmod 755 fake-llm
+exec ko agent loop --max-tickets 2
+stdout '2 processed'
+stdout '2 succeeded'
+stdout 'stopped: max_tickets'
+
+# Check that ko agent report displays the summary
+exec ko agent report
+stdout 'Last agent loop run:'
+stdout 'Timestamp:'
+stdout 'Processed:  2 tickets'
+stdout 'Succeeded:  2'
+stdout 'Failed:     0'
+stdout 'Blocked:    0'
+stdout 'Decomposed: 0'
+stdout 'Stop reason: max_tickets'
+stdout 'Runtime:'
+
+# Check that ko agent report --json outputs valid JSON
+exec ko agent report --json
+stdout '"ts":'
+stdout '"tickets_processed": 2'
+stdout '"succeeded": 2'
+stdout '"failed": 0'
+stdout '"blocked": 0'
+stdout '"decomposed": 0'
+stdout '"stop_reason": "max_tickets"'
+stdout '"runtime_seconds":'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# First ticket
+-- .ko/tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Second ticket
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: action
+      prompt: triage.md
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "Stage completed successfully."

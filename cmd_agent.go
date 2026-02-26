@@ -26,7 +26,8 @@ Commands:
   init         Initialize pipeline config in current project
   start        Daemonize a loop (background agent)
   stop         Stop a running background agent
-  status       Check if an agent is running`)
+  status       Check if an agent is running
+  report       Show summary statistics from the last agent loop run`)
 		return 1
 	}
 
@@ -43,6 +44,8 @@ Commands:
 		return cmdAgentStop(args[1:])
 	case "status":
 		return cmdAgentStatus(args[1:])
+	case "report":
+		return cmdAgentReport(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ko agent: unknown subcommand '%s'\n", args[0])
 		return 1
@@ -358,4 +361,96 @@ func lastLogLine(path string) string {
 		}
 	}
 	return last
+}
+
+type agentReportJSON struct {
+	Timestamp        string  `json:"ts"`
+	TicketsProcessed int     `json:"tickets_processed"`
+	Succeeded        int     `json:"succeeded"`
+	Failed           int     `json:"failed"`
+	Blocked          int     `json:"blocked"`
+	Decomposed       int     `json:"decomposed"`
+	StopReason       string  `json:"stop_reason"`
+	RuntimeSeconds   float64 `json:"runtime_seconds"`
+}
+
+func cmdAgentReport(args []string) int {
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent report: %v\n", err)
+		return 1
+	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko agent report: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
+
+	fs := flag.NewFlagSet("agent report", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent report: %v\n", err)
+		return 1
+	}
+
+	logPath := agentLogPath(ticketsDir)
+	f, err := os.Open(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if *jsonOutput {
+				fmt.Println("{}")
+			} else {
+				fmt.Println("no runs found")
+			}
+			return 0
+		}
+		fmt.Fprintf(os.Stderr, "ko agent report: %v\n", err)
+		return 1
+	}
+	defer f.Close()
+
+	// Scan for the last JSONL line (lines starting with '{')
+	var lastJSONLine string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "{") {
+			lastJSONLine = line
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent report: error reading log: %v\n", err)
+		return 1
+	}
+
+	if lastJSONLine == "" {
+		if *jsonOutput {
+			fmt.Println("{}")
+		} else {
+			fmt.Println("no runs found")
+		}
+		return 0
+	}
+
+	var report agentReportJSON
+	if err := json.Unmarshal([]byte(lastJSONLine), &report); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent report: failed to parse summary: %v\n", err)
+		return 1
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(report)
+	} else {
+		fmt.Printf("Last agent loop run:\n")
+		fmt.Printf("  Timestamp:  %s\n", report.Timestamp)
+		fmt.Printf("  Processed:  %d tickets\n", report.TicketsProcessed)
+		fmt.Printf("  Succeeded:  %d\n", report.Succeeded)
+		fmt.Printf("  Failed:     %d\n", report.Failed)
+		fmt.Printf("  Blocked:    %d\n", report.Blocked)
+		fmt.Printf("  Decomposed: %d\n", report.Decomposed)
+		fmt.Printf("  Stop reason: %s\n", report.StopReason)
+		fmt.Printf("  Runtime:    %.2fs\n", report.RuntimeSeconds)
+	}
+	return 0
 }

@@ -43,6 +43,7 @@ Commands:
   agent start        Daemonize a loop (background agent)
   agent stop         Stop a running background agent
   agent status       Check if an agent is running
+  agent report       Show summary statistics from the last agent loop run
 
   project set #<tag> [--prefix=p] [--default]
                      Initialize .ko dir, register project, optionally set default
@@ -69,6 +70,7 @@ The following commands support `--json` for machine-readable output:
 - `ko ls --json` — list of tickets with status and priority
 - `ko ready --json` — ready queue tickets
 - `ko agent status --json` — agent provisioned/running status with pid
+- `ko agent report --json` — summary statistics from the last agent loop run
 - `ko dep tree <id> --json` — dependency tree as nested structure
 - `ko project ls --json` — registered projects with default marker
 
