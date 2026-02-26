@@ -1,0 +1,30 @@
+# List with --all flag includes closed tickets
+exec ko close list-0002
+exec ko ls
+! stdout 'list-0002'
+stdout 'list-0001'
+
+exec ko ls --all
+stdout 'list-0001'
+stdout 'list-0002'
+
+-- .ko/tickets/list-0001.md --
+---
+id: list-0001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Open ticket
+-- .ko/tickets/list-0002.md --
+---
+id: list-0002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Closed ticket

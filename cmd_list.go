@@ -136,6 +136,7 @@ func cmdLs(args []string) int {
 	statusFilter := fs.String("status", "", "filter by status")
 	limit := fs.Int("limit", 0, "max tickets to show")
 	jsonOutput := fs.Bool("json", false, "output as JSON array")
+	allTickets := fs.Bool("all", false, "include closed tickets")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
@@ -155,8 +156,8 @@ func cmdLs(args []string) int {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
 			}
-			// Default: show non-closed tickets
-			if *statusFilter == "" && t.Status == "closed" {
+			// Default: show non-closed tickets (unless --all is set)
+			if *statusFilter == "" && !*allTickets && t.Status == "closed" {
 				continue
 			}
 			result = append(result, ticketToJSON(t, ticketsDir))
@@ -174,8 +175,8 @@ func cmdLs(args []string) int {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
 			}
-			// Default: show non-closed tickets
-			if *statusFilter == "" && t.Status == "closed" {
+			// Default: show non-closed tickets (unless --all is set)
+			if *statusFilter == "" && !*allTickets && t.Status == "closed" {
 				continue
 			}
 			line := fmt.Sprintf("%s [%s] (p%d) %s", t.ID, t.Status, t.Priority, t.Title)

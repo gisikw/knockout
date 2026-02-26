@@ -23,6 +23,15 @@ Feature: Ticket Listing
     And the output should contain "list-0001"
     And the output should not contain "list-0002"
 
+  Scenario: List with --all flag includes closed tickets
+    Given a ticket exists with ID "list-0003" and title "Open ticket"
+    And a ticket exists with ID "list-0004" and title "Closed ticket"
+    And ticket "list-0004" has status "closed"
+    When I run "ko ls --all"
+    Then the command should succeed
+    And the output should contain "list-0003"
+    And the output should contain "list-0004"
+
   Scenario: List shows dependencies
     Given a ticket exists with ID "list-0001" and title "Main ticket"
     And a ticket exists with ID "list-0002" and title "Dep ticket"
