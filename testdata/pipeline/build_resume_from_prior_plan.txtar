@@ -1,0 +1,47 @@
+# Resume from prior plan: first build creates plan.md, second build injects it
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+# First build created plan.md
+exec test -f .ko/tickets/ko-a001.artifacts/plan.md
+
+# Manually edit ticket to reset to open for second build
+exec sed -i 's/status: closed/status: open/' .ko/tickets/ko-a001.md
+
+# Second build should see prior plan injected into prompt
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+# The fake-llm writes what it receives to a file so test can verify
+exec cat llm_received.txt
+stdout 'Prior Context'
+stdout 'plan.md'
+stdout 'This is the master plan'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Resume from prior plan test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: plan
+      type: action
+      run: sh -c 'echo "This is the master plan" > "$KO_ARTIFACT_DIR/plan.md"; echo "Plan created"'
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement the plan.
+-- fake-llm --
+#!/bin/sh
+# Write stdin to file so test can verify prior context injection
+cat > llm_received.txt
+echo "Done."

@@ -1,0 +1,52 @@
+# Resume from workspace: first build writes workspace files, second build injects only matching workflow files
+chmod 755 fake-llm
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+# First build created workspace files for main workflow
+exec test -f .ko/tickets/ko-a001.artifacts/workspace/main.plan.md
+exec test -f .ko/tickets/ko-a001.artifacts/workspace/main.implement.md
+
+# Manually edit ticket to reset to open for second build
+exec sed -i 's/status: closed/status: open/' .ko/tickets/ko-a001.md
+
+# Second build should see prior workspace files injected into prompt
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+# Verify that workspace files were injected - just check they're present
+exec cat llm_received.txt
+stdout 'Prior Context'
+stdout 'main.plan.md'
+stdout 'main.implement.md'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Resume from workspace test
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: plan
+      type: action
+      prompt: plan.md
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/plan.md --
+Plan the work.
+-- .ko/prompts/implement.md --
+Implement the plan.
+-- fake-llm --
+#!/bin/sh
+# Write stdin to file so test can verify prior context injection
+cat > llm_received.txt
+echo "Done"
