@@ -15,7 +15,6 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
-  blocked [id]       Show blocked tickets or reason for specific ticket
 
   status <id> <s>    Set ticket status
   start <id>         Set status to in_progress
@@ -23,10 +22,13 @@ Commands:
   open <id>          Set status to open
   serve [-p port]    Start HTTP daemon (default :9876)
 
-  triage <id>                     Show block reason and open questions
-  triage <id> --block [reason]    Block ticket with optional reason
-  triage <id> --questions '<json>' Add questions, implicitly blocks
-  triage <id> --answers '<json>'   Answer questions, auto-unblock when done
+  update <id>                       Show block reason and open questions
+  update <id> --block [reason]      Block ticket with optional reason
+  update <id> --questions '<json>'  Add questions, implicitly blocks
+  update <id> --answers '<json>'    Answer questions, auto-unblock when done
+  update <id> --status <s>          Set ticket status
+  update <id> [--title] [--description] [--priority] [--tags] ...
+                                    Update ticket metadata fields
 
   dep <id> <dep>     Add dependency
   undep <id> <dep>   Remove dependency
@@ -67,8 +69,6 @@ The following commands support `--json` for machine-readable output:
 - `ko show <id> --json` — ticket details with all metadata
 - `ko ls --json` — list of tickets with status and priority
 - `ko ready --json` — ready queue tickets
-- `ko blocked --json` — blocked tickets list
-- `ko triage <id> --json` — block reason and questions as structured JSON
 - `ko agent status --json` — agent provisioned/running status with pid
 - `ko dep tree <id> --json` — dependency tree as nested structure
 - `ko project ls --json` — registered projects with default marker
@@ -405,25 +405,25 @@ When a build plan has open questions requiring human input, the pipeline can
 block the ticket with structured questions:
 
 ```bash
-ko triage ko-f65e --questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Spaces","value":"spaces"},{"label":"Tabs","value":"tabs"}]}]'
+ko update ko-f65e --questions '[{"id":"q1","question":"Tabs or spaces?","options":[{"label":"Spaces","value":"spaces"},{"label":"Tabs","value":"tabs"}]}]'
 ```
 
 Read block reason and questions for a ticket:
 
 ```bash
-ko triage ko-f65e    # shows block reason and outputs JSON array of questions
+ko update ko-f65e    # shows block reason and outputs JSON array of questions
 ```
 
 Answer questions (partial or full):
 
 ```bash
-ko triage ko-f65e --answers '{"q1":"spaces"}'
+ko update ko-f65e --answers '{"q1":"spaces"}'
 ```
 
 Block a ticket with an optional reason:
 
 ```bash
-ko triage ko-f65e --block "waiting for approval"
+ko update ko-f65e --block "waiting for approval"
 ```
 
 Each answer is recorded as a note. When all questions are answered, the ticket
