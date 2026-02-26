@@ -15,11 +15,19 @@ restart:
     fort ratched systemd '{"action": "restart", "unit": "knockout"}'
 
 # Symlink this project's pipeline and prompts into another project.
-# Usage: just link-pipeline ~/Projects/my-other-project
+# Usage: just link-pipeline nerve
 link-pipeline project:
     #!/usr/bin/env bash
     set -euo pipefail
     target="{{ project }}"
+    # Resolve bare names as ~/Projects/<name>
+    if [[ "$target" != /* && "$target" != ~* && "$target" != .* ]]; then
+        target="$HOME/Projects/$target"
+    fi
+    if [ ! -d "$target" ]; then
+        echo "error: $target does not exist" >&2
+        exit 1
+    fi
     src="{{ justfile_directory() }}/.ko"
     # Ensure target .ko dir exists
     mkdir -p "$target/.ko"

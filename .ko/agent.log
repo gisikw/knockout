@@ -171,3 +171,8 @@ loop: building ko-ddd0 — Add another SSE endpoint. We need to serve up tickets
 loop: building ko-0c04 — Ensure ko show [id] --json includes questions json, like ko ls does
 loop: ko-0c04 SUCCEED
 loop: building ko-a6b2 — I'd really like this ticket to end up with questions in its plan, as I'm trying to test that behavior
+loop: ko-a6b2 SUCCEED
+loop complete: 2 processed (2 succeeded, 0 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":454.125274572,"stop_reason":"empty","succeeded":2,"tickets_processed":2,"ts":"2026-02-26T05:14:44Z"}
+loop: building ko-4b72 — Can we set up commit messages in the pipeline on success to leverage the ticket title to make them more descriptive? Idk what env vars we're currently exposing
