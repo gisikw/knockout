@@ -29,8 +29,8 @@ stdout '^\]'
 exec ko ready --limit 1
 stdout -count=1 '\[open\]'
 
-# Test ko blocked --json output with blocked ticket (JSON array format)
-exec ko blocked --json
+# Test ko ls --json output with ticket that has deps (JSON array format)
+exec ko ls --json
 stdout '^\['
 stdout '"id": "json-0002"'
 stdout '"deps": \['
@@ -38,9 +38,9 @@ stdout '"json-0003"'
 stdout '"hasUnresolvedDep": true'
 stdout '^\]'
 
-# Test ko blocked --limit flag
-exec ko ls --status blocked
-exec ko blocked --limit 1
+# Test ko ls --limit flag with blocked status
+exec ko block json-0002
+exec ko ls --status blocked --limit 1
 stdout 'json-0002'
 
 # Test ko ls --status=closed --json output (JSON array format)

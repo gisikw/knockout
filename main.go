@@ -35,14 +35,10 @@ func run(args []string) int {
 		return cmdOpen(rest)
 	case "serve":
 		return cmdServe(rest)
-	case "triage":
-		return cmdTriage(rest)
 	case "ls":
 		return cmdLs(rest)
 	case "ready":
 		return cmdReady(rest)
-	case "blocked":
-		return cmdBlocked(rest)
 	case "block":
 		return cmdBlock(rest)
 	case "dep":
@@ -121,7 +117,6 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
-  blocked [id]       Show blocked tickets or reason for specific ticket
   block <id> [reason]           Block ticket with optional reason
   block <id> --questions '<json>' Block ticket with questions
 
@@ -130,11 +125,6 @@ Commands:
   close <id>         Set status to closed
   open <id>          Set status to open
   serve [-p port]    Start HTTP daemon (default :9876)
-
-  triage <id>                     Show block reason and open questions
-  triage <id> --block [reason]    Block ticket with optional reason
-  triage <id> --questions '<json>' Add questions, implicitly blocks
-  triage <id> --answers '<json>'   Answer questions, auto-unblock when done
 
   update <id> [--title title] [-d description] [-t type] [-p priority] [-a assignee]
               [--parent id] [--external-ref ref]

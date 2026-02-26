@@ -1,12 +1,12 @@
-# Blocked shows tickets with unclosed deps
-exec ko blocked
+# ls shows tickets with unclosed deps
+exec ko ls
 stdout 'block-001'
 stdout '<- \[block-002\]'
 
-# After closing dep, ticket no longer in blocked view
+# After closing dep, ticket shows as ready
 exec ko close block-002
-exec ko blocked
-! stdout 'block-001'
+exec ko ready
+stdout 'block-001'
 
 -- .ko/tickets/block-001.md --
 ---

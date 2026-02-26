@@ -1,5 +1,5 @@
 # Blocked tickets excluded from ready
-exec ko triage test-0001 --block
+exec ko block test-0001
 exec ko ready
 ! stdout 'test-0001'
 

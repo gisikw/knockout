@@ -14,7 +14,7 @@ exec ko show test-0001
 stdout 'status: open'
 
 # Block command
-exec ko triage test-0001 --block
+exec ko block test-0001
 exec ko show test-0001
 stdout 'status: blocked'
 
