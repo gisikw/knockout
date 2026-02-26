@@ -1,9 +1,9 @@
-# SUCCEED: all action nodes pass, ticket is closed
+# SUCCEED: all action nodes pass, ticket is resolved
 chmod 755 fake-llm
 exec ko agent build ko-a001
 stdout 'SUCCEED'
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 stdout 'SUCCEED'
 
 -- .ko/tickets/ko-a001.md --

@@ -29,8 +29,8 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 	switch t.Status {
 	case "in_progress":
 		return fmt.Sprintf("ticket '%s' is not eligible for build: already in progress", t.ID)
-	case "closed":
-		msg := fmt.Sprintf("ticket '%s' is already closed", t.ID)
+	case "closed", "resolved":
+		msg := fmt.Sprintf("ticket '%s' is already %s", t.ID, t.Status)
 		if strings.Contains(t.Body, "Closed in:") {
 			for _, line := range strings.Split(t.Body, "\n") {
 				if strings.Contains(line, "Closed in:") {
@@ -130,16 +130,16 @@ func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbo
 	changedFiles := computeChangedFiles(projectRoot, beforeSnapshot)
 
 	// Determine target status based on final workflow's on_success config
-	targetStatus := "closed" // default
+	targetStatus := "resolved" // default: agent marks resolved, human closes
 	if finalWorkflow != "" {
-		if wf, ok := p.Workflows[finalWorkflow]; ok && wf.OnSuccess == "resolved" {
-			targetStatus = "resolved"
+		if wf, ok := p.Workflows[finalWorkflow]; ok && wf.OnSuccess == "closed" {
+			targetStatus = "closed"
 		}
 	}
 
-	// Close ticket first — if the process is killed during on_succeed hooks,
-	// the ticket should stay closed rather than being reset to open with
-	// committed but untracked changes.
+	// Set terminal status first — if the process is killed during on_succeed
+	// hooks, the ticket should stay resolved/closed rather than being reset
+	// to open with committed but untracked changes.
 	AddNote(t, "ko: SUCCEED")
 	log.WorkflowComplete(t.ID, "succeed")
 	hist.BuildComplete(t.ID, "succeed")

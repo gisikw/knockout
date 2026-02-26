@@ -4,7 +4,7 @@ stdout 'SUCCEED'
 
 # Verify build succeeded
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 
 # Verify JSONL contains node_fail events with attempt numbers
 exec grep -c '"event":"node_fail"' .ko/tickets/ko-a001.jsonl

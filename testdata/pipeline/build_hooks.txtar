@@ -2,7 +2,7 @@
 chmod 755 fake-llm
 exec ko agent build ko-a001
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 # Verify on_succeed ran (created marker file)
 exists succeed_marker
 # Verify on_close ran (created marker file)

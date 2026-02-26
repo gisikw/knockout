@@ -8,10 +8,10 @@ stdout 'stopped: empty'
 
 # Both tickets should be closed
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 
 exec ko show ko-b002
-stdout 'status: closed'
+stdout 'status: resolved'
 
 -- .ko/tickets/ko-a001.md --
 ---

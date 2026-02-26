@@ -646,12 +646,13 @@ func AllDepsResolved(ticketsDir string, deps []string) bool {
 	})
 }
 
-// AllDepsResolvedWith checks if all deps are closed using a lookup function.
-// The lookup returns (status, found). Pure decision function.
+// AllDepsResolvedWith checks if all deps are in a terminal state using a lookup
+// function. The lookup returns (status, found). Both "closed" and "resolved"
+// count as terminal.
 func AllDepsResolvedWith(deps []string, lookup func(id string) (string, bool)) bool {
 	for _, depID := range deps {
 		status, found := lookup(depID)
-		if !found || status != "closed" {
+		if !found || (status != "closed" && status != "resolved") {
 			return false
 		}
 	}

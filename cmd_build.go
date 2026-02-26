@@ -82,7 +82,7 @@ func cmdAgentBuild(args []string) int {
 	} else {
 		switch outcome {
 		case OutcomeSucceed:
-			fmt.Printf("SUCCEED: %s closed\n", id)
+			fmt.Printf("SUCCEED: %s resolved\n", id)
 		case OutcomeFail:
 			fmt.Printf("FAIL: %s blocked\n", id)
 		case OutcomeBlocked:

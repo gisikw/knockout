@@ -9,9 +9,9 @@ stdout 'ko-a001 DECOMPOSE'
 stdout 'SUCCEED'
 stdout 'stopped: empty'
 
-# Parent should now be closed (all child deps resolved)
+# Parent should now be resolved (all child deps resolved)
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 
 -- .ko/tickets/ko-a001.md --
 ---

@@ -6,7 +6,7 @@ stdout 'SUCCEED'
 exec test -f .ko/tickets/ko-a001.artifacts/plan.md
 
 # Manually edit ticket to reset to open for second build
-exec sed -i 's/status: closed/status: open/' .ko/tickets/ko-a001.md
+exec sed -i 's/status: resolved/status: open/' .ko/tickets/ko-a001.md
 
 # Second build should see prior plan injected into prompt
 exec ko agent build ko-a001

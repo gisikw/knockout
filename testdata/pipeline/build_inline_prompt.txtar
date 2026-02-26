@@ -2,7 +2,7 @@
 chmod 755 fake-llm
 exec ko agent build ko-a001
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 
 -- .ko/tickets/ko-a001.md --
 ---

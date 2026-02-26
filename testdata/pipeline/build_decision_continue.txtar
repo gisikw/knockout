@@ -3,7 +3,7 @@ chmod 755 fake-llm
 exec ko agent build ko-a001
 stdout 'SUCCEED'
 exec ko show ko-a001
-stdout 'status: closed'
+stdout 'status: resolved'
 # Both nodes executed
 exists .triage_ran
 exists .implement_ran

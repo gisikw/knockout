@@ -20,7 +20,7 @@ exec ko ls
 
 # Shallow ticket closed
 exec ko show ko-d004
-stdout 'status: closed'
+stdout 'status: resolved'
 
 -- .ko/tickets/ko-a001.md --
 ---
