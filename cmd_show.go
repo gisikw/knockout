@@ -21,11 +21,12 @@ type showJSON struct {
 	Assignee    string   `json:"assignee,omitempty"`
 	Parent      string   `json:"parent,omitempty"`
 	ExternalRef string   `json:"external_ref,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Blockers    []string `json:"blockers,omitempty"`
-	Blocking    []string `json:"blocking,omitempty"`
-	Children    []string `json:"children,omitempty"`
-	Body        string   `json:"body,omitempty"`
+	Tags          []string       `json:"tags,omitempty"`
+	Blockers      []string       `json:"blockers,omitempty"`
+	Blocking      []string       `json:"blocking,omitempty"`
+	Children      []string       `json:"children,omitempty"`
+	PlanQuestions []PlanQuestion `json:"plan-questions,omitempty"`
+	Body          string         `json:"body,omitempty"`
 }
 
 func cmdShow(args []string) int {
@@ -73,22 +74,23 @@ func cmdShow(args []string) int {
 		}
 
 		j := showJSON{
-			ID:          t.ID,
-			Title:       t.Title,
-			Status:      t.Status,
-			Type:        t.Type,
-			Priority:    t.Priority,
-			Deps:        t.Deps,
-			Created:     t.Created,
-			Modified:    modified,
-			Assignee:    t.Assignee,
-			Parent:      t.Parent,
-			ExternalRef: t.ExternalRef,
-			Tags:        t.Tags,
-			Blockers:    blockers,
-			Blocking:    blocking,
-			Children:    children,
-			Body:        t.Body,
+			ID:            t.ID,
+			Title:         t.Title,
+			Status:        t.Status,
+			Type:          t.Type,
+			Priority:      t.Priority,
+			Deps:          t.Deps,
+			Created:       t.Created,
+			Modified:      modified,
+			Assignee:      t.Assignee,
+			Parent:        t.Parent,
+			ExternalRef:   t.ExternalRef,
+			Tags:          t.Tags,
+			Blockers:      blockers,
+			Blocking:      blocking,
+			Children:      children,
+			PlanQuestions: t.PlanQuestions,
+			Body:          t.Body,
 		}
 
 		enc := json.NewEncoder(os.Stdout)
