@@ -68,3 +68,4 @@ on_succeed:
 
 on_fail:
   - git add .ko/tickets/ && git diff --cached --quiet || git commit -m "ko: ${TICKET_ID} (blocked)"
+  - git stash push -u -m "ko: ${TICKET_ID} failed build"
