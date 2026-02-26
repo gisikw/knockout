@@ -13,3 +13,28 @@ install:
 restart:
     just install
     fort ratched systemd '{"action": "restart", "unit": "knockout"}'
+
+# Symlink this project's pipeline and prompts into another project.
+# Usage: just link-pipeline ~/Projects/my-other-project
+link-pipeline project:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="{{ project }}"
+    src="{{ justfile_directory() }}/.ko"
+    # Ensure target .ko dir exists
+    mkdir -p "$target/.ko"
+    # pipeline.yml
+    if [ -e "$target/.ko/pipeline.yml" ] && [ ! -L "$target/.ko/pipeline.yml" ]; then
+        echo "backing up $target/.ko/pipeline.yml → pipeline.yml.bak"
+        mv "$target/.ko/pipeline.yml" "$target/.ko/pipeline.yml.bak"
+    fi
+    ln -sf "$src/pipeline.yml" "$target/.ko/pipeline.yml"
+    echo "linked pipeline.yml"
+    # prompts/
+    if [ -d "$target/.ko/prompts" ] && [ ! -L "$target/.ko/prompts" ]; then
+        echo "backing up $target/.ko/prompts → prompts.bak"
+        mv "$target/.ko/prompts" "$target/.ko/prompts.bak"
+    fi
+    ln -sf "$src/prompts" "$target/.ko/prompts"
+    echo "linked prompts/"
+    echo "done: $target/.ko → $src"

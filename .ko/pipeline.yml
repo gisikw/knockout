@@ -44,7 +44,7 @@ workflows:
       prompt: implement.md
     - name: verify
       type: action
-      run: go test ./... -count=1
+      run: just test
     - name: review
       type: decision
       prompt: review.md
