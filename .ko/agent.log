@@ -176,3 +176,5 @@ loop complete: 2 processed (2 succeeded, 0 failed, 0 blocked, 0 decomposed)
 stopped: empty
 {"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":454.125274572,"stop_reason":"empty","succeeded":2,"tickets_processed":2,"ts":"2026-02-26T05:14:44Z"}
 loop: building ko-4b72 — Can we set up commit messages in the pipeline on success to leverage the ticket title to make them more descriptive? Idk what env vars we're currently exposing
+loop: ko-4b72 SUCCEED
+loop: building ko-274f — I feel like we may need a way to indicate if the working dir is clean, programmatically. From the perspective of knowing whether it's safe to spin up an agent. Wonder if ko agent status could just expose something? Or perhaps we just need an addition to pipeline.yml that allows a pre-loop git stash step
