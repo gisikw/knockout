@@ -699,6 +699,8 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, changedFiles, wsDir,
 			switch key {
 			case "TICKET_ID":
 				return t.ID
+			case "TICKET_TITLE":
+				return t.Title
 			case "CHANGED_FILES":
 				return changedFiles
 			default:
@@ -710,6 +712,7 @@ func runHooks(ticketsDir string, t *Ticket, hooks []string, changedFiles, wsDir,
 		cmd.Dir = projectRoot
 		cmd.Env = append(os.Environ(),
 			"TICKET_ID="+t.ID,
+			"TICKET_TITLE="+t.Title,
 			"CHANGED_FILES="+changedFiles,
 			"KO_TICKET_WORKSPACE="+wsDir,
 			"KO_ARTIFACT_DIR="+ArtifactDir(ticketsDir, t.ID),

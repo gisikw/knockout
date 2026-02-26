@@ -67,7 +67,7 @@ workflows:
       routes: [task]
 
 on_succeed:
-  - git add -A && git commit -m "ko: ${TICKET_ID}"
+  - git add -A && git commit -m "ko: ${TICKET_ID} — ${TICKET_TITLE}"
 
 on_fail:
   - git add .ko/tickets/ && git diff --cached --quiet || git commit -m "ko: ${TICKET_ID} (blocked)"
