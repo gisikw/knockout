@@ -1,17 +1,17 @@
-Looking at this ticket, I can identify the key aspects:
+I'll classify this ticket by reading its content carefully.
 
-**What the ticket describes:**
-- A specific feature request: "Add support for `require_clean_tree: true` in pipeline.yml"
-- Clear intent: "prevent an agent from starting if the working tree is clean (ignoring ./.ko)"
-- This describes what to build, not what's broken
+The ticket clearly states:
+- **What to build**: "Add support for `require_clean_tree: true` in pipeline.yml"
+- **Desired behavior**: A configuration option that prevents builds when uncommitted changes exist (outside `.ko/`)
+- **Specification details**: The ticket includes notes clarifying the interpretation (prevent if dirty, not if clean)
 
-**Classification indicators:**
-- The ticket specifies exactly what needs to be implemented (a new configuration option)
-- It explains the desired behavior (validation/prevention logic)
-- There's no indication of current broken behavior or unexpected issues
-- The work involves adding a feature to existing code
+The ticket describes **what to implement** (a new feature with clear requirements), not what's broken. It provides:
+- A specific configuration option name
+- Expected behavior (validation logic)
+- Implementation notes in the prior context with a detailed plan
+- Clear technical approach
 
-This is a **task** - it's a feature implementation with a clear specification of what needs to be built.
+This is a **task** — it's a feature implementation request with a complete specification.
 
 ```json
 {"disposition": "route", "workflow": "task"}

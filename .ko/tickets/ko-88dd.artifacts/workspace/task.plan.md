@@ -1,19 +1,18 @@
-Perfect! I've written a comprehensive plan to the artifact directory. The plan includes:
+Great! The plan has been updated. The open question has been resolved - the ticket author confirmed that `require_clean_tree: true` should use the standard interpretation: **prevent builds when there ARE uncommitted changes** (dirty tree), not when the tree is clean.
+
+The plan is now complete and ready for implementation:
 
 ## Summary
 
-I've created a detailed implementation plan for adding `require_clean_tree: true` support to pipeline.yml. The plan covers:
+The plan adds `require_clean_tree: true` support to pipeline.yml with the following approach:
 
-**Goal**: Add a pipeline configuration option to prevent builds from starting when the working tree has uncommitted changes (outside `.ko/`)
+**Confirmed Behavior**: When `require_clean_tree: true` is set, builds will be blocked if there are uncommitted changes in the working tree (outside `.ko/`). This is the standard Git interpretation of "require clean tree."
 
-**Key Changes**:
-1. Add `RequireCleanTree` field to the Pipeline struct
-2. Parse the field from YAML configuration
-3. Implement `isWorkingTreeClean()` helper that checks git status while ignoring `.ko/` directory
-4. Enhance `BuildEligibility()` to check working tree status when the flag is enabled
-5. Add comprehensive tests for the new functionality
-6. Document the option in example pipeline files
+**Implementation Strategy**:
+1. Add `RequireCleanTree` field to Pipeline struct and parse it from YAML
+2. Create `isWorkingTreeClean()` helper that shells out to `git status --porcelain` and filters out `.ko/` changes
+3. Enhance `BuildEligibility()` to check working tree status when the flag is enabled
+4. Add comprehensive tests covering dirty tree rejection and `.ko/` directory exclusion
+5. Document the option in example pipeline files
 
-**Open Question**: I flagged a potential inconsistency in the ticket wording. The ticket says "prevent if clean" but the config name `require_clean_tree: true` and standard Git patterns suggest it should "prevent if dirty." I've planned the implementation using the standard interpretation (prevent builds when there are uncommitted changes), but noted this should be clarified if the opposite behavior was intended.
-
-The plan is now ready at `.ko/tickets/ko-88dd.artifacts/plan.md` for review.
+The plan is well-structured with 8 specific tasks, each with verification steps. All open questions have been resolved.

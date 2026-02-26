@@ -91,4 +91,4 @@ The working tree check will be added as a new function that can be called from B
    Verify: Examples remain valid YAML.
 
 ## Open Questions
-**Ticket wording inconsistency**: The ticket title says "prevent an agent from starting if the working tree is **clean**" but the config name `require_clean_tree: true` and Git conventions suggest it should prevent starting if the tree is **dirty** (i.e., has uncommitted changes). I'm proceeding with the standard interpretation: `require_clean_tree: true` means "require the tree to be clean" → prevent builds when there are uncommitted changes. If the ticket actually wants the opposite behavior (prevent when clean, allow when dirty), that would be unusual and should be clarified.
+None. The semantic ambiguity in the ticket title has been clarified: `require_clean_tree: true` means prevent builds when there ARE uncommitted changes (standard Git interpretation). The feature will block builds when the working tree is dirty, ignoring changes in `.ko/`.
