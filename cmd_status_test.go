@@ -173,6 +173,467 @@ func TestValidatePlanQuestions(t *testing.T) {
 	}
 }
 
+func TestCmdStatus(t *testing.T) {
+	tests := []struct {
+		name       string
+		ticket     *Ticket
+		args       []string
+		wantStatus string
+		wantErr    bool
+	}{
+		{
+			name: "set status to open",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "captured",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0001", "open"},
+			wantStatus: "open",
+		},
+		{
+			name: "set status to closed",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "in_progress",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0002", "closed"},
+			wantStatus: "closed",
+		},
+		{
+			name: "set status to blocked",
+			ticket: &Ticket{
+				ID:       "test-0003",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0003", "blocked"},
+			wantStatus: "blocked",
+		},
+		{
+			name:    "missing ticket ID",
+			args:    []string{},
+			wantErr: true,
+		},
+		{
+			name: "missing status",
+			ticket: &Ticket{
+				ID:       "test-0004",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:    []string{"test-0004"},
+			wantErr: true,
+		},
+		{
+			name: "invalid status",
+			ticket: &Ticket{
+				ID:       "test-0005",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:    []string{"test-0005", "invalid_status"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErr {
+				// Suppress stderr
+				oldStderr := os.Stderr
+				os.Stderr, _ = os.Open(os.DevNull)
+				defer func() { os.Stderr = oldStderr }()
+
+				exitCode := cmdStatus(tt.args)
+				if exitCode == 0 {
+					t.Errorf("cmdStatus() = %d, want non-zero exit code", exitCode)
+				}
+				return
+			}
+
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			// Suppress stdout
+			oldStdout := os.Stdout
+			os.Stdout, _ = os.Open(os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			exitCode := cmdStatus(tt.args)
+
+			if exitCode != 0 {
+				t.Errorf("cmdStatus() = %d, want 0", exitCode)
+				return
+			}
+
+			// Load updated ticket
+			updated, err := LoadTicket(ticketsDir, tt.ticket.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if updated.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", updated.Status, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestCmdStart(t *testing.T) {
+	tests := []struct {
+		name       string
+		ticket     *Ticket
+		args       []string
+		wantStatus string
+		wantErr    bool
+	}{
+		{
+			name: "start ticket from open",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0001"},
+			wantStatus: "in_progress",
+		},
+		{
+			name: "start ticket from captured",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "captured",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0002"},
+			wantStatus: "in_progress",
+		},
+		{
+			name:    "missing ticket ID",
+			args:    []string{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErr {
+				// Suppress stderr
+				oldStderr := os.Stderr
+				os.Stderr, _ = os.Open(os.DevNull)
+				defer func() { os.Stderr = oldStderr }()
+
+				exitCode := cmdStart(tt.args)
+				if exitCode == 0 {
+					t.Errorf("cmdStart() = %d, want non-zero exit code", exitCode)
+				}
+				return
+			}
+
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			// Suppress stdout
+			oldStdout := os.Stdout
+			os.Stdout, _ = os.Open(os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			exitCode := cmdStart(tt.args)
+
+			if exitCode != 0 {
+				t.Errorf("cmdStart() = %d, want 0", exitCode)
+				return
+			}
+
+			// Load updated ticket
+			updated, err := LoadTicket(ticketsDir, tt.ticket.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if updated.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", updated.Status, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestCmdClose(t *testing.T) {
+	tests := []struct {
+		name       string
+		ticket     *Ticket
+		args       []string
+		wantStatus string
+		wantErr    bool
+	}{
+		{
+			name: "close ticket from in_progress",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "in_progress",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0001"},
+			wantStatus: "closed",
+		},
+		{
+			name: "close ticket from open",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0002"},
+			wantStatus: "closed",
+		},
+		{
+			name:    "missing ticket ID",
+			args:    []string{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErr {
+				// Suppress stderr
+				oldStderr := os.Stderr
+				os.Stderr, _ = os.Open(os.DevNull)
+				defer func() { os.Stderr = oldStderr }()
+
+				exitCode := cmdClose(tt.args)
+				if exitCode == 0 {
+					t.Errorf("cmdClose() = %d, want non-zero exit code", exitCode)
+				}
+				return
+			}
+
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			// Suppress stdout
+			oldStdout := os.Stdout
+			os.Stdout, _ = os.Open(os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			exitCode := cmdClose(tt.args)
+
+			if exitCode != 0 {
+				t.Errorf("cmdClose() = %d, want 0", exitCode)
+				return
+			}
+
+			// Load updated ticket
+			updated, err := LoadTicket(ticketsDir, tt.ticket.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if updated.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", updated.Status, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestCmdOpen(t *testing.T) {
+	tests := []struct {
+		name       string
+		ticket     *Ticket
+		args       []string
+		wantStatus string
+		wantErr    bool
+	}{
+		{
+			name: "open ticket from captured",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "captured",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0001"},
+			wantStatus: "open",
+		},
+		{
+			name: "open ticket from blocked",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "blocked",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0002"},
+			wantStatus: "open",
+		},
+		{
+			name:    "missing ticket ID",
+			args:    []string{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErr {
+				// Suppress stderr
+				oldStderr := os.Stderr
+				os.Stderr, _ = os.Open(os.DevNull)
+				defer func() { os.Stderr = oldStderr }()
+
+				exitCode := cmdOpen(tt.args)
+				if exitCode == 0 {
+					t.Errorf("cmdOpen() = %d, want non-zero exit code", exitCode)
+				}
+				return
+			}
+
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			// Suppress stdout
+			oldStdout := os.Stdout
+			os.Stdout, _ = os.Open(os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			exitCode := cmdOpen(tt.args)
+
+			if exitCode != 0 {
+				t.Errorf("cmdOpen() = %d, want 0", exitCode)
+				return
+			}
+
+			// Load updated ticket
+			updated, err := LoadTicket(ticketsDir, tt.ticket.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if updated.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", updated.Status, tt.wantStatus)
+			}
+		})
+	}
+}
+
 func TestCmdBlock(t *testing.T) {
 	tests := []struct {
 		name           string

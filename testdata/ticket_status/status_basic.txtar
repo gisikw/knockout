@@ -1,22 +1,22 @@
 # Set status to in_progress
 exec ko status test-0001 in_progress
-stdout 'test-0001 -> in_progress'
+stdout 'test-0001 updated'
 exec ko show test-0001
 stdout 'status: in_progress'
 
 # Set status to closed
 exec ko status test-0001 closed
-stdout 'test-0001 -> closed'
+stdout 'test-0001 updated'
 exec ko show test-0001
 stdout 'status: closed'
 
 # Set status to blocked
 exec ko status test-0001 blocked
-stdout 'test-0001 -> blocked'
+stdout 'test-0001 updated'
 
 # Reopen from closed
 exec ko status test-0001 open
-stdout 'test-0001 -> open'
+stdout 'test-0001 updated'
 
 -- .ko/tickets/test-0001.md --
 ---

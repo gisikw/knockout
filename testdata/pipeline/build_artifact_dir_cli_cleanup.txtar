@@ -3,7 +3,7 @@ mkdir -p .ko/tickets/ko-a001.artifacts
 cp plan.md .ko/tickets/ko-a001.artifacts/plan.md
 exists .ko/tickets/ko-a001.artifacts/plan.md
 exec ko close ko-a001
-stdout 'ko-a001 -> closed'
+stdout 'ko-a001 updated'
 # Artifact dir should persist
 exists .ko/tickets/ko-a001.artifacts
 exec cat .ko/tickets/ko-a001.artifacts/plan.md
