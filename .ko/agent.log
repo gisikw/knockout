@@ -169,3 +169,5 @@ stopped: empty
 loop: building ko-ddd0 — Add another SSE endpoint. We need to serve up tickets and agent status
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":121.563720485,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-26T04:51:31Z"}
 loop: building ko-0c04 — Ensure ko show [id] --json includes questions json, like ko ls does
+loop: ko-0c04 SUCCEED
+loop: building ko-a6b2 — I'd really like this ticket to end up with questions in its plan, as I'm trying to test that behavior
