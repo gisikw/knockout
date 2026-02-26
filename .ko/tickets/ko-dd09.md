@@ -1,6 +1,6 @@
 ---
 id: ko-dd09
-status: resolved
+status: closed
 deps: []
 created: 2026-02-26T21:43:40Z
 type: task
