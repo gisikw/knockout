@@ -51,26 +51,46 @@ func ticketToJSON(t *Ticket, ticketsDir string) ticketJSON {
 	}
 }
 
-// resolveProjectTicketsDir checks args for a --project flag and resolves it
-// to that project's tickets directory via the registry. Returns the tickets
-// dir and the remaining args (with the flag removed).
-// If no --project flag is found, returns the local tickets directory.
+// resolveProjectTicketsDir checks args for a --project flag or #tag shorthand
+// and resolves it to that project's tickets directory via the registry.
+// Returns the tickets dir and the remaining args (with the flag removed).
+// If no --project flag or #tag is found, returns the local tickets directory.
+// If both #tag and --project are provided, --project takes precedence.
 func resolveProjectTicketsDir(args []string) (string, []string, error) {
-	// Manually parse --project to avoid consuming other flags
+	// Manually parse --project and #tag to avoid consuming other flags
 	var projectTag string
 	var remaining []string
+	var foundHashTag bool
 
+	// First pass: scan for positional #tag args (before we process --project)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		if strings.HasPrefix(arg, "--project=") {
-			projectTag = strings.TrimPrefix(arg, "--project=")
-		} else if arg == "--project" && i+1 < len(args) {
-			projectTag = args[i+1]
-			i++ // skip next arg
+		if strings.HasPrefix(arg, "#") && !foundHashTag {
+			// This is a #tag shorthand
+			projectTag = CleanTag(arg)
+			foundHashTag = true
+			// Don't add to remaining (consume it)
 		} else {
 			remaining = append(remaining, arg)
 		}
 	}
+
+	// Second pass: check for explicit --project flag (overrides #tag)
+	var finalRemaining []string
+	for i := 0; i < len(remaining); i++ {
+		arg := remaining[i]
+		if strings.HasPrefix(arg, "--project=") {
+			projectTag = strings.TrimPrefix(arg, "--project=")
+			// Don't add to finalRemaining (consume it)
+		} else if arg == "--project" && i+1 < len(remaining) {
+			projectTag = remaining[i+1]
+			i++ // skip next arg
+			// Don't add either to finalRemaining (consume both)
+		} else {
+			finalRemaining = append(finalRemaining, arg)
+		}
+	}
+	remaining = finalRemaining
 
 	if projectTag == "" {
 		ticketsDir, err := FindTicketsDir()

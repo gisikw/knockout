@@ -84,6 +84,13 @@ Feature: Project Registry
     Then the command should succeed
     And the output should contain "no projects registered"
 
+  Scenario: Commands accept #tag shorthand for --project flag
+    Given a registry with project "exo" at "/tmp/test-projects/exo"
+    And project "exo" has a ticket "exo-0001" with title "Test ticket"
+    When I run "ko ls #exo"
+    Then the command should succeed
+    And the output should contain "exo-0001"
+
   Scenario: Registry has a default project
     Given a registry with default project "exo"
     When I run "ko add 'Unroutable thing #nonexistent'"
