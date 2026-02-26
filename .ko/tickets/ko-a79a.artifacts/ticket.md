@@ -1,13 +1,9 @@
 ---
 id: ko-a79a
-status: closed
+status: open
 deps: []
 created: 2026-02-26T06:03:55Z
 type: task
 priority: 2
 ---
 # Should we add behave, add the python and package dependency to flake.nix, and make the specs part of our test suite?
-
-## Notes
-
-**2026-02-26 06:12:02 UTC:** ko: SUCCEED

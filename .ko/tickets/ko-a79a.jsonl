@@ -1,0 +1,8 @@
+{"event":"build_start","ticket":"ko-a79a","ts":"2026-02-26T06:08:57Z"}
+{"event":"workflow_start","ticket":"ko-a79a","ts":"2026-02-26T06:08:57Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-a79a","ts":"2026-02-26T06:08:57Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-a79a","ts":"2026-02-26T06:09:03Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-a79a","ts":"2026-02-26T06:09:03Z","workflow":"research"}
+{"event":"node_start","node":"investigate","ticket":"ko-a79a","ts":"2026-02-26T06:09:03Z","workflow":"research"}
+{"event":"node_complete","node":"investigate","result":"done","ticket":"ko-a79a","ts":"2026-02-26T06:12:02Z","workflow":"research"}
+{"event":"build_complete","outcome":"succeed","ticket":"ko-a79a","ts":"2026-02-26T06:12:02Z"}
