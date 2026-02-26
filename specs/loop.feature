@@ -83,3 +83,22 @@ Feature: Build Loop
     And a pipeline that causes an execution error (not an outcome signal)
     When I run "ko loop"
     Then the output should contain "stopped: build_error"
+
+  # Loop completion hooks
+
+  Scenario: on_loop_complete hooks run after loop finishes
+    Given 2 tickets with status "open" and no dependencies
+    And a pipeline with on_loop_complete hook that writes summary to a file
+    When I run "ko loop"
+    Then the on_loop_complete hook should have run
+    And the hook should have access to LOOP_PROCESSED=2
+    And the hook should have access to LOOP_SUCCEEDED=2
+    And the hook should have access to LOOP_STOPPED=empty
+    And the hook should have access to LOOP_RUNTIME_SECONDS
+
+  Scenario: on_loop_complete hooks run regardless of stop reason
+    Given 5 tickets with status "open"
+    And a pipeline with on_loop_complete hook that writes stop reason to a file
+    When I run "ko loop --max-tickets 2"
+    Then the on_loop_complete hook should have run
+    And the hook output should contain "LOOP_STOPPED=max_tickets"

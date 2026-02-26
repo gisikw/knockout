@@ -214,6 +214,12 @@ func cmdAgentLoop(args []string) int {
 	// Append JSONL summary to .ko/agent.log
 	writeAgentLogSummary(ticketsDir, result, elapsed)
 
+	// Run on_loop_complete hooks
+	if err := runLoopHooks(ticketsDir, p.OnLoopComplete, result, elapsed); err != nil {
+		fmt.Fprintf(os.Stderr, "on_loop_complete hook failed: %v\n", err)
+		// Don't change exit code — hook failures don't affect loop result
+	}
+
 	// Clean shutdown — remove heartbeat file
 	os.Remove(heartbeatPath)
 

@@ -32,9 +32,10 @@ type Pipeline struct {
 	Discretion   string                // low | medium | high (default: "medium")
 	StepTimeout  string                // default timeout for all nodes (e.g., "15m", "1h30m")
 	Workflows    map[string]*Workflow  // named workflows; "main" is the entry point
-	OnSucceed    []string              // shell commands to run after all stages pass
-	OnFail       []string              // shell commands to run on build failure
-	OnClose      []string              // shell commands to run after ticket is closed
+	OnSucceed      []string              // shell commands to run after all stages pass
+	OnFail         []string              // shell commands to run on build failure
+	OnClose        []string              // shell commands to run after ticket is closed
+	OnLoopComplete []string              // shell commands to run after agent loop completes
 
 	agentExplicit bool              // true if agent: was explicitly set in config
 }
@@ -139,7 +140,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	}
 
 	lines := strings.Split(content, "\n")
-	var section string        // "", "workflows", "on_succeed", "on_fail", "on_close"
+	var section string        // "", "workflows", "on_succeed", "on_fail", "on_close", "on_loop_complete"
 	var currentWF *Workflow    // current workflow being parsed
 	var currentNode *Node      // current node being parsed
 	var inRoutes bool          // parsing routes list for current node
@@ -186,6 +187,10 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			}
 			if trimmed == "on_close:" {
 				section = "on_close"
+				continue
+			}
+			if trimmed == "on_loop_complete:" {
+				section = "on_loop_complete"
 				continue
 			}
 
@@ -358,6 +363,11 @@ func ParsePipeline(content string) (*Pipeline, error) {
 			if strings.HasPrefix(trimmed, "- ") {
 				cmd := strings.TrimPrefix(trimmed, "- ")
 				p.OnClose = append(p.OnClose, cmd)
+			}
+		case "on_loop_complete":
+			if strings.HasPrefix(trimmed, "- ") {
+				cmd := strings.TrimPrefix(trimmed, "- ")
+				p.OnLoopComplete = append(p.OnLoopComplete, cmd)
 			}
 		case "allowed_tools":
 			if strings.HasPrefix(trimmed, "- ") {

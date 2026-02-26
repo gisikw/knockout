@@ -312,6 +312,11 @@ is still supported. The system checks for `config.yaml` first, then falls back t
   Best-effort — errors are not propagated. Same env vars available.
 - **`on_close`** runs after the ticket is closed. Safe for deploys — if the
   hook kills the process, the ticket is already closed.
+- **`on_loop_complete`** runs once after the agent loop completes, regardless
+  of stop reason (empty, max_tickets, max_duration, build_error, signal).
+  Available env: `$LOOP_PROCESSED`, `$LOOP_SUCCEEDED`, `$LOOP_FAILED`,
+  `$LOOP_BLOCKED`, `$LOOP_DECOMPOSED`, `$LOOP_STOPPED`, `$LOOP_RUNTIME_SECONDS`.
+  Hook failures are logged but don't affect loop exit code.
 
 ### Custom Agent Harnesses
 

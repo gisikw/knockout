@@ -36,3 +36,10 @@ workflows:
 # Commands to run after ticket is closed (safe for deploys).
 # on_close:
 #   - git push
+
+# Commands to run once after the agent loop completes.
+# $LOOP_PROCESSED, $LOOP_SUCCEEDED, $LOOP_FAILED, $LOOP_BLOCKED, $LOOP_DECOMPOSED,
+# $LOOP_STOPPED, and $LOOP_RUNTIME_SECONDS are available.
+# on_loop_complete:
+#   - echo "Loop processed $LOOP_PROCESSED tickets ($LOOP_SUCCEEDED succeeded)"
+#   - test $LOOP_SUCCEEDED -gt 0 && git push

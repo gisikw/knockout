@@ -1,0 +1,62 @@
+# on_loop_complete hooks run after loop finishes with env vars set
+chmod 755 fake-llm
+exec ko agent loop
+stdout 'stopped: empty'
+stdout '2 processed'
+stdout '2 succeeded'
+exists hook_output.txt
+exec cat hook_output.txt
+stdout 'LOOP_PROCESSED=2'
+stdout 'LOOP_SUCCEEDED=2'
+stdout 'LOOP_FAILED=0'
+stdout 'LOOP_BLOCKED=0'
+stdout 'LOOP_DECOMPOSED=0'
+stdout 'LOOP_STOPPED=empty'
+stdout 'LOOP_RUNTIME_SECONDS='
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+---
+# Task A
+
+-- .ko/tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Task B
+
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: triage
+      type: decision
+      prompt: triage.md
+on_loop_complete:
+  - echo "LOOP_PROCESSED=$LOOP_PROCESSED" > hook_output.txt
+  - echo "LOOP_SUCCEEDED=$LOOP_SUCCEEDED" >> hook_output.txt
+  - echo "LOOP_FAILED=$LOOP_FAILED" >> hook_output.txt
+  - echo "LOOP_BLOCKED=$LOOP_BLOCKED" >> hook_output.txt
+  - echo "LOOP_DECOMPOSED=$LOOP_DECOMPOSED" >> hook_output.txt
+  - echo "LOOP_STOPPED=$LOOP_STOPPED" >> hook_output.txt
+  - echo "LOOP_RUNTIME_SECONDS=$LOOP_RUNTIME_SECONDS" >> hook_output.txt
+-- .ko/prompts/triage.md --
+Triage.
+-- fake-llm --
+#!/bin/sh
+echo "Looks good."
+echo '```json'
+echo '{"disposition": "continue"}'
+echo '```'

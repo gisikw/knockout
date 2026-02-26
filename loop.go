@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -136,4 +138,53 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 		}
 		log.LoopTicketComplete(id, outcomeStr)
 	}
+}
+
+// runLoopHooks executes a list of shell commands with loop summary env vars set.
+func runLoopHooks(ticketsDir string, hooks []string, result LoopResult, elapsed time.Duration) error {
+	if len(hooks) == 0 {
+		return nil
+	}
+
+	projectRoot := ProjectRoot(ticketsDir)
+
+	for _, hook := range hooks {
+		expanded := os.Expand(hook, func(key string) string {
+			switch key {
+			case "LOOP_PROCESSED":
+				return strconv.Itoa(result.Processed)
+			case "LOOP_SUCCEEDED":
+				return strconv.Itoa(result.Succeeded)
+			case "LOOP_FAILED":
+				return strconv.Itoa(result.Failed)
+			case "LOOP_BLOCKED":
+				return strconv.Itoa(result.Blocked)
+			case "LOOP_DECOMPOSED":
+				return strconv.Itoa(result.Decomposed)
+			case "LOOP_STOPPED":
+				return result.Stopped
+			case "LOOP_RUNTIME_SECONDS":
+				return strconv.FormatFloat(elapsed.Seconds(), 'f', 2, 64)
+			default:
+				return os.Getenv(key)
+			}
+		})
+
+		cmd := exec.Command("sh", "-c", expanded)
+		cmd.Dir = projectRoot
+		cmd.Env = append(os.Environ(),
+			"LOOP_PROCESSED="+strconv.Itoa(result.Processed),
+			"LOOP_SUCCEEDED="+strconv.Itoa(result.Succeeded),
+			"LOOP_FAILED="+strconv.Itoa(result.Failed),
+			"LOOP_BLOCKED="+strconv.Itoa(result.Blocked),
+			"LOOP_DECOMPOSED="+strconv.Itoa(result.Decomposed),
+			"LOOP_STOPPED="+result.Stopped,
+			"LOOP_RUNTIME_SECONDS="+strconv.FormatFloat(elapsed.Seconds(), 'f', 2, 64),
+		)
+
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("hook '%s' failed: %v\n%s", hook, err, string(out))
+		}
+	}
+	return nil
 }
