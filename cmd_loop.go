@@ -90,6 +90,10 @@ func cmdAgentLoop(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
 	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko agent loop: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
 
 	// Acquire exclusive lock — only one loop per project
 	lockFile, err := acquireAgentLock(ticketsDir)

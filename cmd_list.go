@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -73,7 +74,10 @@ func resolveProjectTicketsDir(args []string) (string, []string, error) {
 
 	if projectTag == "" {
 		ticketsDir, err := FindTicketsDir()
-		return ticketsDir, remaining, err
+		if err != nil && !errors.Is(err, ErrNoLocalProject) {
+			return "", remaining, err
+		}
+		return ticketsDir, remaining, nil
 	}
 
 	regPath := RegistryPath()
@@ -103,6 +107,10 @@ func cmdLs(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko ls: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
@@ -121,7 +129,7 @@ func cmdLs(args []string) int {
 	SortByPriorityThenModified(tickets)
 
 	if *jsonOutput {
-		var result []ticketJSON
+		result := make([]ticketJSON, 0)
 		count := 0
 		for _, t := range tickets {
 			if *statusFilter != "" && t.Status != *statusFilter {
@@ -131,27 +139,7 @@ func cmdLs(args []string) int {
 			if *statusFilter == "" && t.Status == "closed" {
 				continue
 			}
-			modified := ""
-			if !t.ModTime.IsZero() {
-				modified = t.ModTime.UTC().Format(time.RFC3339)
-			}
-			j := ticketJSON{
-				ID:               t.ID,
-				Title:            t.Title,
-				Status:           t.Status,
-				Type:             t.Type,
-				Priority:         t.Priority,
-				Deps:             t.Deps,
-				Created:          t.Created,
-				Modified:         modified,
-				Assignee:         t.Assignee,
-				Parent:           t.Parent,
-				Tags:             t.Tags,
-				Description:      t.Body,
-				HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
-				PlanQuestions:    t.PlanQuestions,
-			}
-			result = append(result, j)
+			result = append(result, ticketToJSON(t, ticketsDir))
 			count++
 			if *limit > 0 && count >= *limit {
 				break
@@ -192,6 +180,10 @@ func cmdReady(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
 	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko ready: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
 
 	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
@@ -219,30 +211,10 @@ func cmdReady(args []string) int {
 	if len(ready) > 0 {
 		SortByPriorityThenModified(ready)
 		if *jsonOutput {
-			var result []ticketJSON
+			result := make([]ticketJSON, 0)
 			count := 0
 			for _, t := range ready {
-				modified := ""
-				if !t.ModTime.IsZero() {
-					modified = t.ModTime.UTC().Format(time.RFC3339)
-				}
-				j := ticketJSON{
-					ID:               t.ID,
-					Title:            t.Title,
-					Status:           t.Status,
-					Type:             t.Type,
-					Priority:         t.Priority,
-					Deps:             t.Deps,
-					Created:          t.Created,
-					Modified:         modified,
-					Assignee:         t.Assignee,
-					Parent:           t.Parent,
-					Tags:             t.Tags,
-					Description:      t.Body,
-					HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
-					PlanQuestions:    t.PlanQuestions,
-				}
-				result = append(result, j)
+				result = append(result, ticketToJSON(t, ticketsDir))
 				count++
 				if *limit > 0 && count >= *limit {
 					break
@@ -278,27 +250,7 @@ func cmdReady(args []string) int {
 	for _, t := range tickets {
 		if IsReady(t.Status, AllDepsResolvedWith(t.Deps, lookup)) {
 			if *jsonOutput {
-				modified := ""
-				if !t.ModTime.IsZero() {
-					modified = t.ModTime.UTC().Format(time.RFC3339)
-				}
-				j := ticketJSON{
-					ID:               t.ID,
-					Title:            t.Title,
-					Status:           t.Status,
-					Type:             t.Type,
-					Priority:         t.Priority,
-					Deps:             t.Deps,
-					Created:          t.Created,
-					Modified:         modified,
-					Assignee:         t.Assignee,
-					Parent:           t.Parent,
-					Tags:             t.Tags,
-					Description:      t.Body,
-					HasUnresolvedDep: !AllDepsResolvedWith(t.Deps, lookup),
-					PlanQuestions:    t.PlanQuestions,
-				}
-				result := []ticketJSON{j}
+				result := []ticketJSON{ticketToJSON(t, ticketsDir)}
 				enc := json.NewEncoder(os.Stdout)
 				enc.SetIndent("", "  ")
 				enc.Encode(result)

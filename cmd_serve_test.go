@@ -274,13 +274,14 @@ Body.
 
 	// Create tailer
 	testTailer := &tailer{
-		subscribers: make(map[*subscriber]bool),
+		subscribers:     make(map[*subscriber]bool),
+		agentPollStatus: make(map[string]agentStatusJSON),
 	}
 	testTailer.start()
 
 	// Subscribe
 	ch := make(chan string, 10)
-	sub := testTailer.subscribe(projectDir, ch)
+	sub := testTailer.subscribe(projectDir, ch, false)
 	defer testTailer.unsubscribe(sub)
 
 	// Write event
@@ -383,7 +384,10 @@ Test ticket body.
 	t.Cleanup(func() { os.Args = oldArgs })
 	os.Args = []string{"ko"}
 
-	testTailer = &tailer{subscribers: make(map[*subscriber]bool)}
+	testTailer = &tailer{
+		subscribers:     make(map[*subscriber]bool),
+		agentPollStatus: make(map[string]agentStatusJSON),
+	}
 	testTailer.start()
 	time.Sleep(500 * time.Millisecond)
 	return
@@ -648,5 +652,264 @@ func TestServeProjectScoped(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestStatusSubscribeHandler(t *testing.T) {
+	projectDir, eventsFile, testTailer := setupSSETest(t)
+
+	// Setup pipeline config to enable agent status
+	koDir := filepath.Join(projectDir, ".ko")
+	os.MkdirAll(koDir, 0755)
+	configPath := filepath.Join(koDir, "config.yaml")
+	os.WriteFile(configPath, []byte(`workflows:
+  main:
+    - node: test
+      type: decision
+      prompt: test
+`), 0644)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status/", func(w http.ResponseWriter, r *http.Request) {
+		handleStatusSubscribeWithTailer(w, r, testTailer)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/status?project=" + projectDir)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("Content-Type = %q, want text/event-stream", ct)
+	}
+
+	reader := bufio.NewReader(resp.Body)
+
+	// Event 1: retry directive
+	retry, err := readSSEEvent(reader, 3*time.Second)
+	if err != nil {
+		t.Fatalf("retry event: %v", err)
+	}
+	if !sseHasLine(retry, "retry:") {
+		t.Errorf("expected retry directive, got: %v", retry)
+	}
+
+	// Event 2: initial snapshot (should include agent status + tickets)
+	snapshot, err := readSSEEvent(reader, 3*time.Second)
+	if err != nil {
+		t.Fatalf("snapshot event: %v", err)
+	}
+	if !sseHasLine(snapshot, "id: 0") {
+		t.Errorf("snapshot missing id:0, got: %v", snapshot)
+	}
+
+	// Check for agent status in snapshot
+	hasAgentStatus := false
+	hasTicket := false
+	for _, line := range snapshot {
+		if strings.HasPrefix(line, "data:") {
+			var data map[string]interface{}
+			jsonStr := strings.TrimPrefix(line, "data: ")
+			if err := json.Unmarshal([]byte(jsonStr), &data); err == nil {
+				if data["type"] == "agent" {
+					hasAgentStatus = true
+					// Verify provisioned field exists
+					if _, ok := data["provisioned"]; !ok {
+						t.Error("agent status missing provisioned field")
+					}
+				} else if data["type"] == "ticket" {
+					hasTicket = true
+				}
+			}
+		}
+	}
+	if !hasAgentStatus {
+		t.Error("snapshot missing agent status")
+	}
+	if !hasTicket {
+		t.Error("snapshot missing ticket data")
+	}
+
+	// Trigger mutation
+	writeEvent(t, eventsFile, projectDir)
+
+	// Event 3: broadcast (should include tickets with type wrapper)
+	broadcast, err := readSSEEvent(reader, 5*time.Second)
+	if err != nil {
+		t.Fatalf("broadcast event: %v", err)
+	}
+	hasNonZeroID := false
+	hasBroadcastTicket := false
+	for _, line := range broadcast {
+		if strings.HasPrefix(line, "id:") && !strings.Contains(line, "id: 0") {
+			hasNonZeroID = true
+		}
+		if strings.HasPrefix(line, "data:") {
+			var data map[string]interface{}
+			jsonStr := strings.TrimPrefix(line, "data: ")
+			if err := json.Unmarshal([]byte(jsonStr), &data); err == nil {
+				if data["type"] == "ticket" {
+					hasBroadcastTicket = true
+				}
+			}
+		}
+	}
+	if !hasNonZeroID {
+		t.Errorf("broadcast missing monotonic ID > 0, got: %v", broadcast)
+	}
+	if !hasBroadcastTicket {
+		t.Error("broadcast missing ticket with type wrapper")
+	}
+}
+
+func TestStatusAgentBroadcast(t *testing.T) {
+	projectDir, _, testTailer := setupSSETest(t)
+
+	// Setup pipeline config
+	koDir := filepath.Join(projectDir, ".ko")
+	os.MkdirAll(koDir, 0755)
+	configPath := filepath.Join(koDir, "config.yaml")
+	os.WriteFile(configPath, []byte(`workflows:
+  main:
+    - node: test
+      type: decision
+      prompt: test
+`), 0644)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status/", func(w http.ResponseWriter, r *http.Request) {
+		handleStatusSubscribeWithTailer(w, r, testTailer)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/status?project=" + projectDir)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer resp.Body.Close()
+
+	reader := bufio.NewReader(resp.Body)
+
+	// Skip retry and initial snapshot
+	readSSEEvent(reader, 3*time.Second)
+	readSSEEvent(reader, 3*time.Second)
+
+	// Wait for agent status polling to trigger a broadcast
+	// (polling happens every 2 seconds, so give it time)
+	agentBroadcast, err := readSSEEvent(reader, 6*time.Second)
+	if err != nil {
+		t.Fatalf("agent broadcast event: %v", err)
+	}
+
+	// Check for agent status in broadcast
+	hasAgentStatus := false
+	for _, line := range agentBroadcast {
+		if strings.HasPrefix(line, "data:") {
+			var data map[string]interface{}
+			jsonStr := strings.TrimPrefix(line, "data: ")
+			if err := json.Unmarshal([]byte(jsonStr), &data); err == nil {
+				if data["type"] == "agent" {
+					hasAgentStatus = true
+				}
+			}
+		}
+	}
+	if !hasAgentStatus {
+		t.Logf("Agent broadcast lines: %v", agentBroadcast)
+		t.Error("expected agent status broadcast")
+	}
+}
+
+func TestStatusMultipleSubscribers(t *testing.T) {
+	projectDir, eventsFile, testTailer := setupSSETest(t)
+
+	// Setup pipeline config
+	koDir := filepath.Join(projectDir, ".ko")
+	os.MkdirAll(koDir, 0755)
+	configPath := filepath.Join(koDir, "config.yaml")
+	os.WriteFile(configPath, []byte(`workflows:
+  main:
+    - node: test
+      type: decision
+      prompt: test
+`), 0644)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status/", func(w http.ResponseWriter, r *http.Request) {
+		handleStatusSubscribeWithTailer(w, r, testTailer)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	numSubscribers := 3
+	var wg sync.WaitGroup
+	receivedTicket := make([]bool, numSubscribers)
+	receivedAgent := make([]bool, numSubscribers)
+	errors := make([]error, numSubscribers)
+
+	for i := 0; i < numSubscribers; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			resp, err := http.Get(server.URL + "/status?project=" + projectDir)
+			if err != nil {
+				errors[idx] = fmt.Errorf("connect: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			reader := bufio.NewReader(resp.Body)
+
+			// Read retry
+			if _, err := readSSEEvent(reader, 3*time.Second); err != nil {
+				errors[idx] = fmt.Errorf("retry: %v", err)
+				return
+			}
+
+			// Read initial snapshot and check for agent + ticket
+			snapshot, err := readSSEEvent(reader, 3*time.Second)
+			if err != nil {
+				errors[idx] = fmt.Errorf("snapshot: %v", err)
+				return
+			}
+			for _, line := range snapshot {
+				if strings.HasPrefix(line, "data:") {
+					var data map[string]interface{}
+					jsonStr := strings.TrimPrefix(line, "data: ")
+					if err := json.Unmarshal([]byte(jsonStr), &data); err == nil {
+						if data["type"] == "agent" {
+							receivedAgent[idx] = true
+						} else if data["type"] == "ticket" {
+							receivedTicket[idx] = true
+						}
+					}
+				}
+			}
+		}(i)
+	}
+
+	// Give subscribers time to connect
+	time.Sleep(1 * time.Second)
+
+	// Emit mutation to trigger ticket broadcast
+	writeEvent(t, eventsFile, projectDir)
+
+	wg.Wait()
+
+	for i := 0; i < numSubscribers; i++ {
+		if errors[i] != nil {
+			t.Errorf("subscriber %d: %v", i, errors[i])
+		}
+		if !receivedAgent[i] {
+			t.Errorf("subscriber %d did not receive agent status", i)
+		}
+		if !receivedTicket[i] {
+			t.Errorf("subscriber %d did not receive ticket update", i)
+		}
 	}
 }

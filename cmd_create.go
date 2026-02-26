@@ -121,8 +121,8 @@ func cmdCreate(args []string) int {
 
 	var t *Ticket
 	if *parent != "" {
-		// Resolve parent ID (only valid for local tickets)
-		parentID, err := ResolveID(ticketsDir, *parent)
+		// Resolve parent ID (cross-project prefix lookup supported)
+		_, parentID, err := ResolveTicket(ticketsDir, *parent)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
 			return 1

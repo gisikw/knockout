@@ -38,13 +38,13 @@ func cmdDep(args []string) int {
 		return 1
 	}
 
-	ticketID, err := ResolveID(ticketsDir, args[0])
+	ticketsDir, ticketID, err := ResolveTicket(ticketsDir, args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
 		return 1
 	}
 
-	depID, err := ResolveID(ticketsDir, args[1])
+	_, depID, err := ResolveTicket(ticketsDir, args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
 		return 1
@@ -95,13 +95,13 @@ func cmdUndep(args []string) int {
 		return 1
 	}
 
-	ticketID, err := ResolveID(ticketsDir, args[0])
+	ticketsDir, ticketID, err := ResolveTicket(ticketsDir, args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
 		return 1
 	}
 
-	depID, err := ResolveID(ticketsDir, args[1])
+	_, depID, err := ResolveTicket(ticketsDir, args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
 		return 1
@@ -163,7 +163,7 @@ func cmdDepTree(args []string) int {
 		return 1
 	}
 
-	id, err := ResolveID(ticketsDir, fs.Arg(0))
+	ticketsDir, id, err := ResolveTicket(ticketsDir, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko dep tree: %v\n", err)
 		return 1

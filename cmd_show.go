@@ -49,7 +49,7 @@ func cmdShow(args []string) int {
 		return 1
 	}
 
-	id, err := ResolveID(ticketsDir, fs.Arg(0))
+	ticketsDir, id, err := ResolveTicket(ticketsDir, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
 		return 1

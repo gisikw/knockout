@@ -10,7 +10,7 @@ func cmdAgentInit(args []string) int {
 	// Resolve project from #tag or fall back to local project root
 	var projectRoot string
 	ticketsDir, _, err := resolveProjectTicketsDir(args)
-	if err == nil {
+	if err == nil && ticketsDir != "" {
 		projectRoot = ProjectRoot(ticketsDir)
 	} else {
 		projectRoot, err = findProjectRoot()

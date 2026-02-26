@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,11 @@ import (
 	"strings"
 	"time"
 )
+
+// ErrNoLocalProject is returned by FindTicketsDir when no .ko/tickets directory
+// is found by walking up from cwd. This is a soft error — callers that can
+// resolve tickets by prefix should treat it as non-fatal.
+var ErrNoLocalProject = errors.New("no .ko/tickets directory found")
 
 // Statuses is the closed set of valid ticket statuses.
 var Statuses = []string{"captured", "routed", "open", "in_progress", "closed", "blocked", "resolved"}
@@ -468,6 +474,48 @@ func ResolveID(ticketsDir, partial string) (string, error) {
 	}
 }
 
+// ResolveTicket tries to resolve a partial ticket ID, first locally in ticketsDir,
+// then by prefix-based lookup across the project registry. Returns the tickets
+// directory where the ticket was found, the resolved full ID, and any error.
+func ResolveTicket(ticketsDir, partial string) (string, string, error) {
+	// Try local first
+	id, err := ResolveID(ticketsDir, partial)
+	if err == nil {
+		return ticketsDir, id, nil
+	}
+	localErr := err
+
+	// Extract prefix from the ticket ID
+	prefix := extractPrefix(partial)
+	if prefix == "" {
+		return "", "", localErr
+	}
+
+	// Load registry
+	regPath := RegistryPath()
+	if regPath == "" {
+		return "", "", localErr
+	}
+	reg, err := LoadRegistry(regPath)
+	if err != nil {
+		return "", "", localErr
+	}
+
+	// Build reverse index: prefix -> ticketsDir
+	for tag, p := range reg.Prefixes {
+		if p == prefix {
+			if projectPath, ok := reg.Projects[tag]; ok {
+				remoteDir := resolveTicketsDir(projectPath)
+				if id, err := ResolveID(remoteDir, partial); err == nil {
+					return remoteDir, id, nil
+				}
+			}
+		}
+	}
+
+	return "", "", localErr
+}
+
 // FindTicketsDir walks up from the current directory looking for .ko/tickets/.
 // Respects TICKETS_DIR env var.
 func FindTicketsDir() (string, error) {
@@ -494,7 +542,7 @@ func FindTicketsDir() (string, error) {
 		}
 		dir = parent
 	}
-	return "", fmt.Errorf("no .ko/tickets directory found")
+	return "", ErrNoLocalProject
 }
 
 // ProjectRoot returns the project root for a tickets directory (.ko/tickets/ -> two levels up).

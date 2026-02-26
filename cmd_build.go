@@ -30,8 +30,8 @@ func cmdAgentBuild(args []string) int {
 		return 1
 	}
 
-	// Resolve ticket ID
-	id, err := ResolveID(ticketsDir, fs.Arg(0))
+	// Resolve ticket ID (falls back to prefix-based cross-project lookup)
+	ticketsDir, id, err := ResolveTicket(ticketsDir, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
 		return 1

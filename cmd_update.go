@@ -53,8 +53,8 @@ func cmdUpdate(args []string) int {
 		return 1
 	}
 
-	// Resolve ticket ID
-	id, err := ResolveID(ticketsDir, ticketID)
+	// Resolve ticket ID (falls back to prefix-based cross-project lookup)
+	ticketsDir, id, err := ResolveTicket(ticketsDir, ticketID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko update: %v\n", err)
 		return 1
@@ -92,8 +92,8 @@ func cmdUpdate(args []string) int {
 		changed = true
 	}
 	if *parent != "" {
-		// Resolve parent ID
-		parentID, err := ResolveID(ticketsDir, *parent)
+		// Resolve parent ID (cross-project prefix lookup supported)
+		_, parentID, err := ResolveTicket(ticketsDir, *parent)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ko update: %v\n", err)
 			return 1

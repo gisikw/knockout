@@ -106,6 +106,10 @@ func cmdAgentStart(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko agent start: %v\n", err)
 		return 1
 	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko agent start: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
 
 	pidPath := agentPidPath(ticketsDir)
 
@@ -173,6 +177,10 @@ func cmdAgentStop(args []string) int {
 	ticketsDir, _, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent stop: %v\n", err)
+		return 1
+	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko agent stop: no .ko/tickets directory found (use --project or run from a project dir)\n")
 		return 1
 	}
 
@@ -259,6 +267,10 @@ func cmdAgentStatus(args []string) int {
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent status: %v\n", err)
+		return 1
+	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko agent status: no .ko/tickets directory found (use --project or run from a project dir)\n")
 		return 1
 	}
 

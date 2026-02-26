@@ -4,10 +4,10 @@
 
 # Verify help shows serve command
 exec ko help
-stdout 'serve \[-p port\]'
+stdout 'serve \[--port PORT\]'
 
 # Test invalid port flag format (missing value)
-! exec ko serve -p
+! exec ko serve --port
 stderr 'flag needs an argument'
 
 # Test custom port flag parsing works

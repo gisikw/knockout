@@ -20,7 +20,7 @@ func cmdAddNote(args []string) int {
 		return 1
 	}
 
-	id, err := ResolveID(ticketsDir, args[0])
+	ticketsDir, id, err := ResolveTicket(ticketsDir, args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko note: %v\n", err)
 		return 1

@@ -355,7 +355,7 @@ func applyDisposition(ticketsDir string, t *Ticket, p *Pipeline, node *Node, cur
 // applyBlockedDisposition wires a dependency and returns the ticket to open.
 func applyBlockedDisposition(ticketsDir string, t *Ticket, node *Node, disp Disposition) (Outcome, error) {
 	if disp.BlockOn != "" {
-		blockID, err := ResolveID(ticketsDir, disp.BlockOn)
+		_, blockID, err := ResolveTicket(ticketsDir, disp.BlockOn)
 		if err != nil {
 			applyFailOutcome(ticketsDir, t, node.Name,
 				fmt.Sprintf("BLOCKED on '%s' but ticket not found", disp.BlockOn))

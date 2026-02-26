@@ -122,7 +122,7 @@ Commands:
   start <id>         Set status to in_progress
   close <id>         Set status to closed
   open <id>          Set status to open
-  serve [-p port]    Start HTTP daemon (default :9876)
+  serve [--port PORT]    Start HTTP daemon (default :9876)
 
   update <id> [--title title] [-d description] [-t type] [-p priority] [-a assignee]
               [--parent id] [--external-ref ref]
