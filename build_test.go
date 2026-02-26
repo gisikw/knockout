@@ -96,6 +96,50 @@ func TestWriteBackNoteArtifactsMissing(t *testing.T) {
 	}
 }
 
+func TestWriteBackNoteArtifactsRoutedWorkflow(t *testing.T) {
+	artifactDir := t.TempDir()
+	summaryContent := "## Summary\n\nImplemented the feature."
+	os.WriteFile(filepath.Join(artifactDir, "summary.md"), []byte(summaryContent), 0644)
+
+	ticket := &Ticket{ID: "test-routed", Title: "Test routed ticket"}
+	// Simulate: main routes to task, task has note_artifact on review.
+	// writeBackNoteArtifacts should be called with "task" (the routed workflow),
+	// not "main" (which has no note_artifact).
+	pipeline := &Pipeline{
+		Workflows: map[string]*Workflow{
+			"main": {
+				Name: "main",
+				Nodes: []Node{
+					{Name: "classify", Type: NodeDecision, Prompt: "classify.md", Routes: []string{"task"}},
+				},
+			},
+			"task": {
+				Name: "task",
+				Nodes: []Node{
+					{Name: "implement", Type: NodeAction, Prompt: "implement.md"},
+					{Name: "review", Type: NodeDecision, Prompt: "review.md", NoteArtifact: "summary.md"},
+				},
+			},
+		},
+	}
+
+	// With the bug: finalWorkflow="main", no writeback.
+	// With the fix: finalWorkflow="task", writeback happens.
+	writeBackNoteArtifacts(ticket, pipeline, "task", artifactDir)
+
+	if !strings.Contains(ticket.Body, "Implemented the feature.") {
+		t.Errorf("ticket body should contain routed workflow artifact, got: %q", ticket.Body)
+	}
+
+	// Verify it does NOT write back if given "main" (the pre-fix bug)
+	ticket2 := &Ticket{ID: "test-routed-2", Title: "Test bug case"}
+	writeBackNoteArtifacts(ticket2, pipeline, "main", artifactDir)
+
+	if ticket2.Body != "" {
+		t.Errorf("ticket body should be empty when finalWorkflow is main (no note_artifact), got: %q", ticket2.Body)
+	}
+}
+
 func TestWriteBackNoteArtifactsNoNoteArtifact(t *testing.T) {
 	artifactDir := t.TempDir()
 	// File exists, but no node declares note_artifact

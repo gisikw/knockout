@@ -259,7 +259,11 @@ func runWorkflow(ticketsDir string, t *Ticket, p *Pipeline, wfName string, visit
 		if outcome != OutcomeSucceed {
 			return outcome, finalWF, nil
 		}
-		// OutcomeSucceed from applyDisposition means "continue" — next node
+		// OutcomeSucceed from applyDisposition means "continue" — next node.
+		// If a routed workflow completed, remember it as the final workflow.
+		if finalWF != "" {
+			wfName = finalWF
+		}
 	}
 
 	// Reached end of workflow = succeed
