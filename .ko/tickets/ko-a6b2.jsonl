@@ -1,0 +1,12 @@
+{"event":"build_start","ticket":"ko-a6b2","ts":"2026-02-26T04:49:30Z"}
+{"event":"workflow_start","ticket":"ko-a6b2","ts":"2026-02-26T04:49:30Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-a6b2","ts":"2026-02-26T04:49:30Z","workflow":"main"}
+{"attempt":1,"event":"node_fail","node":"classify","reason":"no fenced JSON block found in output","ticket":"ko-a6b2","ts":"2026-02-26T04:49:35Z","workflow":"main"}
+{"attempt":2,"event":"node_retry","node":"classify","ticket":"ko-a6b2","ts":"2026-02-26T04:49:35Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-a6b2","ts":"2026-02-26T04:49:41Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-a6b2","ts":"2026-02-26T04:49:41Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-a6b2","ts":"2026-02-26T04:49:41Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-a6b2","ts":"2026-02-26T04:51:21Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-a6b2","ts":"2026-02-26T04:51:21Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"needs_input","ticket":"ko-a6b2","ts":"2026-02-26T04:51:31Z","workflow":"task"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-a6b2","ts":"2026-02-26T04:51:31Z"}
