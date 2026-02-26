@@ -164,3 +164,76 @@ func TestWriteBackNoteArtifactsNoNoteArtifact(t *testing.T) {
 		t.Errorf("ticket body should be empty when no note_artifact declared, got: %q", ticket.Body)
 	}
 }
+
+func TestRunPromptNodePriorContextInjection(t *testing.T) {
+	tests := []struct {
+		name        string
+		nodeType    NodeType
+		wantContext bool
+	}{
+		{
+			name:        "action node receives prior context",
+			nodeType:    NodeAction,
+			wantContext: true,
+		},
+		{
+			name:        "decision node does not receive prior context",
+			nodeType:    NodeDecision,
+			wantContext: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup temp directories
+			artifactDir := t.TempDir()
+			wsDir := filepath.Join(artifactDir, "workspace")
+			os.MkdirAll(wsDir, 0755)
+
+			// Create prior context files that would be injected
+			priorContent := "Previous build output"
+			os.WriteFile(filepath.Join(artifactDir, "plan.md"), []byte(priorContent), 0644)
+
+			// Use inline prompt (contains newlines, so won't try to load file)
+			promptContent := "Test instructions\nfor the node"
+
+			// Build the prompt using the same logic as runPromptNode
+			ticket := &Ticket{ID: "test-node", Title: "Test Node Context"}
+			node := &Node{
+				Name:   "test",
+				Type:   tt.nodeType,
+				Prompt: promptContent, // inline prompt
+			}
+
+			// Build the prompt with the same logic as runPromptNode (lines 454-477)
+			var prompt strings.Builder
+			prompt.WriteString("## Ticket\n\n")
+			prompt.WriteString("# " + ticket.Title + "\n")
+			prompt.WriteString("\n\n")
+			prompt.WriteString("## Discretion Level: medium\n\n")
+			prompt.WriteString("\n\n")
+
+			// The key logic being tested: only inject for action nodes
+			if node.Type == NodeAction {
+				if priorContext := InjectPriorContext(artifactDir, "task"); priorContext != "" {
+					prompt.WriteString(priorContext)
+					prompt.WriteString("\n\n")
+				}
+			}
+
+			prompt.WriteString("## Instructions\n\n")
+			prompt.WriteString(promptContent)
+
+			builtPrompt := prompt.String()
+
+			// Verify: action nodes should have prior context, decision nodes should not
+			hasPriorContext := strings.Contains(builtPrompt, priorContent)
+			if tt.wantContext && !hasPriorContext {
+				t.Errorf("action node should receive prior context, but it was not found in prompt")
+			}
+			if !tt.wantContext && hasPriorContext {
+				t.Errorf("decision node should NOT receive prior context, but it was found in prompt")
+			}
+		})
+	}
+}

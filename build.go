@@ -464,9 +464,13 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 	prompt.WriteString("\n\n")
 
 	// Inject prior context from previous build attempts
-	if priorContext := InjectPriorContext(artifactDir, wfName); priorContext != "" {
-		prompt.WriteString(priorContext)
-		prompt.WriteString("\n\n")
+	// Decision nodes make fresh evaluations without seeing their own previous output
+	// Action nodes benefit from continuity across retries
+	if node.Type == NodeAction {
+		if priorContext := InjectPriorContext(artifactDir, wfName); priorContext != "" {
+			prompt.WriteString(priorContext)
+			prompt.WriteString("\n\n")
+		}
 	}
 
 	prompt.WriteString("## Instructions\n\n")

@@ -187,3 +187,5 @@ loop complete: 1 processed (1 succeeded, 0 failed, 0 blocked, 0 decomposed)
 stopped: empty
 {"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":480.562933277,"stop_reason":"empty","succeeded":1,"tickets_processed":1,"ts":"2026-02-26T12:52:39Z"}
 loop: building ko-ec86 — Support --all flag on `ko ls` which induces it to include closed tickets (this is for parity with the ko serve SSE behavior)
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":728.034447265,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-26T21:17:23Z"}
+loop: building ko-dd09 — Only inject prior output into action nodes, not decision nodes. Haiku is getting confused classifying tickets that it already classified once
