@@ -1,13 +1,9 @@
 ---
 id: ko-7ff3
-status: closed
+status: open
 deps: []
 created: 2026-02-26T05:30:31Z
 type: task
 priority: 2
 ---
 # Is it necessary for us to have all these go commands at a top level? Should we nest them somewhere?
-
-## Notes
-
-**2026-02-26 06:13:46 UTC:** ko: SUCCEED
