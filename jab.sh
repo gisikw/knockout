@@ -10,10 +10,10 @@
 #   3. Test     — bash command to verify (customize this!)
 #   4. Validate — LLM reviews what was built
 #
-# Requires: claude CLI (https://docs.anthropic.com/en/docs/claude-code)
-#
 # This is meant to be forked and made yours. Change the prompts,
 # swap the test command, add stages, remove stages — go wild.
+
+AGENT_HARNESS=${AGENT_HARNESS:-cursor} # claude, codex, cursor, gemini, opencode, pi
 
 set -euo pipefail
 
@@ -51,6 +51,8 @@ validate_prompt() {
 A ticket was just implemented. Review the changes and assess whether the
 work was completed correctly. Be brief — a few sentences max.
 
+Your final line MUST be exactly "PASS" or "FAIL" (nothing else on that line).
+
 --- Ticket ---
 $(cat "$1")
 
@@ -70,23 +72,34 @@ run_test() {
   echo "No test configured — edit run_test() in this script"
 }
 
-# --- LLM backend (uncomment one pair) ---
+# --- LLM backend ---
 
 # Claude Code
-# llm()       { echo "$1" | claude -p --output-format text; }
-# llm_tools() { echo "$1" | claude -p --output-format text --dangerously-skip-permissions; }
+claude_llm()       { echo "$1" | claude -p --output-format text; }
+claude_llm_tools() { echo "$1" | claude -p --output-format text --dangerously-skip-permissions; }
 
 # Codex
-# llm()       { echo "$1" | codex --quiet; }
-# llm_tools() { echo "$1" | codex --quiet --full-auto; }
+codex_llm()       { echo "$1" | codex exec --skip-git-repo-check; }
+codex_llm_tools() { echo "$1" | codex exec --full-auto --skip-git-repo-check; }
+
+# Cursor
+cursor_llm()       { echo "$1" | cursor-agent -p --trust --plan; }
+cursor_llm_tools() { echo "$1" | cursor-agent -p --trust -f; }
+
+# Gemini
+gemini_llm()       { echo "$1" | gemini -p ''; }
+gemini_llm_tools() { echo "$1" | gemini -p '' --yolo; }
 
 # OpenCode
-# llm()       { echo "$1" | opencode --pipe; }
-# llm_tools() { echo "$1" | opencode --pipe --yes; }
+opencode_llm()       { echo "$1" | opencode run; }
+opencode_llm_tools() { echo "$1" | opencode run; }
 
-# Cursor (agent mode)
-llm()       { echo "$1" | cursor --pipe; }
-llm_tools() { echo "$1" | cursor --pipe; }
+# Pi
+pi_llm()       { echo "$1" | pi --tools read -p; }
+pi_llm_tools() { echo "$1" | pi -p; }
+
+llm()       { ${AGENT_HARNESS}_llm "$1"; }
+llm_tools() { ${AGENT_HARNESS}_llm_tools "$1"; }
 
 stage() {
   local name="$1"
@@ -113,7 +126,10 @@ for ticket in "$@"; do
   fi
 
   stage "Validate"
-  llm "$(validate_prompt "$ticket" "$plan")"
+  verdict=$(llm "$(validate_prompt "$ticket" "$plan")" | tee /dev/stderr | tail -n1)
+  if echo "$verdict" | grep -q "FAIL"; then
+    echo "*** Validation failed for $ticket ***"
+  fi
 done
 
 echo ""
