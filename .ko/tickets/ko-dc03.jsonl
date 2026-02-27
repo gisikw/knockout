@@ -1,0 +1,19 @@
+{"event":"build_start","ticket":"ko-dc03","ts":"2026-02-27T15:25:38Z"}
+{"event":"workflow_start","ticket":"ko-dc03","ts":"2026-02-27T15:25:38Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-dc03","ts":"2026-02-27T15:25:38Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-dc03","ts":"2026-02-27T15:25:43Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-dc03","ts":"2026-02-27T15:25:43Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-dc03","ts":"2026-02-27T15:25:43Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-dc03","ts":"2026-02-27T15:27:07Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-dc03","ts":"2026-02-27T15:27:07Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"continue","ticket":"ko-dc03","ts":"2026-02-27T15:27:46Z","workflow":"task"}
+{"event":"node_start","node":"implement","ticket":"ko-dc03","ts":"2026-02-27T15:27:46Z","workflow":"task"}
+{"event":"node_complete","node":"implement","result":"done","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"event":"node_start","node":"verify","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"attempt":1,"event":"node_fail","node":"verify","reason":"command failed: exit status 127\nsh: line 1: if [ -f flake.nix ]; then nix develop --command just test; else just test; fi: command not found\n","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"attempt":2,"event":"node_retry","node":"verify","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"attempt":2,"event":"node_fail","node":"verify","reason":"command failed: exit status 127\nsh: line 1: if [ -f flake.nix ]; then nix develop --command just test; else just test; fi: command not found\n","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"attempt":3,"event":"node_retry","node":"verify","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"attempt":3,"event":"node_fail","node":"verify","reason":"command failed: exit status 127\nsh: line 1: if [ -f flake.nix ]; then nix develop --command just test; else just test; fi: command not found\n","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"event":"node_complete","node":"verify","result":"error","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z","workflow":"task"}
+{"event":"build_complete","outcome":"fail","ticket":"ko-dc03","ts":"2026-02-27T15:30:17Z"}
