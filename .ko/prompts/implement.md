@@ -31,9 +31,5 @@ Read the plan at `$KO_ARTIFACT_DIR/plan.md`. Follow it.
 9. **Do NOT commit, push, or close the ticket.** Leave changes uncommitted.
    The pipeline handles git operations and ticket lifecycle separately.
 
-10. **Do not assume tools are on PATH.** Standard tools (node, npm, cargo, etc.)
-    may not be available directly. Use `nix develop --command <cmd>` or
-    `nix-shell -p <pkg> --run '<cmd>'` if you need to run something.
-
 When done, provide a brief summary of what you changed, organized by task.
 Note any deviations from the plan and why.

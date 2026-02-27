@@ -485,13 +485,19 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 	adapter := p.Adapter()
 	cmd := adapter.BuildCommand(prompt.String(), model, systemPrompt, allowAll, allowedTools)
 
+	// Wrap command in nix develop if flake.nix exists
+	cmdArgs := cmd.Args
+	if hasFlakeNix(ticketsDir) {
+		cmdArgs = append([]string{"nix", "develop", "--command"}, cmdArgs...)
+	}
+
 	// Create a new context-aware command with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// Replace the command with a context-aware version
-	// cmd.Args[0] is the program name, cmd.Args[1:] are the arguments
-	cmdCtx := exec.CommandContext(ctx, cmd.Args[0], cmd.Args[1:]...)
+	// cmdArgs[0] is the program name, cmdArgs[1:] are the arguments
+	cmdCtx := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmdCtx.Stdin = cmd.Stdin
 	cmdCtx.Stdout = cmd.Stdout
 	cmdCtx.Stderr = cmd.Stderr
@@ -529,7 +535,17 @@ func runRunNode(node *Node, timeout time.Duration, wsDir, artifactDir, histPath,
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "sh", "-c", node.Run)
+	// Derive ticketsDir from artifactDir to check for flake.nix
+	ticketsDir := filepath.Dir(filepath.Dir(artifactDir))
+
+	// Wrap command in nix develop if flake.nix exists
+	var cmd *exec.Cmd
+	if hasFlakeNix(ticketsDir) {
+		cmd = exec.CommandContext(ctx, "nix", "develop", "--command", "sh", "-c", node.Run)
+	} else {
+		cmd = exec.CommandContext(ctx, "sh", "-c", node.Run)
+	}
+
 	cmd.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,
@@ -799,4 +815,12 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// hasFlakeNix checks if flake.nix exists in the project root.
+func hasFlakeNix(ticketsDir string) bool {
+	projectRoot := ProjectRoot(ticketsDir)
+	flakePath := filepath.Join(projectRoot, "flake.nix")
+	_, err := os.Stat(flakePath)
+	return err == nil
 }

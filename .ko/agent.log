@@ -189,3 +189,5 @@ stopped: empty
 loop: building ko-ec86 — Support --all flag on `ko ls` which induces it to include closed tickets (this is for parity with the ko serve SSE behavior)
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":728.034447265,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-26T21:17:23Z"}
 loop: building ko-dd09 — Only inject prior output into action nodes, not decision nodes. Haiku is getting confused classifying tickets that it already classified once
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":279.496147424,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-27T15:30:17Z"}
+loop: building ko-dc03 — Agent loop should detect flake.nix and wrap harness invocations in 'nix develop --command' automatically, so pipelines don't need to handle nix environments themselves

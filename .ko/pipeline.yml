@@ -44,7 +44,7 @@ workflows:
       prompt: implement.md
     - name: verify
       type: action
-      run: "if [ -f flake.nix ]; then nix develop --command just test; else just test; fi"
+      run: just test
     - name: review
       type: decision
       prompt: review.md

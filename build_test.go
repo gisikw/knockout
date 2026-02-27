@@ -237,3 +237,24 @@ func TestRunPromptNodePriorContextInjection(t *testing.T) {
 		})
 	}
 }
+
+func TestHasFlakeNix(t *testing.T) {
+	// Create temporary directory structure: projectRoot/.ko/tickets/
+	projectRoot := t.TempDir()
+	koDir := filepath.Join(projectRoot, ".ko")
+	ticketsDir := filepath.Join(koDir, "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+
+	// Test case 1: flake.nix does not exist
+	if hasFlakeNix(ticketsDir) {
+		t.Errorf("hasFlakeNix should return false when flake.nix does not exist")
+	}
+
+	// Test case 2: flake.nix exists
+	flakePath := filepath.Join(projectRoot, "flake.nix")
+	os.WriteFile(flakePath, []byte("# test flake"), 0644)
+
+	if !hasFlakeNix(ticketsDir) {
+		t.Errorf("hasFlakeNix should return true when flake.nix exists")
+	}
+}
