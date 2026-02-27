@@ -10,3 +10,19 @@
 {"event":"node_start","node":"implement","ticket":"ko-e8be","ts":"2026-02-26T23:14:34Z","workflow":"task"}
 {"attempt":1,"event":"node_fail","node":"implement","reason":"step timed out after 15m0s","ticket":"ko-e8be","ts":"2026-02-26T23:54:03Z","workflow":"task"}
 {"attempt":2,"event":"node_retry","node":"implement","ticket":"ko-e8be","ts":"2026-02-26T23:54:03Z","workflow":"task"}
+{"event":"build_start","ticket":"ko-e8be","ts":"2026-02-26T23:54:10Z"}
+{"event":"workflow_start","ticket":"ko-e8be","ts":"2026-02-26T23:54:10Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-e8be","ts":"2026-02-26T23:54:10Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-e8be","ts":"2026-02-26T23:54:15Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-e8be","ts":"2026-02-26T23:54:15Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-e8be","ts":"2026-02-26T23:54:15Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-e8be","ts":"2026-02-26T23:55:21Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-e8be","ts":"2026-02-26T23:55:21Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"continue","ticket":"ko-e8be","ts":"2026-02-26T23:55:38Z","workflow":"task"}
+{"event":"node_start","node":"implement","ticket":"ko-e8be","ts":"2026-02-26T23:55:38Z","workflow":"task"}
+{"event":"node_complete","node":"implement","result":"done","ticket":"ko-e8be","ts":"2026-02-27T00:03:12Z","workflow":"task"}
+{"event":"node_start","node":"verify","ticket":"ko-e8be","ts":"2026-02-27T00:03:12Z","workflow":"task"}
+{"event":"node_complete","node":"verify","result":"done","ticket":"ko-e8be","ts":"2026-02-27T00:03:22Z","workflow":"task"}
+{"event":"node_start","node":"review","ticket":"ko-e8be","ts":"2026-02-27T00:03:22Z","workflow":"task"}
+{"attempt":1,"event":"node_fail","node":"review","reason":"agent command failed: signal: terminated","ticket":"ko-e8be","ts":"2026-02-27T00:03:41Z","workflow":"task"}
+{"attempt":2,"event":"node_retry","node":"review","ticket":"ko-e8be","ts":"2026-02-27T00:03:41Z","workflow":"task"}
