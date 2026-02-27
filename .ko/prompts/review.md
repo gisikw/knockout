@@ -30,6 +30,10 @@ If the problems indicate a fundamental misunderstanding of the ticket, an
 invariant violation you cannot fix, or unexplained deviation from the plan,
 end with a `fail` disposition explaining what went wrong.
 
+**Environment note:** Standard tools (node, npm, cargo, etc.) may not be on
+PATH. Use `nix develop --command <cmd>` or `nix-shell -p <pkg> --run '<cmd>'`
+if you need to run anything.
+
 Your output MUST end with a fenced JSON block. Examples:
 
 ```json
