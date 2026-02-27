@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # jab.sh — a tiny LLM workflow in a single file
 #
-# Usage: ./jab.sh file1 file2 file3 ...
+# Usage: ./jab.sh tickets/*
 #
-# For each file, runs four stages:
-#   1. Plan    — LLM reads the file, proposes changes
-#   2. Implement — LLM applies the plan
-#   3. Test    — bash command to verify (customize this!)
-#   4. Validate — LLM reviews the result
+# Each file is a "ticket" — a plain-text description of something to build.
+# For each ticket, runs four stages:
+#   1. Plan     — LLM reads the ticket and produces an implementation plan
+#   2. Implement — LLM executes the plan (with tool use)
+#   3. Test     — bash command to verify (customize this!)
+#   4. Validate — LLM reviews what was built
 #
 # Requires: claude CLI (https://docs.anthropic.com/en/docs/claude-code)
 #
@@ -17,7 +18,7 @@
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
-  echo "Usage: jab.sh <file> [file...]"
+  echo "Usage: jab.sh <ticket> [ticket...]"
   exit 1
 fi
 
@@ -25,31 +26,36 @@ fi
 
 plan_prompt() {
   cat <<EOF
-Read this file and propose improvements. Be specific and concise.
-List each change as a bullet point.
+Here is a ticket describing work to be done. Produce a short, concrete
+implementation plan. List each step as a bullet point.
 
+--- Ticket ---
 $(cat "$1")
 EOF
 }
 
 implement_prompt() {
   cat <<EOF
-Here is a file and a plan. Output the complete updated file, nothing else.
+Here is a ticket and an implementation plan. Do the work described in the plan.
+
+--- Ticket ---
+$(cat "$1")
 
 --- Plan ---
 $2
-
---- File ---
-$(cat "$1")
 EOF
 }
 
 validate_prompt() {
   cat <<EOF
-Review this file. Does it look correct? Note any issues.
-Be brief — a few sentences max.
+A ticket was just implemented. Review the changes and assess whether the
+work was completed correctly. Be brief — a few sentences max.
 
+--- Ticket ---
 $(cat "$1")
+
+--- Plan ---
+$2
 EOF
 }
 
@@ -64,11 +70,23 @@ run_test() {
   echo "No test configured — edit run_test() in this script"
 }
 
-# --- Engine (you probably don't need to touch this) ---
+# --- LLM backend (uncomment one pair) ---
 
-llm() {
-  echo "$1" | claude -p --output-format text
-}
+# Claude Code
+# llm()       { echo "$1" | claude -p --output-format text; }
+# llm_tools() { echo "$1" | claude -p --output-format text --dangerously-skip-permissions; }
+
+# Codex
+# llm()       { echo "$1" | codex --quiet; }
+# llm_tools() { echo "$1" | codex --quiet --full-auto; }
+
+# OpenCode
+# llm()       { echo "$1" | opencode --pipe; }
+# llm_tools() { echo "$1" | opencode --pipe --yes; }
+
+# Cursor (agent mode)
+llm()       { echo "$1" | cursor --pipe; }
+llm_tools() { echo "$1" | cursor --pipe; }
 
 stage() {
   local name="$1"
@@ -76,28 +94,26 @@ stage() {
   echo "=== $name ==="
 }
 
-for file in "$@"; do
+for ticket in "$@"; do
   echo ""
-  echo "━━━ $file ━━━"
+  echo "━━━ $ticket ━━━"
 
   stage "Plan"
-  plan=$(llm "$(plan_prompt "$file")")
+  plan=$(llm "$(plan_prompt "$ticket")")
   echo "$plan"
 
   stage "Implement"
-  result=$(llm "$(implement_prompt "$file" "$plan")")
-  echo "$result" > "$file"
-  echo "Wrote $file"
+  llm_tools "$(implement_prompt "$ticket" "$plan")"
 
   stage "Test"
-  if run_test "$file"; then
+  if run_test; then
     echo "PASS"
   else
     echo "FAIL (continuing anyway)"
   fi
 
   stage "Validate"
-  llm "$(validate_prompt "$file")"
+  llm "$(validate_prompt "$ticket" "$plan")"
 done
 
 echo ""
