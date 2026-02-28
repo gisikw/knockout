@@ -1,0 +1,47 @@
+# ko triage lists tickets with a triage value set
+exec ko triage
+stdout 'ko-triaged'
+stdout 'triage: unblock this ticket'
+
+# ko triage excludes tickets without a triage value
+exec ko triage
+! stdout 'ko-plain'
+
+# ko triage --json outputs JSON with triage field
+exec ko triage --json
+stdout '"triage":\s*"unblock this ticket"'
+! stdout '"id":\s*"ko-plain"'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/ko-triaged.md --
+---
+id: ko-triaged
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+triage: unblock this ticket
+---
+# Ticket with triage set
+
+-- .ko/tickets/ko-plain.md --
+---
+id: ko-plain
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Ticket without triage

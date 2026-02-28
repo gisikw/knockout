@@ -1,16 +1,4 @@
----
-id: ko-70b5
-status: resolved
-deps: [ko-13af]
-created: 2026-02-28T07:40:28Z
-type: task
-priority: 2
----
-# ko triage with no args should list all tickets that have a triage value, similar to ko ready
-
-## Notes
-
-**2026-02-28 08:02:12 UTC:** ## Summary
+## Summary
 
 Implemented `ko triage` (no-args form) that lists all tickets with a non-empty `triage` field, mirroring the structure of `cmdReady`.
 
@@ -34,5 +22,3 @@ Implemented `ko triage` (no-args form) that lists all tickets with a non-empty `
 ### Tests
 
 All tests pass (`go test ./... -count=1`). `cmd_list.go` is 352 lines, well under the 500-line invariant.
-
-**2026-02-28 08:02:12 UTC:** ko: SUCCEED

@@ -39,3 +39,27 @@ Feature: Ticket Triage Field
     When I run "ko ready"
     Then the command should succeed
     And the output should contain "ko-a001"
+
+  Scenario: Triage with no args lists tickets with triage set
+    Given a ticket exists with ID "ko-a001" and status "open" and triage "unblock this ticket"
+    And a ticket exists with ID "ko-a002" and status "in_progress" and triage "break this apart"
+    When I run "ko triage"
+    Then the command should succeed
+    And the output should contain "ko-a001"
+    And the output should contain "ko-a002"
+    And the output should contain "triage: unblock this ticket"
+    And the output should contain "triage: break this apart"
+
+  Scenario: Triage with no args excludes tickets without triage set
+    Given a ticket exists with ID "ko-a001" and status "open" and triage "unblock this ticket"
+    And a ticket exists with ID "ko-a002" and status "open"
+    When I run "ko triage"
+    Then the command should succeed
+    And the output should contain "ko-a001"
+    And the output should not contain "ko-a002"
+
+  Scenario: Triage with --json outputs JSON with triage field
+    Given a ticket exists with ID "ko-a001" and status "open" and triage "unblock this ticket"
+    When I run "ko triage --json"
+    Then the command should succeed
+    And the output should contain "\"triage\": \"unblock this ticket\""

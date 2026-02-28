@@ -288,3 +288,65 @@ func cmdReady(args []string) int {
 
 	return 0
 }
+
+func cmdTriage(args []string) int {
+	args = reorderArgs(args, map[string]bool{"project": true, "limit": true})
+
+	ticketsDir, args, err := resolveProjectTicketsDir(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko triage: %v\n", err)
+		return 1
+	}
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko triage: no .ko/tickets directory found (use --project or run from a project dir)\n")
+		return 1
+	}
+
+	fs := flag.NewFlagSet("triage", flag.ContinueOnError)
+	limit := fs.Int("limit", 0, "max tickets to show")
+	jsonOutput := fs.Bool("json", false, "output as JSON array")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "ko triage: %v\n", err)
+		return 1
+	}
+
+	tickets, err := ListTickets(ticketsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko triage: %v\n", err)
+		return 1
+	}
+
+	var triaged []*Ticket
+	for _, t := range tickets {
+		if t.Triage != "" {
+			triaged = append(triaged, t)
+		}
+	}
+
+	SortByPriorityThenModified(triaged)
+
+	if *jsonOutput {
+		result := make([]ticketJSON, 0)
+		count := 0
+		for _, t := range triaged {
+			result = append(result, ticketToJSON(t, ticketsDir))
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(result)
+	} else {
+		count := 0
+		for _, t := range triaged {
+			fmt.Printf("%s [%s] (p%d) %s \u2014 triage: %s\n", t.ID, t.Status, t.Priority, t.Title, t.Triage)
+			count++
+			if *limit > 0 && count >= *limit {
+				break
+			}
+		}
+	}
+	return 0
+}

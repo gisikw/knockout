@@ -39,6 +39,8 @@ func run(args []string) int {
 		return cmdLs(rest)
 	case "ready":
 		return cmdReady(rest)
+	case "triage":
+		return cmdTriage(rest)
 	case "block":
 		return cmdBlock(rest)
 	case "snooze":
@@ -117,6 +119,7 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
+  triage             List tickets with a triage value set
   block <id> [reason]           Block ticket with optional reason
   block <id> --questions '<json>' Block ticket with questions
 

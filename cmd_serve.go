@@ -29,6 +29,7 @@ func cmdServe(args []string) int {
 		"show":    true,
 		"ls":      true,
 		"ready":   true,
+		"triage":  true,
 		"update":  true,
 		"status":  true,
 		"start":   true,
