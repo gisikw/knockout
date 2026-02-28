@@ -479,6 +479,55 @@ func TestSnoozeRoundTrip(t *testing.T) {
 	}
 }
 
+func TestTriageRoundTrip(t *testing.T) {
+	original := &Ticket{
+		ID:       "test-1234",
+		Status:   "open",
+		Deps:     []string{},
+		Created:  "2026-05-01T00:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Triage Ticket",
+		Triage:   "unblock this ticket",
+	}
+
+	formatted := FormatTicket(original)
+
+	if !strings.Contains(formatted, "triage: unblock this ticket") {
+		t.Errorf("FormatTicket output does not contain 'triage: unblock this ticket'\noutput:\n%s", formatted)
+	}
+
+	parsed, err := ParseTicket(formatted)
+	if err != nil {
+		t.Fatalf("ParseTicket() error = %v", err)
+	}
+
+	if parsed.Triage != "unblock this ticket" {
+		t.Errorf("Triage = %q, want %q", parsed.Triage, "unblock this ticket")
+	}
+}
+
+func TestParseTicketWithTriage(t *testing.T) {
+	input := `---
+id: test-1234
+status: open
+deps: []
+created: 2026-05-01T00:00:00Z
+type: task
+priority: 2
+triage: break this apart
+---
+# Triage Ticket
+`
+	parsed, err := ParseTicket(input)
+	if err != nil {
+		t.Fatalf("ParseTicket() error = %v", err)
+	}
+	if parsed.Triage != "break this apart" {
+		t.Errorf("Triage = %q, want %q", parsed.Triage, "break this apart")
+	}
+}
+
 func TestParseTicketWithSnooze(t *testing.T) {
 	input := `---
 id: test-1234

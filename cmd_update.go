@@ -16,7 +16,7 @@ func cmdUpdate(args []string) int {
 		"title": true, "parent": true, "external-ref": true,
 		"design": true, "acceptance": true, "tags": true,
 		"questions": true, "answers": true, "status": true,
-		"snooze": true,
+		"snooze": true, "triage": true,
 	})
 
 	// Parse flags
@@ -35,6 +35,7 @@ func cmdUpdate(args []string) int {
 	answersJSON := fs.String("answers", "", "answers to plan questions (JSON)")
 	status := fs.String("status", "", "ticket status")
 	snooze := fs.String("snooze", "", "snooze date (ISO 8601, e.g. 2026-05-01)")
+	triage := fs.String("triage", "", "triage note (free text)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko update: %v\n", err)
@@ -233,6 +234,10 @@ func cmdUpdate(args []string) int {
 			return 1
 		}
 		t.Snooze = *snooze
+		changed = true
+	}
+	if *triage != "" {
+		t.Triage = *triage
 		changed = true
 	}
 

@@ -1,0 +1,50 @@
+# Create a ticket with a triage note
+exec ko add 'Some task' --triage 'unblock this ticket'
+stdout '^ko-[0-9a-f]{4}$'
+exec ko ls --json
+stdout '"triage":\s*"unblock this ticket"'
+
+# Update a ticket to set a triage note
+exec ko update test-0001 --triage 'break this apart'
+stdout 'test-0001 updated'
+exec ko show test-0001
+stdout 'triage: break this apart'
+
+# Create a ticket without --triage, verify no triage field in its show output
+exec ko add 'No triage task'
+stdout '^ko-[0-9a-f]{4}$'
+exec ko show test-0002
+! stdout 'triage:'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket
+
+-- .ko/tickets/test-0002.md --
+---
+id: test-0002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket without triage

@@ -21,7 +21,7 @@ func cmdCreate(args []string) int {
 		"d": true, "t": true, "p": true, "a": true,
 		"parent": true, "external-ref": true, "design": true,
 		"acceptance": true, "tags": true, "project": true,
-		"snooze": true,
+		"snooze": true, "triage": true,
 	})
 
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
@@ -36,6 +36,7 @@ func cmdCreate(args []string) int {
 	tags := fs.String("tags", "", "comma-separated tags")
 	projectTag := fs.String("project", "", "target project tag")
 	snooze := fs.String("snooze", "", "snooze date (ISO 8601, e.g. 2026-05-01)")
+	triage := fs.String("triage", "", "triage note (free text)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
@@ -176,6 +177,9 @@ func cmdCreate(args []string) int {
 			return 1
 		}
 		t.Snooze = *snooze
+	}
+	if *triage != "" {
+		t.Triage = *triage
 	}
 
 	if err := SaveTicket(ticketsDir, t); err != nil {

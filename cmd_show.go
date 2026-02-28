@@ -22,6 +22,7 @@ type showJSON struct {
 	Parent      string   `json:"parent,omitempty"`
 	ExternalRef string   `json:"external_ref,omitempty"`
 	Snooze      string   `json:"snooze,omitempty"`
+	Triage      string   `json:"triage,omitempty"`
 	Tags          []string       `json:"tags,omitempty"`
 	Blockers      []string       `json:"blockers,omitempty"`
 	Blocking      []string       `json:"blocking,omitempty"`
@@ -87,6 +88,7 @@ func cmdShow(args []string) int {
 			Parent:        t.Parent,
 			ExternalRef:   t.ExternalRef,
 			Snooze:        t.Snooze,
+			Triage:        t.Triage,
 			Tags:          t.Tags,
 			Blockers:      blockers,
 			Blocking:      blocking,
@@ -117,6 +119,9 @@ func cmdShow(args []string) int {
 		}
 		if t.Snooze != "" {
 			fmt.Printf("snooze: %s\n", t.Snooze)
+		}
+		if t.Triage != "" {
+			fmt.Printf("triage: %s\n", t.Triage)
 		}
 		if len(t.Tags) > 0 {
 			fmt.Printf("tags: [%s]\n", strings.Join(t.Tags, ", "))

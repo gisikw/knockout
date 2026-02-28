@@ -68,3 +68,7 @@ func TestAgentHarnesses(t *testing.T) {
 func TestTicketSnooze(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/ticket_snooze"})
 }
+
+func TestTicketTriage(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/ticket_triage"})
+}

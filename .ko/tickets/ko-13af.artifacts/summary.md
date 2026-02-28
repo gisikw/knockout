@@ -1,16 +1,4 @@
----
-id: ko-13af
-status: resolved
-deps: []
-created: 2026-02-28T07:40:18Z
-type: task
-priority: 2
----
-# Add triage field to ticket frontmatter — a free-text string (e.g. 'unblock this ticket', 'break this apart'). Settable via ko add and ko update.
-
-## Notes
-
-**2026-02-28 07:50:45 UTC:** # Summary: ko-13af — Add triage field to ticket frontmatter
+# Summary: ko-13af — Add triage field to ticket frontmatter
 
 ## What was done
 
@@ -33,5 +21,3 @@ Added a `triage` free-text string field to the `Ticket` struct and wired it end-
 ## All tests pass
 
 `go test ./...` passes.
-
-**2026-02-28 07:50:45 UTC:** ko: SUCCEED

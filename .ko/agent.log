@@ -202,3 +202,5 @@ loop: ko-1d18 SUCCEED
 loop: building ko-c33f — ko ready should exclude snoozed tickets — if snooze date is in the future, ticket is not ready. Date-only values (e.g. 2026-05-01) are valid as of midnight on that date.
 loop: ko-c33f SUCCEED
 loop: building ko-88dd — Add support for require_clean_tree: true in pipeline.yml, which would prevent an agent from starting if the working tree is clean (ignoring ./.ko)
+loop: ko-88dd SUCCEED
+loop: building ko-13af — Add triage field to ticket frontmatter — a free-text string (e.g. 'unblock this ticket', 'break this apart'). Settable via ko add and ko update.

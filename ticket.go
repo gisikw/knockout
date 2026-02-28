@@ -32,6 +32,7 @@ type Ticket struct {
 	Parent        string         `yaml:"parent,omitempty"`
 	ExternalRef   string         `yaml:"external-ref,omitempty"`
 	Snooze        string         `yaml:"snooze,omitempty"`
+	Triage        string         `yaml:"triage,omitempty"`
 	Tags          []string       `yaml:"tags,omitempty"`
 	PlanQuestions []PlanQuestion `yaml:"plan-questions,omitempty"`
 
@@ -128,6 +129,9 @@ func FormatTicket(t *Ticket) string {
 	}
 	if t.Snooze != "" {
 		b.WriteString(fmt.Sprintf("snooze: %s\n", t.Snooze))
+	}
+	if t.Triage != "" {
+		b.WriteString(fmt.Sprintf("triage: %s\n", t.Triage))
 	}
 	if len(t.Tags) > 0 {
 		b.WriteString(fmt.Sprintf("tags: [%s]\n", strings.Join(t.Tags, ", ")))
@@ -309,6 +313,8 @@ func ParseTicket(content string) (*Ticket, error) {
 			t.ExternalRef = val
 		case "snooze":
 			t.Snooze = val
+		case "triage":
+			t.Triage = val
 		case "tags":
 			t.Tags = parseYAMLList(val)
 		}

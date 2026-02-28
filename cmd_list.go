@@ -26,6 +26,7 @@ type ticketJSON struct {
 	HasUnresolvedDep  bool           `json:"hasUnresolvedDep"`
 	PlanQuestions     []PlanQuestion `json:"plan-questions,omitempty"`
 	Snooze            string         `json:"snooze,omitempty"`
+	Triage            string         `json:"triage,omitempty"`
 }
 
 // ticketToJSON converts a Ticket to ticketJSON format.
@@ -50,6 +51,7 @@ func ticketToJSON(t *Ticket, ticketsDir string) ticketJSON {
 		HasUnresolvedDep: !AllDepsResolved(ticketsDir, t.Deps),
 		PlanQuestions:    t.PlanQuestions,
 		Snooze:           t.Snooze,
+		Triage:           t.Triage,
 	}
 }
 
