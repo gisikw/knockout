@@ -310,6 +310,14 @@ func cmdTriage(args []string) int {
 		return 1
 	}
 
+	if fs.NArg() >= 2 {
+		return cmdUpdate([]string{fs.Arg(0), "--triage=" + strings.Join(fs.Args()[1:], " ")})
+	}
+	if fs.NArg() == 1 {
+		fmt.Fprintln(os.Stderr, "ko triage: instructions required")
+		return 1
+	}
+
 	tickets, err := ListTickets(ticketsDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko triage: %v\n", err)

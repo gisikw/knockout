@@ -63,3 +63,20 @@ Feature: Ticket Triage Field
     When I run "ko triage --json"
     Then the command should succeed
     And the output should contain "\"triage\": \"unblock this ticket\""
+
+  Scenario: ko triage <id> <instructions> sets the triage field
+    Given a ticket exists with ID "ko-a001" and title "Task to triage"
+    When I run "ko triage ko-a001 break this apart"
+    Then the command should succeed
+    And the ticket "ko-a001" frontmatter should contain "triage: break this apart"
+
+  Scenario: ko triage with multi-word instructions joins them
+    Given a ticket exists with ID "ko-a001" and title "Task to triage"
+    When I run "ko triage ko-a001 unblock this ticket now"
+    Then the command should succeed
+    And the ticket "ko-a001" frontmatter should contain "triage: unblock this ticket now"
+
+  Scenario: ko triage with id but no instructions fails
+    Given a ticket exists with ID "ko-a001" and title "Task to triage"
+    When I run "ko triage ko-a001"
+    Then the command should fail

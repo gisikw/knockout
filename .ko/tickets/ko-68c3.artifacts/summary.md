@@ -1,16 +1,4 @@
----
-id: ko-68c3
-status: resolved
-deps: [ko-13af]
-created: 2026-02-28T07:40:28Z
-type: task
-priority: 2
----
-# Add ko triage <id> <instructions> as alias for ko update <id> --set triage=<instructions>
-
-## Notes
-
-**2026-02-28 08:07:59 UTC:** ## Summary
+## Summary
 
 Implemented `ko triage <id> <instructions>` as an alias for `ko update <id> --triage=<instructions>`.
 
@@ -35,5 +23,3 @@ All tests pass (`go test ./...`).
 
 - Follows the same delegation pattern as `cmdSnooze` (delegates to `cmdUpdate` with a constructed flag) and `cmdBlock` (joins args for multi-word values).
 - No new logic was needed beyond the branch — `cmdUpdate` already handles `--triage=`.
-
-**2026-02-28 08:07:59 UTC:** ko: SUCCEED

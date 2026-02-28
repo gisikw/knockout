@@ -119,7 +119,7 @@ Commands:
   show <id>          Show ticket details
   ls                 List open tickets
   ready              Show ready queue (open + deps resolved)
-  triage             List tickets with a triage value set
+  triage [<id> <instructions>]   List tickets with a triage value, or set triage on a ticket
   block <id> [reason]           Block ticket with optional reason
   block <id> --questions '<json>' Block ticket with questions
 

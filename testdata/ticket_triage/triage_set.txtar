@@ -1,0 +1,37 @@
+# ko triage <id> <instructions> sets the triage field
+exec ko triage test-0001 break this apart
+stdout 'test-0001 updated'
+exec ko show test-0001
+stdout 'triage: break this apart'
+
+# ko triage with multi-word instructions joins them
+exec ko triage test-0001 unblock this ticket now
+stdout 'test-0001 updated'
+exec ko show test-0001
+stdout 'triage: unblock this ticket now'
+
+# ko triage with id but no instructions fails
+! exec ko triage test-0001
+stderr 'instructions required'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

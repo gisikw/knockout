@@ -231,6 +231,106 @@ func TestResolveProjectTicketsDir_HashTagUnknownProject(t *testing.T) {
 	}
 }
 
+func TestCmdTriageSet(t *testing.T) {
+	ticket := &Ticket{
+		ID:       "ko-test",
+		Status:   "open",
+		Deps:     []string{},
+		Created:  "2026-01-01T00:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Test Ticket",
+	}
+
+	setup := func(t *testing.T) (tmpDir string, ticketsDir string) {
+		t.Helper()
+		tmpDir = t.TempDir()
+		ticketsDir = filepath.Join(tmpDir, ".ko", "tickets")
+		if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := SaveTicket(ticketsDir, ticket); err != nil {
+			t.Fatal(err)
+		}
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chdir(origDir) })
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatal(err)
+		}
+		return tmpDir, ticketsDir
+	}
+
+	t.Run("set triage saves field", func(t *testing.T) {
+		_, ticketsDir := setup(t)
+		code := cmdTriage([]string{"ko-test", "break this apart"})
+		if code != 0 {
+			t.Fatalf("cmdTriage returned %d, want 0", code)
+		}
+		updated, err := LoadTicket(ticketsDir, "ko-test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated.Triage != "break this apart" {
+			t.Errorf("Triage = %q, want %q", updated.Triage, "break this apart")
+		}
+	})
+
+	t.Run("multi-word instructions joined", func(t *testing.T) {
+		_, ticketsDir := setup(t)
+		code := cmdTriage([]string{"ko-test", "unblock", "this", "ticket"})
+		if code != 0 {
+			t.Fatalf("cmdTriage returned %d, want 0", code)
+		}
+		updated, err := LoadTicket(ticketsDir, "ko-test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated.Triage != "unblock this ticket" {
+			t.Errorf("Triage = %q, want %q", updated.Triage, "unblock this ticket")
+		}
+	})
+
+	t.Run("missing instructions returns non-zero", func(t *testing.T) {
+		setup(t)
+		code := cmdTriage([]string{"ko-test"})
+		if code == 0 {
+			t.Error("cmdTriage returned 0, want non-zero")
+		}
+	})
+
+	t.Run("zero args performs list no error", func(t *testing.T) {
+		_, ticketsDir := setup(t)
+		// Give the ticket a triage value so it appears in list output
+		if err := SaveTicket(ticketsDir, &Ticket{
+			ID:       "ko-test",
+			Status:   "open",
+			Deps:     []string{},
+			Created:  "2026-01-01T00:00:00Z",
+			Type:     "task",
+			Priority: 2,
+			Title:    "Test Ticket",
+			Triage:   "some triage note",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		// Capture stdout to avoid noise
+		oldStdout := os.Stdout
+		devNull, _ := os.Open(os.DevNull)
+		os.Stdout = devNull
+		defer func() {
+			os.Stdout = oldStdout
+			devNull.Close()
+		}()
+		code := cmdTriage([]string{})
+		if code != 0 {
+			t.Errorf("cmdTriage(0 args) returned %d, want 0", code)
+		}
+	})
+}
+
 func TestResolveProjectTicketsDir_ProjectFlagOverridesHashTag(t *testing.T) {
 	// Set up a registry with two test projects
 	regDir := t.TempDir()
