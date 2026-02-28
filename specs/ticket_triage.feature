@@ -80,3 +80,24 @@ Feature: Ticket Triage Field
     Given a ticket exists with ID "ko-a001" and title "Task to triage"
     When I run "ko triage ko-a001"
     Then the command should fail
+
+  Scenario: ko agent triage runs triage instructions and clears the triage field
+    Given a ticket exists with ID "ko-a001" and title "Fix the auth bug" and triage "unblock this ticket"
+    And a pipeline config with a mock harness exists
+    When I run "ko agent triage ko-a001"
+    Then the command should succeed
+    And the output should contain "ko-a001: triage cleared"
+    And the ticket "ko-a001" frontmatter should not contain "triage:"
+
+  Scenario: ko agent triage fails when ticket has no triage value
+    Given a ticket exists with ID "ko-a001" and title "Fix the auth bug"
+    And a pipeline config with a mock harness exists
+    When I run "ko agent triage ko-a001"
+    Then the command should fail
+    And the error output should contain "has no triage value"
+
+  Scenario: ko agent triage fails when no pipeline config exists
+    Given a ticket exists with ID "ko-a001" and title "Fix the auth bug" and triage "unblock this ticket"
+    When I run "ko agent triage ko-a001"
+    Then the command should fail
+    And the error output should contain "no config found"

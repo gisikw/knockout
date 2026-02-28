@@ -1,23 +1,19 @@
-The plan is written. Here's a summary:
+All done. Here's a summary of what was implemented:
 
-## Plan Summary
+**`cmd_agent_triage.go`** (new file) — `cmdAgentTriage`:
+- Resolves ticket via `resolveProjectTicketsDir` + `ResolveTicket`
+- Fails with clear error if `t.Triage == ""`
+- Requires pipeline config via `FindPipelineConfig` + `LoadPipeline`; fails if absent
+- Constructs prompt: `## Ticket` + ticket content + `## Instructions` + triage string
+- Forces `allowAll=true` regardless of pipeline config (per ticket decision)
+- Injects `TICKETS_DIR`, `KO_TICKET_WORKSPACE`, `KO_ARTIFACT_DIR` env vars
+- Uses `parseTimeout(p.StepTimeout)` with context timeout
+- On success: reloads ticket, clears `Triage`, saves, prints `"<id>: triage cleared"`
 
-**Goal**: Add `ko agent triage <id>` that invokes the configured model with the ticket's triage instruction, then clears the triage field on success.
+**`cmd_agent.go`** — Added `case "triage": return cmdAgentTriage(args[1:])` and updated usage string.
 
-**Key findings**:
-- `cmd_agent.go` is at 457 lines — adding here would cross the 500-line invariant, so the implementation goes in a new `cmd_agent_triage.go` file (matching the `cmd_build.go` / `cmd_loop.go` pattern)
-- "Ko usage tokens" = `TICKETS_DIR`, `KO_TICKET_WORKSPACE`, `KO_ARTIFACT_DIR` env vars that let the spawned model run `ko` commands and find the right project
-- Prompt structure mirrors `runPromptNode`: ticket content + `## Instructions` with the triage string
-- On success: reload ticket (model may have modified it), clear `Triage`, save
+**`main.go`** — Added `agent triage <id>` to `ko help` output.
 
-**Tasks**:
-1. New `cmd_agent_triage.go` — full `cmdAgentTriage` implementation
-2. `cmd_agent.go` — add `triage` case + usage string
-3. `main.go` — add to `ko help` text
-4. `specs/ticket_triage.feature` — new spec scenarios
-5. `testdata/agent_triage/triage_run.txtar` — integration test with mock harness
-6. `testdata/agent_triage/triage_no_triage.txtar` — error case test
+**`specs/ticket_triage.feature`** — Added 3 new scenarios: success case, no-triage error, no-config error.
 
-**Open Questions**:
-1. Should `allowAll` be forced to `true` for triage (ergonomic but bypasses config), or read from pipeline config?
-2. Should pipeline config be required, or fall back to a default claude adapter?
+**`testdata/agent_triage/`** — 3 txtar tests covering: success + triage cleared, no-triage failure, no-config failure.

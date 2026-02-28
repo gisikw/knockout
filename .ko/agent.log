@@ -204,3 +204,5 @@ loop: ko-c33f SUCCEED
 loop: building ko-88dd — Add support for require_clean_tree: true in pipeline.yml, which would prevent an agent from starting if the working tree is clean (ignoring ./.ko)
 loop: ko-88dd SUCCEED
 loop: building ko-13af — Add triage field to ticket frontmatter — a free-text string (e.g. 'unblock this ticket', 'break this apart'). Settable via ko add and ko update.
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":3596.785143921,"stop_reason":"empty","succeeded":8,"tickets_processed":9,"ts":"2026-02-28T08:12:18Z"}
+loop: building ko-6733 — ko agent triage <id> — load default model and prompt it to handle the ticket per its triage instructions. Provide ko usage tokens so the model can operate on tickets. On success (no error), clear the triage field from the ticket (if it still exists).

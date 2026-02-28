@@ -27,7 +27,8 @@ Commands:
   start        Daemonize a loop (background agent)
   stop         Stop a running background agent
   status       Check if an agent is running
-  report       Show summary statistics from the last agent loop run`)
+  report       Show summary statistics from the last agent loop run
+  triage <id>  Run triage instructions against a ticket`)
 		return 1
 	}
 
@@ -46,6 +47,8 @@ Commands:
 		return cmdAgentStatus(args[1:])
 	case "report":
 		return cmdAgentReport(args[1:])
+	case "triage":
+		return cmdAgentTriage(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ko agent: unknown subcommand '%s'\n", args[0])
 		return 1

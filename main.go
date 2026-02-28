@@ -151,6 +151,7 @@ Commands:
   agent start        Daemonize a loop (background agent)
   agent stop         Stop a running background agent
   agent status       Check if an agent is running
+  agent triage <id>  Run triage instructions against a ticket
 
   project set #<tag> [--prefix=p] [--default]
                      Initialize .ko dir, register project, optionally set default

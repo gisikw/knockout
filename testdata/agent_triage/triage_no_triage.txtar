@@ -1,0 +1,24 @@
+# ko agent triage: fails when ticket has no triage value
+! exec ko agent triage ko-a001
+stderr 'has no triage value'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Fix the auth bug
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement the changes.

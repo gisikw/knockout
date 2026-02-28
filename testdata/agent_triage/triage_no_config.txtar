@@ -1,0 +1,15 @@
+# ko agent triage: fails when no pipeline config exists
+! exec ko agent triage ko-a001
+stderr 'no config found'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+triage: unblock this ticket
+---
+# Fix the auth bug
