@@ -1,0 +1,48 @@
+# Loop runs triage pre-pass before building ready tickets
+chmod 755 fake-llm
+exec ko agent loop
+stdout 'loop: triaging ko-a001'
+stdout 'SUCCEED'
+stdout 'stopped: empty'
+
+# Both tickets should be resolved
+exec ko show ko-a001
+stdout 'status: resolved'
+
+exec ko show ko-b002
+stdout 'status: resolved'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+triage: unblock this ticket
+---
+# Fix the auth bug
+-- .ko/tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Add logging
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement the changes.
+-- fake-llm --
+#!/bin/sh
+echo "Done."

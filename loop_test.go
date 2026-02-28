@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -87,5 +89,51 @@ func TestLoopResult(t *testing.T) {
 	}
 	if result.Stopped != "max_tickets" {
 		t.Errorf("Stopped = %q, want %q", result.Stopped, "max_tickets")
+	}
+}
+
+func TestTriageQueue(t *testing.T) {
+	dir := t.TempDir()
+	ticketsDir := filepath.Join(dir, ".ko", "tickets")
+	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket with triage set
+	withTriage := &Ticket{
+		ID:      "ko-a001",
+		Status:  "open",
+		Title:   "Needs triage",
+		Triage:  "unblock this ticket",
+		Deps:    []string{},
+		Created: "2026-01-01T00:00:00Z",
+	}
+	if err := SaveTicket(ticketsDir, withTriage); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ticket without triage
+	noTriage := &Ticket{
+		ID:      "ko-b002",
+		Status:  "open",
+		Title:   "Already triaged",
+		Triage:  "",
+		Deps:    []string{},
+		Created: "2026-01-01T00:00:00Z",
+	}
+	if err := SaveTicket(ticketsDir, noTriage); err != nil {
+		t.Fatal(err)
+	}
+
+	queue, err := TriageQueue(ticketsDir)
+	if err != nil {
+		t.Fatalf("TriageQueue: %v", err)
+	}
+
+	if len(queue) != 1 {
+		t.Fatalf("TriageQueue returned %d tickets, want 1", len(queue))
+	}
+	if queue[0].ID != "ko-a001" {
+		t.Errorf("TriageQueue[0].ID = %q, want %q", queue[0].ID, "ko-a001")
 	}
 }

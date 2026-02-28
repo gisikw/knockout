@@ -39,6 +39,57 @@ func (c *LoopConfig) ShouldContinue(processed int, elapsed time.Duration) (bool,
 	return true, ""
 }
 
+// TriageQueue returns all tickets with a non-empty triage field,
+// sorted by priority then modified. Pure query.
+func TriageQueue(ticketsDir string) ([]*Ticket, error) {
+	tickets, err := ListTickets(ticketsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var triageable []*Ticket
+	for _, t := range tickets {
+		if t.Triage != "" {
+			triageable = append(triageable, t)
+		}
+	}
+	SortByPriorityThenModified(triageable)
+	return triageable, nil
+}
+
+// runTriagePass runs triage on all tickets in the triage queue.
+// Logs failures but continues processing. Respects the stop channel between
+// runs. Returns count of tickets successfully triaged.
+func runTriagePass(ticketsDir string, p *Pipeline, verbose bool, quiet bool, stop <-chan struct{}) int {
+	queue, err := TriageQueue(ticketsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "loop: triage queue error: %v\n", err)
+		return 0
+	}
+
+	count := 0
+	for _, t := range queue {
+		// Check for stop signal between triage runs
+		if stop != nil {
+			select {
+			case <-stop:
+				return count
+			default:
+			}
+		}
+
+		if !quiet {
+			fmt.Printf("loop: triaging %s — %s\n", t.ID, t.Title)
+		}
+		if err := runAgentTriage(ticketsDir, t, p, verbose); err != nil {
+			fmt.Fprintf(os.Stderr, "loop: triage failed for %s: %v\n", t.ID, err)
+			continue
+		}
+		count++
+	}
+	return count
+}
+
 // ReadyQueue returns the IDs of tickets ready to build, sorted by priority.
 func ReadyQueue(ticketsDir string) ([]string, error) {
 	tickets, err := ListTickets(ticketsDir)
@@ -48,7 +99,7 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 
 	var ready []*Ticket
 	for _, t := range tickets {
-		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) && !IsSnoozed(t.Snooze, time.Now()) {
+		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) && !IsSnoozed(t.Snooze, time.Now()) && t.Triage == "" {
 			ready = append(ready, t)
 		}
 	}
@@ -88,6 +139,9 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 			result.Stopped = reason
 			return result
 		}
+
+		// Run triage pre-pass before picking up ready tickets
+		runTriagePass(ticketsDir, p, config.Verbose, config.Quiet, stop)
 
 		// Get next ready ticket
 		queue, err := ReadyQueue(ticketsDir)

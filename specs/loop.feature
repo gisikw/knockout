@@ -102,3 +102,21 @@ Feature: Build Loop
     When I run "ko loop --max-tickets 2"
     Then the on_loop_complete hook should have run
     And the hook output should contain "LOOP_STOPPED=max_tickets"
+
+  # Triage pre-pass
+
+  Scenario: Loop triages all triageable tickets before processing ready tickets
+    Given ticket "ko-a001" with status "open" and triage field "unblock this ticket"
+    And ticket "ko-b002" with status "open" and no triage field
+    And a pipeline where triage and build both succeed
+    When I run "ko loop"
+    Then the output should contain "triaging ko-a001"
+    And both tickets should be closed
+
+  Scenario: Loop continues building ready tickets even if triage fails for one ticket
+    Given ticket "ko-a001" with status "open" and triage field set
+    And a pipeline where triage fails (mock harness exits non-zero)
+    And ticket "ko-b002" with status "open" and no triage field
+    When I run "ko loop"
+    Then the loop should log a triage failure for "ko-a001"
+    And ticket "ko-b002" should still be processed and closed

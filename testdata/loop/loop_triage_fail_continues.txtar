@@ -1,0 +1,56 @@
+# Triage failure doesn't stop the loop — ready tickets are still built
+chmod 755 fake-llm
+exec ko agent loop
+stderr 'loop: triage failed for ko-a001'
+stdout 'ko-b002 SUCCEED'
+stdout 'stopped: empty'
+
+# ko-a001 should still be open with triage field intact (triage was never cleared)
+exec ko show ko-a001
+stdout 'status: open'
+stdout 'triage: unblock this ticket'
+
+# ko-b002 should be resolved despite ko-a001 triage failure
+exec ko show ko-b002
+stdout 'status: resolved'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 1
+triage: unblock this ticket
+---
+# Fix the auth bug
+-- .ko/tickets/ko-b002.md --
+---
+id: ko-b002
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Add logging
+-- .ko/pipeline.yml --
+command: ./fake-llm
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement the changes.
+-- fake-llm --
+#!/bin/sh
+# Triage calls don't have KO_BUILD_HISTORY set; build calls do.
+# Exit non-zero only for triage so ko-a001 triage fails but ko-b002 builds fine.
+if [ -z "$KO_BUILD_HISTORY" ]; then
+  echo "triage agent failed" >&2
+  exit 1
+fi
+echo "Done."

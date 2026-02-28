@@ -1,14 +1,15 @@
-Looking at the ticket title:
+Looking at this ticket:
 
 **"ko agent start should run ko agent triage on all triageable tickets before starting work on ready tickets"**
 
-This is a clear specification of desired behavior. It describes *what to build* — a feature enhancement to the `ko agent start` command to add a triage step before processing ready tickets.
+This describes a clear feature to implement:
+- Modify the `ko agent start` command behavior
+- Add triage execution before processing ready tickets
+- Implement specific handling for stop signals, triage failures, and ticket counting
 
-This is not:
-- A question or investigation request (research)
-- An assertion of broken behavior (bug)
+The ticket includes decision notes on implementation details, indicating the requirements are well-defined.
 
-It's an implementation request with a clear definition of what should happen.
+This is asking for code changes to build a specific feature, not investigation or diagnosis.
 
 ```json
 {"disposition": "route", "workflow": "task"}

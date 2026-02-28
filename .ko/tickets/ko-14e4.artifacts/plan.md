@@ -61,8 +61,8 @@ Extract the core execution logic from `cmdAgentTriage` into a shared `runAgentTr
 
 ## Open Questions
 
-1. **Triage failure behavior**: If `runAgentTriage` fails for a ticket (agent exits non-zero, timeout, etc.), should the loop log and continue to the next ticket — or stop the loop with `build_error`? The plan assumes log-and-continue (consistent with how FAIL outcomes don't stop the loop). Confirm this is the desired behavior.
+None. All questions resolved:
 
-2. **Triage counting toward MaxTickets**: Should triaged tickets count toward the `--max-tickets` limit? The plan assumes NO — triage is a pre-build housekeeping step, not a ticket build. Confirm.
-
-3. **Stop signal during triage**: Should a stop signal received while triage is running for a ticket be honored immediately (interrupt current triage) or at the next inter-ticket gap? The plan assumes inter-ticket only (check `stop` between each triage run, not mid-run), consistent with how stop is checked between builds today.
+1. **Triage failure behavior**: Log and continue — log triage failures but keep processing remaining tickets.
+2. **Triage counting toward MaxTickets**: Do not count — triage is housekeeping; only ready-to-build tickets consume the limit.
+3. **Stop signal during triage**: Check between tickets — honor stop signals only between triage runs, allowing the current triage to complete.

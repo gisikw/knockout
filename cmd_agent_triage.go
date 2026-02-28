@@ -43,12 +43,6 @@ func cmdAgentTriage(args []string) int {
 		return 1
 	}
 
-	return runAgentTriage(ticketsDir, id, *verbose)
-}
-
-// runAgentTriage loads the ticket and pipeline config, runs the triage agent,
-// and clears the triage field on success. Returns 0 on success, 1 on failure.
-func runAgentTriage(ticketsDir, id string, verbose bool) int {
 	// Load ticket
 	t, err := LoadTicket(ticketsDir, id)
 	if err != nil {
@@ -74,6 +68,19 @@ func runAgentTriage(ticketsDir, id string, verbose bool) int {
 		return 1
 	}
 
+	if err := runAgentTriage(ticketsDir, t, p, *verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent triage: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("%s: triage cleared\n", id)
+	return 0
+}
+
+// runAgentTriage constructs the prompt, runs the AI adapter, and clears the
+// triage field on success. The ticket and pipeline must already be loaded by
+// the caller.
+func runAgentTriage(ticketsDir string, t *Ticket, p *Pipeline, verbose bool) error {
 	// Construct prompt: ticket content + triage as instructions
 	var prompt strings.Builder
 	prompt.WriteString("## Ticket\n\n")
@@ -86,16 +93,14 @@ func runAgentTriage(ticketsDir, id string, verbose bool) int {
 	prompt.WriteString(t.Triage)
 
 	// Ensure artifact dir and workspace
-	artifactDir, err := EnsureArtifactDir(ticketsDir, id)
+	artifactDir, err := EnsureArtifactDir(ticketsDir, t.ID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent triage: %v\n", err)
-		return 1
+		return err
 	}
 
 	wsDir, err := CreateWorkspace(artifactDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent triage: %v\n", err)
-		return 1
+		return err
 	}
 
 	// Force allowAll=true for triage operations regardless of pipeline config
@@ -104,8 +109,7 @@ func runAgentTriage(ticketsDir, id string, verbose bool) int {
 	// Apply timeout
 	timeout, err := parseTimeout(p.StepTimeout)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent triage: invalid step_timeout: %v\n", err)
-		return 1
+		return fmt.Errorf("invalid step_timeout: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -130,40 +134,35 @@ func runAgentTriage(ticketsDir, id string, verbose bool) int {
 		cmdCtx.Stderr = os.Stderr
 		if err := cmdCtx.Run(); err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Fprintf(os.Stderr, "ko agent triage: timed out after %v\n", timeout)
+				return fmt.Errorf("timed out after %v", timeout)
 			}
-			return 1
+			return err
 		}
 	} else {
 		out, err := cmdCtx.Output()
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Fprintf(os.Stderr, "ko agent triage: timed out after %v\n", timeout)
-			} else {
-				if exitErr, ok := err.(*exec.ExitError); ok {
-					fmt.Fprintf(os.Stderr, "%s", string(exitErr.Stderr))
-				}
-				fmt.Fprintf(os.Stderr, "ko agent triage: agent command failed: %v\n", err)
+				return fmt.Errorf("timed out after %v", timeout)
 			}
-			return 1
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				fmt.Fprintf(os.Stderr, "%s", string(exitErr.Stderr))
+			}
+			return fmt.Errorf("agent command failed: %v", err)
 		}
 		_ = out
 	}
 
 	// On success: reload ticket (model may have modified it), clear triage, save
-	t, err = LoadTicket(ticketsDir, id)
+	t, err = LoadTicket(ticketsDir, t.ID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent triage: failed to reload ticket: %v\n", err)
-		return 1
+		return fmt.Errorf("failed to reload ticket: %v", err)
 	}
 	t.Triage = ""
 	if err := SaveTicket(ticketsDir, t); err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent triage: failed to save ticket: %v\n", err)
-		return 1
+		return fmt.Errorf("failed to save ticket: %v", err)
 	}
 
-	fmt.Printf("%s: triage cleared\n", id)
-	return 0
+	return nil
 }
 
 // maybeAutoTriage checks if auto_triage is enabled in the pipeline config and,
@@ -185,7 +184,28 @@ func maybeAutoTriage(ticketsDir, id string) {
 		return
 	}
 
-	if code := runAgentTriage(ticketsDir, id, false); code != 0 {
+	t, err := LoadTicket(ticketsDir, id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko: auto-triage for %s failed; run 'ko agent triage %s' manually\n", id, id)
+		return
+	}
+	if t.Triage == "" {
+		return
+	}
+
+	pipelineConfigPath, err := FindPipelineConfig(ticketsDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko: auto-triage for %s failed; run 'ko agent triage %s' manually\n", id, id)
+		return
+	}
+
+	p, err := LoadPipeline(pipelineConfigPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko: auto-triage for %s failed; run 'ko agent triage %s' manually\n", id, id)
+		return
+	}
+
+	if err := runAgentTriage(ticketsDir, t, p, false); err != nil {
 		fmt.Fprintf(os.Stderr, "ko: auto-triage for %s failed; run 'ko agent triage %s' manually\n", id, id)
 	}
 }
