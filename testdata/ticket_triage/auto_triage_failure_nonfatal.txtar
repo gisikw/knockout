@@ -1,0 +1,31 @@
+# auto-triage failure is non-fatal: ko add still succeeds with exit 0,
+# triage field remains set, and a warning appears on stderr
+chmod 755 fake-llm
+exec ko add 'Task' --triage 'unblock this'
+stdout '^ko-[0-9a-f]{4}$'
+stderr 'auto-triage for'
+stderr 'failed'
+exec ko triage
+stdout 'unblock this'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+-- .ko/pipeline.yml --
+command: ./fake-llm
+auto_triage: true
+workflows:
+  main:
+    - name: implement
+      type: action
+      run: echo done
+-- fake-llm --
+#!/bin/sh
+exit 1

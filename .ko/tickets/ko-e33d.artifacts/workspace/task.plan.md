@@ -1,21 +1,15 @@
-The plan is written. Here's a summary:
+All done. Here's a summary of what was implemented:
 
-## Plan: Auto-Triage on Ticket Create/Update
+**`pipeline.go`** — Added `AutoTriage bool` field to `Pipeline` struct and a `case "auto_triage": p.AutoTriage = val == "true"` branch in `ParsePipeline`.
 
-**Goal**: When `auto_triage: true` is set in the pipeline config, creating or updating a ticket with a non-empty `triage` field automatically runs `ko agent triage`.
+**`pipeline_test.go`** — Added `TestParsePipelineAutoTriage` with three sub-tests covering `true`, `false`, and absent (defaults to false).
 
-**6 tasks:**
+**`cmd_agent_triage.go`** — Extracted `runAgentTriage(ticketsDir, id string, verbose bool) int` from `cmdAgentTriage` (which became a thin wrapper). Added `maybeAutoTriage(ticketsDir, id string)` which silently skips if no config or `AutoTriage=false`, and prints a non-fatal warning if the triage run fails.
 
-1. **`pipeline.go`** — Add `AutoTriage bool` to `Pipeline` struct; parse `auto_triage: true/false` in `ParsePipeline`.
+**`cmd_create.go`** — After `EmitMutationEvent`, calls `maybeAutoTriage` if `--triage` was set.
 
-2. **`cmd_agent_triage.go`** — Extract `runAgentTriage(ticketsDir, id, verbose)` from `cmdAgentTriage` (so it can be called programmatically), and add `maybeAutoTriage(ticketsDir, id)` which silently skips if no config or `AutoTriage=false`, and warns-but-doesn't-fail if the triage run fails.
+**`cmd_update.go`** — Same pattern after its `EmitMutationEvent`.
 
-3. **`cmd_create.go`** — After `EmitMutationEvent`, if `--triage` was set, call `maybeAutoTriage`.
+**`specs/ticket_triage.feature`** — Added 4 new scenarios covering auto-trigger on create, auto-trigger on update, no-trigger when absent, and non-fatal failure.
 
-4. **`cmd_update.go`** — Same, after saving the ticket. (This also covers `ko triage <id> <instructions>`, which routes through `cmdUpdate`.)
-
-5. **`specs/ticket_triage.feature`** — Add 4 new scenarios covering auto-trigger, no-trigger, and non-fatal failure.
-
-6. **`testdata/ticket_triage/`** — Add 4 txtar integration tests with mock harnesses.
-
-**Two open questions flagged**: (1) whether auto-triage failure should be fatal for `ko add`/`ko update` (planned as non-fatal), and (2) `pipeline.go` already exceeds the 500-line invariant.
+**`testdata/ticket_triage/`** — Added 4 txtar integration tests with mock harnesses verifying each scenario.

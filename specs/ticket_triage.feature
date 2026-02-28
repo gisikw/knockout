@@ -101,3 +101,30 @@ Feature: Ticket Triage Field
     When I run "ko agent triage ko-a001"
     Then the command should fail
     And the error output should contain "no config found"
+
+  Scenario: auto_triage: true triggers triage automatically after ko add --triage
+    Given a pipeline config with auto_triage: true and a mock harness exists
+    When I run "ko add 'Auto task' --triage 'unblock this'"
+    Then the command should succeed
+    And the created ticket frontmatter should not contain "triage:"
+
+  Scenario: auto_triage: true triggers triage automatically after ko update --triage
+    Given a ticket exists with ID "ko-a001" and title "Task to triage"
+    And a pipeline config with auto_triage: true and a mock harness exists
+    When I run "ko update ko-a001 --triage 'break apart'"
+    Then the command should succeed
+    And the ticket "ko-a001" frontmatter should not contain "triage:"
+
+  Scenario: auto_triage absent does not trigger triage automatically
+    Given a pipeline config without auto_triage exists
+    When I run "ko add 'Task' --triage 'unblock this'"
+    Then the command should succeed
+    And the created ticket frontmatter should contain "triage: unblock this"
+
+  Scenario: auto-triage failure is non-fatal for ko add
+    Given a pipeline config with auto_triage: true and a failing mock harness exists
+    When I run "ko add 'Task' --triage 'unblock this'"
+    Then the command should succeed
+    And the created ticket frontmatter should contain "triage: unblock this"
+    And the error output should contain "auto-triage for"
+    And the error output should contain "failed"

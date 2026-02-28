@@ -1,0 +1,23 @@
+# No auto_triage key: triage field remains set after ko add --triage
+exec ko add 'Task' --triage 'unblock this'
+stdout '^ko-[0-9a-f]{4}$'
+exec ko triage
+stdout 'unblock this'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+-- .ko/pipeline.yml --
+command: ./fake-llm
+workflows:
+  main:
+    - name: implement
+      type: action
+      run: echo done

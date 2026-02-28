@@ -191,6 +191,10 @@ func cmdCreate(args []string) int {
 		"title": t.Title,
 	})
 
+	if *triage != "" {
+		maybeAutoTriage(ticketsDir, t.ID)
+	}
+
 	fmt.Println(t.ID)
 	return 0
 }

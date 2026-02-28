@@ -43,6 +43,12 @@ func cmdAgentTriage(args []string) int {
 		return 1
 	}
 
+	return runAgentTriage(ticketsDir, id, *verbose)
+}
+
+// runAgentTriage loads the ticket and pipeline config, runs the triage agent,
+// and clears the triage field on success. Returns 0 on success, 1 on failure.
+func runAgentTriage(ticketsDir, id string, verbose bool) int {
 	// Load ticket
 	t, err := LoadTicket(ticketsDir, id)
 	if err != nil {
@@ -119,7 +125,7 @@ func cmdAgentTriage(args []string) int {
 		"KO_ARTIFACT_DIR="+artifactDir,
 	)
 
-	if *verbose {
+	if verbose {
 		cmdCtx.Stdout = os.Stdout
 		cmdCtx.Stderr = os.Stderr
 		if err := cmdCtx.Run(); err != nil {
@@ -158,4 +164,28 @@ func cmdAgentTriage(args []string) int {
 
 	fmt.Printf("%s: triage cleared\n", id)
 	return 0
+}
+
+// maybeAutoTriage checks if auto_triage is enabled in the pipeline config and,
+// if so, runs the triage agent against the given ticket. Failures are non-fatal:
+// a warning is printed to stderr and the caller continues normally.
+func maybeAutoTriage(ticketsDir, id string) {
+	configPath, err := FindConfig(ticketsDir)
+	if err != nil {
+		// No config found — auto-triage not configured
+		return
+	}
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		return
+	}
+
+	if !config.Pipeline.AutoTriage {
+		return
+	}
+
+	if code := runAgentTriage(ticketsDir, id, false); code != 0 {
+		fmt.Fprintf(os.Stderr, "ko: auto-triage for %s failed; run 'ko agent triage %s' manually\n", id, id)
+	}
 }

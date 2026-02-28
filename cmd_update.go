@@ -257,6 +257,10 @@ func cmdUpdate(args []string) int {
 		"ticket": id,
 	})
 
+	if *triage != "" {
+		maybeAutoTriage(ticketsDir, id)
+	}
+
 	fmt.Printf("%s updated\n", id)
 	return 0
 }

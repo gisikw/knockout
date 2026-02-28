@@ -1,0 +1,28 @@
+# auto_triage: true clears triage field after ko update --triage
+chmod 755 fake-llm
+exec ko update ko-a001 --triage 'break apart'
+stdout 'ko-a001 updated'
+exec ko show ko-a001
+! stdout 'triage:'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Task to triage
+-- .ko/pipeline.yml --
+command: ./fake-llm
+auto_triage: true
+workflows:
+  main:
+    - name: implement
+      type: action
+      run: echo done
+-- fake-llm --
+#!/bin/sh
+echo "Triage completed."
