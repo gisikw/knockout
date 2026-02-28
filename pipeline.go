@@ -30,8 +30,10 @@ type Pipeline struct {
 	MaxRetries   int                   // max retries per node (default: 2)
 	MaxDepth     int                   // max decomposition depth (default: 2)
 	Discretion   string                // low | medium | high (default: "medium")
-	StepTimeout  string                // default timeout for all nodes (e.g., "15m", "1h30m")
-	Workflows    map[string]*Workflow  // named workflows; "main" is the entry point
+	StepTimeout      string                // default timeout for all nodes (e.g., "15m", "1h30m")
+	// RequireCleanTree requires working tree to be clean (no uncommitted changes outside .ko/) before build starts
+	RequireCleanTree bool
+	Workflows        map[string]*Workflow  // named workflows; "main" is the entry point
 	OnSucceed      []string              // shell commands to run after all stages pass
 	OnFail         []string              // shell commands to run on build failure
 	OnClose        []string              // shell commands to run after ticket is closed
@@ -217,6 +219,8 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				p.Discretion = val
 			case "step_timeout":
 				p.StepTimeout = val
+			case "require_clean_tree":
+				p.RequireCleanTree = val == "true"
 			case "allowed_tools":
 				// Handle inline list: allowed_tools: [a, b, c]
 				if strings.HasPrefix(val, "[") {

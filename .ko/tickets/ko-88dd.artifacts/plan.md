@@ -17,14 +17,15 @@ Working tree checks need to:
 2. Ignore changes in `.ko/` directory (ticket metadata, build artifacts, etc.)
 3. Return an error message if dirty changes are found and `require_clean_tree: true`
 
-Similar patterns in the codebase:
-- build.go:690-727 — runHooks expands env vars and executes shell commands
-- The project already shells out to git for operations (visible in on_succeed/on_fail hooks)
+**Exception to zero-external-runtime-dependencies rule:** Shelling out to git is acceptable here because `require_clean_tree: true` is only ever invoked by the pipeline workflow, which already assumes git is available (on_succeed/on_fail hooks use git directly). This is consistent with the existing precedent where hooks shell out to user-specified commands. The ticket author confirmed this exception on 2026-02-28.
+
+Testing pattern:
+- Integration tests live in `testdata/pipeline/*.txtar` and are run by `TestPipeline` in `ko_test.go`
+- Gherkin behavioral specs live in `specs/pipeline.feature`
+- Both are required per INVARIANTS.md "Every behavior has a spec" and "Every spec has a test"
 
 ## Approach
-Add a `RequireCleanTree` boolean field to the Pipeline struct. Parse it from YAML. Before starting a build, if this flag is true, check the git working tree status (ignoring `.ko/`). If uncommitted changes exist, fail the build eligibility check with a clear error message.
-
-The working tree check will be added as a new function that can be called from BuildEligibility. It will shell out to `git status --porcelain`, filter out lines starting with `.ko/`, and return whether the tree is clean.
+Add a `RequireCleanTree` boolean field to the Pipeline struct. Parse it from YAML. Before starting a build, if this flag is true, shell out to `git status --porcelain`, filter out `.ko/` lines, and fail the build eligibility check with a clear error message if uncommitted changes exist. Add Gherkin scenarios to `specs/pipeline.feature` and corresponding `.txtar` integration tests.
 
 ## Tasks
 1. [pipeline.go:23-41] — Add `RequireCleanTree bool` field to Pipeline struct
@@ -38,57 +39,58 @@ The working tree check will be added as a new function that can be called from B
    Verify: Unit test that parses a pipeline with `require_clean_tree: true` and checks the field is set.
 
 3. [build.go] — Add `isWorkingTreeClean(projectRoot string) (bool, error)` function
-   - Place near other helper functions (after line 799)
-   - Run `git status --porcelain` from projectRoot
+   - Place near other helper functions (after the `hasFlakeNix` function, currently around line 826)
+   - Run `git status --porcelain` from projectRoot using `exec.Command`
    - Parse output line-by-line
-   - Ignore lines where path starts with `.ko/`
+   - Ignore lines where the path component (columns 4+) starts with `.ko/`
    - Return (true, nil) if no relevant changes, (false, nil) if dirty, (false, err) on git error
    Verify: Unit test with temp git repo in various states.
 
-4. [build.go:26-55] — Add working tree check to BuildEligibility
-   - After line 54 (before final return "")
-   - Add new check:
-     ```
-     if requireCleanTree {
-       // Need projectRoot — calculate from ticketsDir
-       projectRoot := ProjectRoot(ticketsDir)
-       clean, err := isWorkingTreeClean(projectRoot)
-       if err != nil {
-         return fmt.Sprintf("ticket '%s' cannot be built: failed to check working tree status: %v", t.ID, err)
-       }
-       if !clean {
-         return fmt.Sprintf("ticket '%s' cannot be built: working tree has uncommitted changes (required by require_clean_tree)", t.ID)
-       }
-     }
-     ```
-   - Note: BuildEligibility needs to accept a Pipeline parameter to access RequireCleanTree
+4. [build.go:26-55] — Add working tree check to BuildEligibility and update its signature
+   - Change signature from `BuildEligibility(t *Ticket, depsResolved bool)` to `BuildEligibility(ticketsDir string, t *Ticket, depsResolved bool, requireCleanTree bool)`
+   - In the "open" case, after the depsResolved check, add: if requireCleanTree is true, call isWorkingTreeClean(ProjectRoot(ticketsDir)); return an error if dirty or if git check fails
+   - Error message: `"ticket '%s' cannot be built: working tree has uncommitted changes (required by require_clean_tree)"`
    Verify: Unit test that BuildEligibility rejects dirty tree when flag is set.
 
-5. [build.go:58] — Update RunBuild to pass Pipeline to BuildEligibility
-   - Line 61: Change `BuildEligibility(t, depsResolved)` to `BuildEligibility(ticketsDir, t, depsResolved, p.RequireCleanTree)`
-   - Update function signature at line 26-28
+5. [build.go:58-65] — Update RunBuild to pass Pipeline fields to BuildEligibility
+   - Change `BuildEligibility(t, depsResolved)` to `BuildEligibility(ticketsDir, t, depsResolved, p.RequireCleanTree)`
    Verify: Compile succeeds, existing tests still pass.
 
-6. [build_test.go] — Add test for require_clean_tree enforcement
-   - Create test: TestRequireCleanTreeRejectsDirty
-   - Set up temp git repo with uncommitted changes outside .ko/
-   - Create pipeline with RequireCleanTree: true
-   - Call BuildEligibility and verify it returns error about dirty tree
-   - Create second test: TestRequireCleanTreeIgnoresKoDir
-   - Set up temp git repo with uncommitted changes only in .ko/
-   - Verify BuildEligibility allows the build
-   Verify: Tests pass.
+6. [cmd_build.go] — Update BuildEligibility call site in the build command
+   - The eligibility check in cmd_build.go also calls BuildEligibility; update it to pass the new arguments (ticketsDir, t, depsResolved, p.RequireCleanTree), loading p before the check
+   Verify: Compile succeeds.
 
-7. [pipeline_test.go] — Add test for parsing require_clean_tree
-   - Add test case to existing parse tests
-   - Verify field is correctly parsed from YAML
+7. [build_test.go] — Add unit tests for require_clean_tree enforcement
+   - TestRequireCleanTreeRejectsDirty: set up temp git repo with uncommitted changes outside .ko/, call BuildEligibility with requireCleanTree=true, verify error about dirty tree
+   - TestRequireCleanTreeIgnoresKoDir: set up temp git repo with uncommitted changes only inside .ko/, verify BuildEligibility allows the build
+   - TestIsWorkingTreeClean: unit test for the isWorkingTreeClean helper directly (clean repo returns true, dirty repo returns false, .ko/-only changes return clean)
+   Verify: New tests pass.
+
+8. [pipeline_test.go] — Add test for parsing require_clean_tree
+   - Add a TestParseRequireCleanTree test (or add a case to existing parse tests)
+   - Verify `require_clean_tree: true` sets RequireCleanTree to true
+   - Verify omitting the field defaults to false
    Verify: Test passes.
 
-8. [examples/*/pipeline.yml] — Add commented example of require_clean_tree
-   - In minimal, default, and structured examples
-   - Add comment: `# require_clean_tree: true  # Prevent builds when uncommitted changes exist (outside .ko/)`
-   - Place in top-level config section with other pipeline options
-   Verify: Examples remain valid YAML.
+9. [specs/pipeline.feature] — Add Gherkin scenarios for require_clean_tree
+   - Add in the "# Eligibility" section (near line 188)
+   - Add two scenarios:
+     - "require_clean_tree blocks build when working tree has uncommitted changes": given require_clean_tree: true in pipeline and uncommitted changes outside .ko/, when ko build runs, then the command fails with "uncommitted changes"
+     - "require_clean_tree ignores changes in .ko/ directory": given require_clean_tree: true and uncommitted changes only in .ko/, when ko build runs, then build proceeds normally
+   Verify: Spec reads as correct behavioral documentation.
+
+10. [testdata/pipeline/build_require_clean_tree.txtar] — Add txtar integration test
+    - Test 1 (dirty tree blocked): init git repo, make initial commit, add untracked file outside .ko/, run `ko agent build ko-a001`, verify failure with "uncommitted changes"
+    - Test 2 (ko/ changes ignored): init git repo, make initial commit, modify a file in .ko/ only, run `ko agent build ko-a001`, verify build proceeds (exits with expected fake-llm output, not the clean-tree error)
+    - The txtar test should use `exec git init`, `exec git config`, `exec git add .`, `exec git commit -m "init"` to set up the git state
+    - Use a `require_clean_tree: true` in the pipeline.yml for the test
+    Verify: `go test ./...` passes, specifically `TestPipeline` runs the new test without errors.
+
+11. [examples/*/pipeline.yml] — Add commented example of require_clean_tree
+    - In minimal, default, and structured examples
+    - Add: `# require_clean_tree: true  # Prevent builds when uncommitted changes exist (outside .ko/)`
+    - Place in top-level config section with other pipeline options
+    Verify: Examples remain valid YAML.
 
 ## Open Questions
-None. The semantic ambiguity in the ticket title has been clarified: `require_clean_tree: true` means prevent builds when there ARE uncommitted changes (standard Git interpretation). The feature will block builds when the working tree is dirty, ignoring changes in `.ko/`.
+None. The semantic ambiguity (prevent when dirty vs. when clean) was resolved in prior build: `require_clean_tree: true` blocks builds when there ARE uncommitted changes (standard interpretation). The git dependency exception was confirmed by the ticket author on 2026-02-28. The only remaining gap from the prior failed review was the missing Gherkin spec and txtar integration test, which are now covered in tasks 9 and 10.

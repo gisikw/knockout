@@ -1,2 +1,2 @@
 go test ./...
-ok  	git.gisi.network/infra/knockout	10.318s
+ok  	git.gisi.network/infra/knockout	10.371s

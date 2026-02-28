@@ -212,6 +212,21 @@ Feature: Build Pipeline
     Then the command should fail
     And the error should contain "unresolved dependencies"
 
+  Scenario: require_clean_tree blocks build when working tree has uncommitted changes
+    Given a ticket "ko-a001" with status "open"
+    And pipeline.yml has require_clean_tree: true
+    And the working tree has uncommitted changes outside .ko/
+    When I run "ko agent build ko-a001"
+    Then the command should fail
+    And the error should contain "uncommitted changes"
+
+  Scenario: require_clean_tree ignores changes in .ko/ directory
+    Given a ticket "ko-a001" with status "open"
+    And pipeline.yml has require_clean_tree: true
+    And the working tree has uncommitted changes only inside .ko/
+    When I run "ko agent build ko-a001"
+    Then the command should succeed
+
   # Ticket status during build
 
   Scenario: Ticket is marked in_progress during build

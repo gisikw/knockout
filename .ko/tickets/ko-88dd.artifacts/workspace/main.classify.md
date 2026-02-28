@@ -1,17 +1,17 @@
-I'll classify this ticket by reading its content carefully.
+Looking at this ticket:
 
-The ticket clearly states:
-- **What to build**: "Add support for `require_clean_tree: true` in pipeline.yml"
-- **Desired behavior**: A configuration option that prevents builds when uncommitted changes exist (outside `.ko/`)
-- **Specification details**: The ticket includes notes clarifying the interpretation (prevent if dirty, not if clean)
+**What's being asked:** Add support for a `require_clean_tree: true` configuration option in `pipeline.yml` that prevents pipeline execution when there are uncommitted changes in the working tree.
 
-The ticket describes **what to implement** (a new feature with clear requirements), not what's broken. It provides:
-- A specific configuration option name
-- Expected behavior (validation logic)
-- Implementation notes in the prior context with a detailed plan
-- Clear technical approach
+**Key indicators:**
+- Clear feature request: "Add support for..."
+- Specific desired behavior documented in notes (blocks when dirty, not when clean)
+- Previous implementation attempt failed code review, but **architectural blockers have been resolved** (Feb 28 note grants exception for git shell-out dependency)
+- Expected output is committed code implementing this feature
 
-This is a **task** — it's a feature implementation request with a complete specification.
+**Why not the other categories:**
+- Not research: The question of "what should this do?" was already answered and decided (Feb 26)
+- Not bug: Not reporting unexpected behavior, but rather requesting new functionality
+- Not blocked: The architectural decisions from the Feb 28 note indicate the way forward is clear
 
 ```json
 {"disposition": "route", "workflow": "task"}

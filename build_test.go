@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -235,6 +236,99 @@ func TestRunPromptNodePriorContextInjection(t *testing.T) {
 				t.Errorf("decision node should NOT receive prior context, but it was found in prompt")
 			}
 		})
+	}
+}
+
+func initGitRepo(t *testing.T, dir string) {
+	t.Helper()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	// Make an initial commit so the repo is not bare
+	os.WriteFile(filepath.Join(dir, ".gitkeep"), []byte(""), 0644)
+	run("add", ".gitkeep")
+	run("commit", "-m", "init")
+}
+
+func TestIsWorkingTreeClean(t *testing.T) {
+	projectRoot := t.TempDir()
+	initGitRepo(t, projectRoot)
+
+	// Clean repo: should return true
+	clean, err := isWorkingTreeClean(projectRoot)
+	if err != nil {
+		t.Fatalf("isWorkingTreeClean error: %v", err)
+	}
+	if !clean {
+		t.Error("expected clean tree, got dirty")
+	}
+
+	// Add untracked file outside .ko/: should return false
+	os.WriteFile(filepath.Join(projectRoot, "dirty.go"), []byte("package main"), 0644)
+	clean, err = isWorkingTreeClean(projectRoot)
+	if err != nil {
+		t.Fatalf("isWorkingTreeClean error: %v", err)
+	}
+	if clean {
+		t.Error("expected dirty tree, got clean")
+	}
+	os.Remove(filepath.Join(projectRoot, "dirty.go"))
+
+	// Add file only inside .ko/: should return true (ignored)
+	os.MkdirAll(filepath.Join(projectRoot, ".ko"), 0755)
+	os.WriteFile(filepath.Join(projectRoot, ".ko", "meta.txt"), []byte("data"), 0644)
+	clean, err = isWorkingTreeClean(projectRoot)
+	if err != nil {
+		t.Fatalf("isWorkingTreeClean error: %v", err)
+	}
+	if !clean {
+		t.Error("expected clean tree when only .ko/ changes exist, got dirty")
+	}
+}
+
+func TestRequireCleanTreeRejectsDirty(t *testing.T) {
+	projectRoot := t.TempDir()
+	koDir := filepath.Join(projectRoot, ".ko")
+	ticketsDir := filepath.Join(koDir, "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+	initGitRepo(t, projectRoot)
+
+	// Add uncommitted change outside .ko/
+	os.WriteFile(filepath.Join(projectRoot, "dirty.go"), []byte("package main"), 0644)
+
+	ticket := &Ticket{ID: "ko-a001", Status: "open"}
+	msg := BuildEligibility(ticketsDir, ticket, true, true)
+	if msg == "" {
+		t.Error("expected eligibility error for dirty tree, got empty string")
+	}
+	if !strings.Contains(msg, "uncommitted changes") {
+		t.Errorf("expected message to contain 'uncommitted changes', got: %q", msg)
+	}
+}
+
+func TestRequireCleanTreeIgnoresKoDir(t *testing.T) {
+	projectRoot := t.TempDir()
+	koDir := filepath.Join(projectRoot, ".ko")
+	ticketsDir := filepath.Join(koDir, "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+	initGitRepo(t, projectRoot)
+
+	// Add uncommitted change only inside .ko/
+	os.MkdirAll(filepath.Join(projectRoot, ".ko", "artifacts"), 0755)
+	os.WriteFile(filepath.Join(projectRoot, ".ko", "artifacts", "note.md"), []byte("data"), 0644)
+
+	ticket := &Ticket{ID: "ko-a001", Status: "open"}
+	msg := BuildEligibility(ticketsDir, ticket, true, true)
+	if msg != "" {
+		t.Errorf("expected no eligibility error when only .ko/ changes, got: %q", msg)
 	}
 }
 

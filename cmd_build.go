@@ -44,13 +44,6 @@ func cmdAgentBuild(args []string) int {
 		return 1
 	}
 
-	// Check eligibility
-	depsResolved := AllDepsResolved(ticketsDir, t.Deps)
-	if msg := BuildEligibility(t, depsResolved); msg != "" {
-		fmt.Fprintf(os.Stderr, "ko agent build: %s\n", msg)
-		return 1
-	}
-
 	// Load pipeline config
 	configPath, err := FindPipelineConfig(ticketsDir)
 	if err != nil {
@@ -61,6 +54,13 @@ func cmdAgentBuild(args []string) int {
 	p, err := LoadPipeline(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent build: %v\n", err)
+		return 1
+	}
+
+	// Check eligibility
+	depsResolved := AllDepsResolved(ticketsDir, t.Deps)
+	if msg := BuildEligibility(ticketsDir, t, depsResolved, p.RequireCleanTree); msg != "" {
+		fmt.Fprintf(os.Stderr, "ko agent build: %s\n", msg)
 		return 1
 	}
 

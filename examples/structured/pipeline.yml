@@ -11,6 +11,7 @@ allow_all_tool_calls: true
 max_retries: 2
 max_depth: 2
 discretion: medium
+# require_clean_tree: true  # Prevent builds when uncommitted changes exist (outside .ko/)
 
 workflows:
   main:

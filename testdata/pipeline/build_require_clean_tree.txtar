@@ -1,0 +1,53 @@
+# require_clean_tree: true blocks builds when uncommitted changes exist outside .ko/
+# and ignores changes only inside .ko/
+
+chmod 755 fake-llm
+
+# Set up a git repo with an initial commit
+exec git init
+exec git config user.email test@example.com
+exec git config user.name Test
+exec git add .
+exec git commit -m init
+
+# Test 1: dirty tree is blocked
+cp dirty.go dirty_outside.go
+! exec ko agent build ko-a001
+stderr 'uncommitted changes'
+
+# Clean up for test 2
+rm dirty_outside.go
+
+# Test 2: changes only in .ko/ are ignored — build proceeds normally
+cp extra_ko_file.txt .ko/extra.txt
+exec ko agent build ko-a001
+stdout 'SUCCEED'
+
+-- .ko/tickets/ko-a001.md --
+---
+id: ko-a001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket
+-- .ko/pipeline.yml --
+command: ./fake-llm
+require_clean_tree: true
+max_retries: 0
+workflows:
+  main:
+    - name: implement
+      type: action
+      prompt: implement.md
+-- .ko/prompts/implement.md --
+Implement.
+-- fake-llm --
+#!/bin/sh
+echo "Done."
+-- dirty.go --
+package main
+-- extra_ko_file.txt --
+data

@@ -11,6 +11,7 @@ model: claude-sonnet-4-5-20250929
 max_retries: 2
 max_depth: 2
 discretion: medium
+# require_clean_tree: true  # Prevent builds when uncommitted changes exist (outside .ko/)
 
 workflows:
   main:

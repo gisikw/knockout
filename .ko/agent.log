@@ -200,3 +200,5 @@ loop: ko-7a57 SUCCEED
 loop: building ko-1d18 — Add ko snooze <id> <date> as shorthand for ko update <id> --set snooze=<date>
 loop: ko-1d18 SUCCEED
 loop: building ko-c33f — ko ready should exclude snoozed tickets — if snooze date is in the future, ticket is not ready. Date-only values (e.g. 2026-05-01) are valid as of midnight on that date.
+loop: ko-c33f SUCCEED
+loop: building ko-88dd — Add support for require_clean_tree: true in pipeline.yml, which would prevent an agent from starting if the working tree is clean (ignoring ./.ko)

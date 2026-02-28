@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -991,5 +992,47 @@ workflows:
 
 	if p.Model != "sonnet" {
 		t.Errorf("Model = %q, want %q", p.Model, "sonnet")
+	}
+}
+
+func TestParseRequireCleanTree(t *testing.T) {
+	dir := t.TempDir()
+
+	// require_clean_tree: true sets the field
+	configPath := filepath.Join(dir, "pipeline.yml")
+	if err := os.WriteFile(configPath, []byte(`command: ./fake-llm
+require_clean_tree: true
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	p, err := LoadPipeline(configPath)
+	if err != nil {
+		t.Fatalf("LoadPipeline failed: %v", err)
+	}
+	if !p.RequireCleanTree {
+		t.Errorf("RequireCleanTree = false, want true")
+	}
+
+	// Omitting the field defaults to false
+	if err := os.WriteFile(configPath, []byte(`command: ./fake-llm
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	p2, err := LoadPipeline(configPath)
+	if err != nil {
+		t.Fatalf("LoadPipeline failed: %v", err)
+	}
+	if p2.RequireCleanTree {
+		t.Errorf("RequireCleanTree = true, want false when not specified")
 	}
 }

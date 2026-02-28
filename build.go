@@ -25,7 +25,7 @@ const (
 
 // BuildEligibility checks whether a ticket can be built.
 // Pure decision function — returns an error message or "".
-func BuildEligibility(t *Ticket, depsResolved bool) string {
+func BuildEligibility(ticketsDir string, t *Ticket, depsResolved bool, requireCleanTree bool) string {
 	switch t.Status {
 	case "in_progress":
 		return fmt.Sprintf("ticket '%s' is not eligible for build: already in progress", t.ID)
@@ -48,6 +48,15 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 		if !depsResolved {
 			return fmt.Sprintf("ticket '%s' has unresolved dependencies", t.ID)
 		}
+		if requireCleanTree {
+			clean, err := isWorkingTreeClean(ProjectRoot(ticketsDir))
+			if err != nil {
+				return fmt.Sprintf("ticket '%s' cannot be built: failed to check working tree: %v", t.ID, err)
+			}
+			if !clean {
+				return fmt.Sprintf("ticket '%s' cannot be built: working tree has uncommitted changes (required by require_clean_tree)", t.ID)
+			}
+		}
 		return ""
 	default:
 		return fmt.Sprintf("ticket '%s' has unknown status '%s'", t.ID, t.Status)
@@ -58,7 +67,7 @@ func BuildEligibility(t *Ticket, depsResolved bool) string {
 func RunBuild(ticketsDir string, t *Ticket, p *Pipeline, log *EventLogger, verbose bool) (Outcome, error) {
 	// Gate: re-check eligibility in case status changed since queue was read
 	depsResolved := AllDepsResolved(ticketsDir, t.Deps)
-	if msg := BuildEligibility(t, depsResolved); msg != "" {
+	if msg := BuildEligibility(ticketsDir, t, depsResolved, p.RequireCleanTree); msg != "" {
 		return OutcomeFail, fmt.Errorf("%s", msg)
 	}
 
@@ -815,6 +824,36 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// isWorkingTreeClean checks whether the git working tree has no uncommitted
+// changes outside the .ko/ directory. Returns (true, nil) if clean,
+// (false, nil) if dirty, or (false, err) if the git check fails.
+func isWorkingTreeClean(projectRoot string) (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = projectRoot
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("git status failed: %v", err)
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// git status --porcelain lines: "XY path" or "XY old -> new"
+		// The path starts at column 3 (0-indexed)
+		if len(line) < 4 {
+			continue
+		}
+		path := line[3:]
+		// Strip rename target if present
+		if idx := strings.Index(path, " -> "); idx >= 0 {
+			path = path[idx+4:]
+		}
+		if !strings.HasPrefix(path, ".ko/") {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // hasFlakeNix checks if flake.nix exists in the project root.
