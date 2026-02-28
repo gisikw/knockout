@@ -1,16 +1,4 @@
----
-id: ko-464b
-status: resolved
-deps: [ko-13af]
-created: 2026-02-28T07:40:28Z
-type: task
-priority: 2
----
-# ko ready should exclude tickets that have a triage value set
-
-## Notes
-
-**2026-02-28 07:56:29 UTC:** # Summary
+# Summary
 
 ## What was done
 
@@ -35,5 +23,3 @@ priority: 2
 ## All tests pass
 
 `go test ./...` passes cleanly.
-
-**2026-02-28 07:56:29 UTC:** ko: SUCCEED

@@ -227,7 +227,7 @@ func cmdReady(args []string) int {
 	// Local ready queue (deps resolved locally only)
 	var ready []*Ticket
 	for _, t := range tickets {
-		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) && !IsSnoozed(t.Snooze, time.Now()) {
+		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) && !IsSnoozed(t.Snooze, time.Now()) && t.Triage == "" {
 			ready = append(ready, t)
 		}
 	}
@@ -273,7 +273,7 @@ func cmdReady(args []string) int {
 
 	lookup := CrossProjectLookup(ticketsDir, reg)
 	for _, t := range tickets {
-		if IsReady(t.Status, AllDepsResolvedWith(t.Deps, lookup)) && !IsSnoozed(t.Snooze, time.Now()) {
+		if IsReady(t.Status, AllDepsResolvedWith(t.Deps, lookup)) && !IsSnoozed(t.Snooze, time.Now()) && t.Triage == "" {
 			if *jsonOutput {
 				result := []ticketJSON{ticketToJSON(t, ticketsDir)}
 				enc := json.NewEncoder(os.Stdout)

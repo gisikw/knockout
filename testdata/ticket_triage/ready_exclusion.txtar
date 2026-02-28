@@ -1,0 +1,41 @@
+# ko ready excludes tickets with a triage value set
+exec ko ready
+! stdout 'ko-triaged'
+
+# ko ready includes tickets without a triage value
+exec ko ready
+stdout 'ko-plain'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/ko-triaged.md --
+---
+id: ko-triaged
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+triage: unblock this ticket
+---
+# Ticket with triage set
+
+-- .ko/tickets/ko-plain.md --
+---
+id: ko-plain
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Ticket without triage

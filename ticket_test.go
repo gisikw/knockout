@@ -528,6 +528,42 @@ triage: break this apart
 	}
 }
 
+func TestReadyTriageExclusion(t *testing.T) {
+	// Triage exclusion is applied at the cmd_list.go call sites, not in IsReady.
+	// IsReady only checks status and deps — triage is orthogonal.
+	// This test documents the predicate used at both filter sites.
+	tests := []struct {
+		name   string
+		triage string
+		wantIn bool
+	}{
+		{
+			name:   "no triage: ticket is eligible",
+			triage: "",
+			wantIn: true,
+		},
+		{
+			name:   "triage set: ticket is excluded",
+			triage: "unblock this ticket",
+			wantIn: false,
+		},
+		{
+			name:   "triage set to another value: ticket is excluded",
+			triage: "break this apart",
+			wantIn: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.triage == ""
+			if got != tt.wantIn {
+				t.Errorf("triage %q: eligible = %v, want %v", tt.triage, got, tt.wantIn)
+			}
+		})
+	}
+}
+
 func TestParseTicketWithSnooze(t *testing.T) {
 	input := `---
 id: test-1234

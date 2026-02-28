@@ -27,3 +27,15 @@ Feature: Ticket Triage Field
     When I run "ko add 'No triage'"
     Then the command should succeed
     And the created ticket frontmatter should not contain "triage:"
+
+  Scenario: Ready excludes a ticket with a triage value set
+    Given a ticket exists with ID "ko-a001" and status "open" and triage "unblock this ticket"
+    When I run "ko ready"
+    Then the command should succeed
+    And the output should not contain "ko-a001"
+
+  Scenario: Ready includes a ticket without a triage value
+    Given a ticket exists with ID "ko-a001" and status "open"
+    When I run "ko ready"
+    Then the command should succeed
+    And the output should contain "ko-a001"
