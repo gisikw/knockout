@@ -1,6 +1,6 @@
 ---
 id: ko-88dd
-status: blocked
+status: open
 deps: []
 created: 2026-02-26T20:30:31Z
 type: task
@@ -15,3 +15,5 @@ Answer: Prevent if dirty (Recommended)
 require_clean_tree: true blocks builds when there ARE uncommitted changes (standard interpretation)
 
 **2026-02-26 21:17:23 UTC:** ko: FAIL at node 'review' — Implementation violates two critical invariants: (1) INVARIANTS.md lines 37-41 'Zero external runtime dependencies' - isWorkingTreeClean() shells out to git at runtime, making ko depend on external git binary; (2) INVARIANTS.md lines 14-31 'Every behavior has a spec' - no Gherkin spec added to specs/pipeline.feature. The implementation is otherwise correct and complete, but these invariant violations are blockers that require architectural decisions (use go-git library vs native implementation vs degrade gracefully; spec writing conventions).
+
+**2026-02-28 07:04:11 UTC:** Exception to INVARIANTS 'zero external runtime dependencies' rule: shelling out to git is acceptable here because this is invoked by the pipeline workflow, which already assumes git is available (on_succeed/on_fail hooks use git directly). The clean-tree check runs in the same context as those hooks.

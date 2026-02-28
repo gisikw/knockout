@@ -1,6 +1,6 @@
 ---
 id: ko-dc03
-status: resolved
+status: closed
 deps: []
 created: 2026-02-27T15:15:31Z
 type: task

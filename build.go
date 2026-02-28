@@ -535,8 +535,8 @@ func runRunNode(node *Node, timeout time.Duration, wsDir, artifactDir, histPath,
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Derive ticketsDir from artifactDir to check for flake.nix
-	ticketsDir := filepath.Dir(filepath.Dir(artifactDir))
+	// Derive ticketsDir from artifactDir (.ko/tickets/<id>.artifacts/ -> .ko/tickets/)
+	ticketsDir := filepath.Dir(artifactDir)
 
 	// Wrap command in nix develop if flake.nix exists
 	var cmd *exec.Cmd

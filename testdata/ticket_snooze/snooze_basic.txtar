@@ -1,0 +1,45 @@
+# Create a ticket with a snooze date
+exec ko add 'Deferred task' --snooze 2026-05-01
+stdout '^ko-[0-9a-f]{4}$'
+exec ko ls --json
+stdout '"snooze":\s*"2026-05-01"'
+
+# Update a ticket to set a snooze date
+exec ko update test-0001 --snooze 2026-06-15
+stdout 'test-0001 updated'
+exec ko show test-0001
+stdout 'snooze: 2026-06-15'
+
+# Invalid snooze date on create is rejected
+! exec ko add 'Bad snooze' --snooze not-a-date
+stderr 'invalid snooze date'
+
+# Invalid snooze date on update is rejected
+! exec ko update test-0001 --snooze bad-format
+stderr 'invalid snooze date'
+
+# Ticket without snooze has no snooze field in frontmatter
+exec ko show test-0001
+! stdout 'snooze:.*bad-format'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/test-0001.md --
+---
+id: test-0001
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Test ticket

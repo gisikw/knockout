@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -401,6 +402,55 @@ func TestPlanQuestionsRoundTrip(t *testing.T) {
 				t.Errorf("Round trip: Options[%d].Description = %q, want %q", j, opt.Description, origOpt.Description)
 			}
 		}
+	}
+}
+
+func TestSnoozeRoundTrip(t *testing.T) {
+	original := &Ticket{
+		ID:       "test-1234",
+		Status:   "open",
+		Deps:     []string{},
+		Created:  "2026-05-01T00:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Snoozed Ticket",
+		Snooze:   "2026-05-01",
+	}
+
+	formatted := FormatTicket(original)
+
+	if !strings.Contains(formatted, "snooze: 2026-05-01") {
+		t.Errorf("FormatTicket output does not contain 'snooze: 2026-05-01'\noutput:\n%s", formatted)
+	}
+
+	parsed, err := ParseTicket(formatted)
+	if err != nil {
+		t.Fatalf("ParseTicket() error = %v", err)
+	}
+
+	if parsed.Snooze != "2026-05-01" {
+		t.Errorf("Snooze = %q, want %q", parsed.Snooze, "2026-05-01")
+	}
+}
+
+func TestParseTicketWithSnooze(t *testing.T) {
+	input := `---
+id: test-1234
+status: open
+deps: []
+created: 2026-05-01T00:00:00Z
+type: task
+priority: 2
+snooze: 2026-05-01
+---
+# Snoozed Ticket
+`
+	parsed, err := ParseTicket(input)
+	if err != nil {
+		t.Fatalf("ParseTicket() error = %v", err)
+	}
+	if parsed.Snooze != "2026-05-01" {
+		t.Errorf("Snooze = %q, want %q", parsed.Snooze, "2026-05-01")
 	}
 }
 

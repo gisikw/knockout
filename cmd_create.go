@@ -21,6 +21,7 @@ func cmdCreate(args []string) int {
 		"d": true, "t": true, "p": true, "a": true,
 		"parent": true, "external-ref": true, "design": true,
 		"acceptance": true, "tags": true, "project": true,
+		"snooze": true,
 	})
 
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
@@ -34,6 +35,7 @@ func cmdCreate(args []string) int {
 	acceptance := fs.String("acceptance", "", "acceptance criteria")
 	tags := fs.String("tags", "", "comma-separated tags")
 	projectTag := fs.String("project", "", "target project tag")
+	snooze := fs.String("snooze", "", "snooze date (ISO 8601, e.g. 2026-05-01)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
@@ -166,6 +168,14 @@ func cmdCreate(args []string) int {
 			ticketTags = append(ticketTags, strings.TrimSpace(tag))
 		}
 		t.Tags = ticketTags
+	}
+
+	if *snooze != "" {
+		if _, err := time.Parse("2006-01-02", *snooze); err != nil {
+			fmt.Fprintf(os.Stderr, "ko add: invalid snooze date %q: must be ISO 8601 format (e.g. 2026-05-01)\n", *snooze)
+			return 1
+		}
+		t.Snooze = *snooze
 	}
 
 	if err := SaveTicket(ticketsDir, t); err != nil {

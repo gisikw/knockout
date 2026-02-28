@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 func cmdUpdate(args []string) int {
@@ -15,6 +16,7 @@ func cmdUpdate(args []string) int {
 		"title": true, "parent": true, "external-ref": true,
 		"design": true, "acceptance": true, "tags": true,
 		"questions": true, "answers": true, "status": true,
+		"snooze": true,
 	})
 
 	// Parse flags
@@ -32,6 +34,7 @@ func cmdUpdate(args []string) int {
 	questionsJSON := fs.String("questions", "", "plan questions (JSON)")
 	answersJSON := fs.String("answers", "", "answers to plan questions (JSON)")
 	status := fs.String("status", "", "ticket status")
+	snooze := fs.String("snooze", "", "snooze date (ISO 8601, e.g. 2026-05-01)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko update: %v\n", err)
@@ -221,6 +224,15 @@ func cmdUpdate(args []string) int {
 			return 1
 		}
 		t.Status = *status
+		changed = true
+	}
+
+	if *snooze != "" {
+		if _, err := time.Parse("2006-01-02", *snooze); err != nil {
+			fmt.Fprintf(os.Stderr, "ko update: invalid snooze date %q: must be ISO 8601 format (e.g. 2026-05-01)\n", *snooze)
+			return 1
+		}
+		t.Snooze = *snooze
 		changed = true
 	}
 

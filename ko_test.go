@@ -64,3 +64,7 @@ func TestLoop(t *testing.T) {
 func TestAgentHarnesses(t *testing.T) {
 	testscript.Run(t, testscript.Params{Dir: "testdata/agent_harnesses"})
 }
+
+func TestTicketSnooze(t *testing.T) {
+	testscript.Run(t, testscript.Params{Dir: "testdata/ticket_snooze"})
+}

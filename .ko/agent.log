@@ -191,3 +191,8 @@ loop: building ko-ec86 — Support --all flag on `ko ls` which induces it to inc
 loop: building ko-dd09 — Only inject prior output into action nodes, not decision nodes. Haiku is getting confused classifying tickets that it already classified once
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":279.496147424,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-02-27T15:30:17Z"}
 loop: building ko-dc03 — Agent loop should detect flake.nix and wrap harness invocations in 'nix develop --command' automatically, so pipelines don't need to handle nix environments themselves
+loop: ko-dc03 SUCCEED
+loop complete: 1 processed (1 succeeded, 0 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":337.908393145,"stop_reason":"empty","succeeded":1,"tickets_processed":1,"ts":"2026-02-27T15:45:15Z"}
+loop: building ko-7a57 — Add snooze field to ticket frontmatter. ISO 8601 date (e.g. snooze: 2026-05-01). Settable via ko add and adjustable via ko update.

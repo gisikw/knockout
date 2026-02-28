@@ -17,7 +17,7 @@
 # 3. Reference skills in inline prompts:
 #    prompt: |
 #      Apply the /feature-dev skill to ${TICKET_ID}
-model: claude-sonnet-4-5-20250929
+model: claude-sonnet-4-6
 allow_all_tool_calls: true
 max_retries: 2
 max_depth: 2

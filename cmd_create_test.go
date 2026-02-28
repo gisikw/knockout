@@ -426,6 +426,69 @@ func TestCreateWithStdinDescription(t *testing.T) {
 	}
 }
 
+func TestCreateWithSnooze(t *testing.T) {
+	origNoCreate := os.Getenv("KO_NO_CREATE")
+	os.Unsetenv("KO_NO_CREATE")
+	defer func() {
+		if origNoCreate != "" {
+			os.Setenv("KO_NO_CREATE", origNoCreate)
+		}
+	}()
+
+	dir := t.TempDir()
+	ticketsDir := filepath.Join(dir, ".ko", "tickets")
+	os.MkdirAll(ticketsDir, 0755)
+	WritePrefix(ticketsDir, "test")
+
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(dir)
+
+	// Suppress stdout
+	oldStdout := os.Stdout
+	os.Stdout, _ = os.Open(os.DevNull)
+	defer func() { os.Stdout = oldStdout }()
+
+	t.Run("valid snooze date", func(t *testing.T) {
+		exitCode := cmdCreate([]string{"Snoozed ticket", "--snooze", "2026-05-01"})
+		if exitCode != 0 {
+			t.Fatalf("cmdCreate returned %d, want 0", exitCode)
+		}
+
+		entries, _ := os.ReadDir(ticketsDir)
+		var ticketID string
+		for _, e := range entries {
+			if filepath.Ext(e.Name()) == ".md" {
+				ticketID = e.Name()[:len(e.Name())-3]
+				break
+			}
+		}
+		if ticketID == "" {
+			t.Fatal("no ticket file created")
+		}
+
+		ticket, err := LoadTicket(ticketsDir, ticketID)
+		if err != nil {
+			t.Fatalf("LoadTicket: %v", err)
+		}
+		if ticket.Snooze != "2026-05-01" {
+			t.Errorf("Snooze = %q, want %q", ticket.Snooze, "2026-05-01")
+		}
+		os.Remove(filepath.Join(ticketsDir, ticketID+".md"))
+	})
+
+	t.Run("invalid snooze date", func(t *testing.T) {
+		oldStderr := os.Stderr
+		os.Stderr, _ = os.Open(os.DevNull)
+		defer func() { os.Stderr = oldStderr }()
+
+		exitCode := cmdCreate([]string{"Bad snooze", "--snooze", "not-a-date"})
+		if exitCode == 0 {
+			t.Errorf("cmdCreate returned 0, want non-zero for invalid snooze date")
+		}
+	})
+}
+
 func TestCreateWithInvalidShorthandPriority(t *testing.T) {
 	// Clear KO_NO_CREATE to allow ticket creation in tests
 	origNoCreate := os.Getenv("KO_NO_CREATE")
