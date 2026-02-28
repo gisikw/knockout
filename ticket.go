@@ -93,6 +93,20 @@ func IsReady(status string, allDepsResolved bool) bool {
 	}
 }
 
+// IsSnoozed reports whether a ticket is currently snoozed.
+// A ticket is snoozed when snooze is non-empty and now is before midnight UTC
+// on the parsed snooze date. Empty or unparseable snooze strings return false.
+func IsSnoozed(snooze string, now time.Time) bool {
+	if snooze == "" {
+		return false
+	}
+	t, err := time.ParseInLocation("2006-01-02", snooze, time.UTC)
+	if err != nil {
+		return false
+	}
+	return now.Before(t)
+}
+
 // FormatTicket serializes a Ticket to its markdown file representation.
 func FormatTicket(t *Ticket) string {
 	var b strings.Builder

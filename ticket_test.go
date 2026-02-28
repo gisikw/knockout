@@ -67,6 +67,52 @@ func TestIsReady(t *testing.T) {
 	}
 }
 
+func TestIsSnoozed(t *testing.T) {
+	// Fixed "now" for determinism: 2026-03-15T12:00:00Z
+	now := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name   string
+		snooze string
+		want   bool
+	}{
+		{
+			name:   "empty snooze is not snoozed",
+			snooze: "",
+			want:   false,
+		},
+		{
+			name:   "past date is not snoozed",
+			snooze: "2020-01-01",
+			want:   false,
+		},
+		{
+			name:   "future date is snoozed",
+			snooze: "2099-01-01",
+			want:   true,
+		},
+		{
+			name:   "today at midnight is not snoozed (valid as of midnight)",
+			snooze: "2026-03-15",
+			want:   false,
+		},
+		{
+			name:   "invalid string is not snoozed",
+			snooze: "not-a-date",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsSnoozed(tt.snooze, now)
+			if got != tt.want {
+				t.Errorf("IsSnoozed(%q, %v) = %v, want %v", tt.snooze, now, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPlanQuestions(t *testing.T) {
 	tests := []struct {
 		name    string

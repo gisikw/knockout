@@ -46,3 +46,15 @@ Feature: Ticket Snooze Field
     Given a ticket exists with ID "ko-a001" and title "Task"
     When I run "ko snooze ko-a001 not-a-date"
     Then the command should fail with a non-zero exit code
+
+  Scenario: Ready excludes a ticket snoozed until a future date
+    Given a ticket exists with ID "ko-a001" and status "open" and snooze "2099-01-01"
+    When I run "ko ready"
+    Then the command should succeed
+    And the output should not contain "ko-a001"
+
+  Scenario: Ready includes a ticket whose snooze date has passed
+    Given a ticket exists with ID "ko-a001" and status "open" and snooze "2020-01-01"
+    When I run "ko ready"
+    Then the command should succeed
+    And the output should contain "ko-a001"

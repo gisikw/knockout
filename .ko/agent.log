@@ -198,3 +198,5 @@ stopped: empty
 loop: building ko-7a57 — Add snooze field to ticket frontmatter. ISO 8601 date (e.g. snooze: 2026-05-01). Settable via ko add and adjustable via ko update.
 loop: ko-7a57 SUCCEED
 loop: building ko-1d18 — Add ko snooze <id> <date> as shorthand for ko update <id> --set snooze=<date>
+loop: ko-1d18 SUCCEED
+loop: building ko-c33f — ko ready should exclude snoozed tickets — if snooze date is in the future, ticket is not ready. Date-only values (e.g. 2026-05-01) are valid as of midnight on that date.

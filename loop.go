@@ -48,7 +48,7 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 
 	var ready []*Ticket
 	for _, t := range tickets {
-		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) {
+		if IsReady(t.Status, AllDepsResolved(ticketsDir, t.Deps)) && !IsSnoozed(t.Snooze, time.Now()) {
 			ready = append(ready, t)
 		}
 	}

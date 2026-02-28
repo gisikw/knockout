@@ -1,0 +1,42 @@
+# ko ready excludes tickets snoozed until a future date
+exec ko ready
+! stdout 'ko-future'
+
+# ko ready includes tickets whose snooze date has passed
+exec ko ready
+stdout 'ko-past'
+
+-- .ko/tickets/ko-seed.md --
+---
+id: ko-seed
+status: closed
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Seed ticket for prefix detection
+
+-- .ko/tickets/ko-future.md --
+---
+id: ko-future
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+snooze: 2099-01-01
+---
+# Future snoozed ticket
+
+-- .ko/tickets/ko-past.md --
+---
+id: ko-past
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+snooze: 2020-01-01
+---
+# Past snoozed ticket
