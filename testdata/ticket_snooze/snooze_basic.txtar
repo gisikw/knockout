@@ -22,6 +22,20 @@ stderr 'invalid snooze date'
 exec ko show test-0001
 ! stdout 'snooze:.*bad-format'
 
+# Snooze shorthand sets snooze field
+exec ko snooze test-0001 2026-07-01
+stdout 'test-0001 updated'
+exec ko show test-0001
+stdout 'snooze: 2026-07-01'
+
+# Snooze shorthand rejects missing date argument
+! exec ko snooze test-0001
+stderr 'ticket ID and date required'
+
+# Snooze shorthand rejects invalid date format
+! exec ko snooze test-0001 not-a-date
+stderr 'invalid snooze date'
+
 -- .ko/tickets/ko-seed.md --
 ---
 id: ko-seed

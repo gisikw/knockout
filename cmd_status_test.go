@@ -634,6 +634,107 @@ func TestCmdOpen(t *testing.T) {
 	}
 }
 
+func TestCmdSnooze(t *testing.T) {
+	tests := []struct {
+		name       string
+		ticket     *Ticket
+		args       []string
+		wantSnooze string
+		wantErr    bool
+	}{
+		{
+			name: "valid date sets snooze field",
+			ticket: &Ticket{
+				ID:       "test-0001",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:       []string{"test-0001", "2026-05-01"},
+			wantSnooze: "2026-05-01",
+		},
+		{
+			name:    "missing date arg returns error",
+			args:    []string{"test-0001"},
+			wantErr: true,
+		},
+		{
+			name: "invalid date format returns error",
+			ticket: &Ticket{
+				ID:       "test-0002",
+				Status:   "open",
+				Deps:     []string{},
+				Created:  "2026-01-01T00:00:00Z",
+				Type:     "task",
+				Priority: 2,
+				Title:    "Test Ticket",
+				Body:     "",
+			},
+			args:    []string{"test-0002", "not-a-date"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantErr {
+				oldStderr := os.Stderr
+				os.Stderr, _ = os.Open(os.DevNull)
+				defer func() { os.Stderr = oldStderr }()
+
+				exitCode := cmdSnooze(tt.args)
+				if exitCode == 0 {
+					t.Errorf("cmdSnooze() = %d, want non-zero exit code", exitCode)
+				}
+				return
+			}
+
+			tmpDir := t.TempDir()
+			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
+			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SaveTicket(ticketsDir, tt.ticket); err != nil {
+				t.Fatal(err)
+			}
+
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Chdir(origDir)
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatal(err)
+			}
+
+			oldStdout := os.Stdout
+			os.Stdout, _ = os.Open(os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			exitCode := cmdSnooze(tt.args)
+
+			if exitCode != 0 {
+				t.Errorf("cmdSnooze() = %d, want 0", exitCode)
+				return
+			}
+
+			updated, err := LoadTicket(ticketsDir, tt.ticket.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if updated.Snooze != tt.wantSnooze {
+				t.Errorf("Snooze = %q, want %q", updated.Snooze, tt.wantSnooze)
+			}
+		})
+	}
+}
+
 func TestCmdBlock(t *testing.T) {
 	tests := []struct {
 		name           string

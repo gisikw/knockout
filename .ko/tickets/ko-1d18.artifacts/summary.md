@@ -1,16 +1,4 @@
----
-id: ko-1d18
-status: resolved
-deps: [ko-7a57]
-created: 2026-02-28T07:09:50Z
-type: task
-priority: 2
----
-# Add ko snooze <id> <date> as shorthand for ko update <id> --set snooze=<date>
-
-## Notes
-
-**2026-02-28 07:27:36 UTC:** ## Summary
+## Summary
 
 ### What was done
 
@@ -36,5 +24,3 @@ The implementation was missing spec and testscript coverage for the new shorthan
 ### All tests pass
 
 `go test ./...` passes after the review fix.
-
-**2026-02-28 07:27:36 UTC:** ko: SUCCEED

@@ -41,6 +41,8 @@ func run(args []string) int {
 		return cmdReady(rest)
 	case "block":
 		return cmdBlock(rest)
+	case "snooze":
+		return cmdSnooze(rest)
 	case "dep":
 		return cmdDep(rest)
 	case "undep":
@@ -122,6 +124,7 @@ Commands:
   start <id>         Set status to in_progress
   close <id>         Set status to closed
   open <id>          Set status to open
+  snooze <id> <date> Snooze ticket until date (ISO 8601, e.g. 2026-05-01)
   serve [--port PORT]    Start HTTP daemon (default :9876)
 
   update <id> [--title title] [-d description] [-t type] [-p priority] [-a assignee]

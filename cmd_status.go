@@ -47,6 +47,14 @@ func cmdOpen(args []string) int {
 	return cmdUpdate(append(args, "--status=open"))
 }
 
+func cmdSnooze(args []string) int {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "ko snooze: ticket ID and date required")
+		return 1
+	}
+	return cmdUpdate([]string{args[0], "--snooze=" + args[1]})
+}
+
 func cmdBlock(args []string) int {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "ko block: ticket ID required")
