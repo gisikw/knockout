@@ -29,6 +29,22 @@ Feature: Project Registry
     Then the command should succeed
     And the registered path for "exo" should be "/new/path"
 
+  Scenario: Re-registering under a different tag evicts the old entry
+    Given I am in a project directory "/tmp/test-projects/myproject"
+    And I run "ko project set #foo"
+    When I run "ko project set #bar"
+    Then the command should succeed
+    And the registry should contain exactly one entry for "/tmp/test-projects/myproject"
+    And the registered project name should be "bar"
+    And the registry should not contain project "foo"
+
+  Scenario: Default transfers to new tag when re-registering
+    Given I am in a project directory "/tmp/test-projects/myproject"
+    And I run "ko project set #foo --default"
+    When I run "ko project set #bar"
+    Then the command should succeed
+    And the registry default should be "bar"
+
   Scenario: Register creates registry file if it does not exist
     Given no registry file exists
     And I am in a project directory "/tmp/test-projects/fort-nix"

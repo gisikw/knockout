@@ -107,6 +107,17 @@ func cmdProjectSet(args []string) int {
 		return 1
 	}
 
+	// Evict any existing entry for the same path under a different tag.
+	for existingTag, existingPath := range reg.Projects {
+		if existingPath == root && existingTag != tag {
+			delete(reg.Projects, existingTag)
+			delete(reg.Prefixes, existingTag)
+			if reg.Default == existingTag {
+				reg.Default = tag
+			}
+		}
+	}
+
 	reg.Projects[tag] = root
 
 	// Detect and store ticket prefix if not explicitly provided

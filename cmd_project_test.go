@@ -201,6 +201,74 @@ func TestCmdProjectSetPrefixTooShort(t *testing.T) {
 	}
 }
 
+func TestCmdProjectSetRetagEvictsOldTag(t *testing.T) {
+	t.Run("retag removes old entry", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "knockout", "projects.yml")
+		t.Setenv("XDG_CONFIG_HOME", dir)
+
+		orig, _ := os.Getwd()
+		projectDir := filepath.Join(dir, "myproject")
+		os.MkdirAll(projectDir, 0755)
+		os.Chdir(projectDir)
+		defer os.Chdir(orig)
+
+		// Register under #foo
+		if rc := cmdProjectSet([]string{"#foo"}); rc != 0 {
+			t.Fatalf("first cmdProjectSet returned %d, want 0", rc)
+		}
+
+		// Re-register under #bar
+		if rc := cmdProjectSet([]string{"#bar"}); rc != 0 {
+			t.Fatalf("second cmdProjectSet returned %d, want 0", rc)
+		}
+
+		reg, err := LoadRegistry(regPath)
+		if err != nil {
+			t.Fatalf("LoadRegistry error: %v", err)
+		}
+		if len(reg.Projects) != 1 {
+			t.Errorf("len(reg.Projects) = %d, want 1", len(reg.Projects))
+		}
+		if path, ok := reg.Projects["bar"]; !ok || path != projectDir {
+			t.Errorf("reg.Projects[\"bar\"] = %q, want %q", path, projectDir)
+		}
+		if _, ok := reg.Projects["foo"]; ok {
+			t.Error("reg.Projects[\"foo\"] still present after retag")
+		}
+	})
+
+	t.Run("retag transfers default", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "knockout", "projects.yml")
+		t.Setenv("XDG_CONFIG_HOME", dir)
+
+		orig, _ := os.Getwd()
+		projectDir := filepath.Join(dir, "myproject")
+		os.MkdirAll(projectDir, 0755)
+		os.Chdir(projectDir)
+		defer os.Chdir(orig)
+
+		// Register under #foo as default
+		if rc := cmdProjectSet([]string{"#foo", "--default"}); rc != 0 {
+			t.Fatalf("first cmdProjectSet returned %d, want 0", rc)
+		}
+
+		// Re-register under #bar (no --default flag)
+		if rc := cmdProjectSet([]string{"#bar"}); rc != 0 {
+			t.Fatalf("second cmdProjectSet returned %d, want 0", rc)
+		}
+
+		reg, err := LoadRegistry(regPath)
+		if err != nil {
+			t.Fatalf("LoadRegistry error: %v", err)
+		}
+		if reg.Default != "bar" {
+			t.Errorf("reg.Default = %q, want %q", reg.Default, "bar")
+		}
+	})
+}
+
 func TestCmdProjectLsEmpty(t *testing.T) {
 	dir := t.TempDir()
 	regPath := filepath.Join(dir, "knockout", "projects.yml")

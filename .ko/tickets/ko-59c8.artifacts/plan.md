@@ -19,4 +19,4 @@ Just before `reg.Projects[tag] = root` in `cmdProjectSet`, iterate over `reg.Pro
    Verify: new test passes, existing tests unbroken.
 
 ## Open Questions
-- **Default transfer vs. clear**: plan assumes the default is *transferred* to the new tag when the evicted tag was the default. The alternative (clear `reg.Default` to `""`) is safer but more surprising. Either is defensible; transfer is chosen here as the more ergonomic option since the user is explicitly re-tagging the same project. Implementer may override if the product preference differs.
+None. Default transfer confirmed: when the evicted tag was `reg.Default`, set `reg.Default = tag` (the new tag).

@@ -210,3 +210,5 @@ loop: building ko-6733 — ko agent triage <id> — load default model and promp
 loop: building ko-e33d — If pipeline.yml has auto_triage: true, ko agent triage should be triggered automatically when a ticket is created or modified to have triage instructions
 {"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":1662.93580268,"stop_reason":"empty","succeeded":2,"tickets_processed":2,"ts":"2026-02-28T15:20:34Z"}
 loop: building ko-5073 — ko triage should resolve the project from the ticket id prefix, just like ko close does
+{"blocked":0,"decomposed":0,"failed":2,"runtime_seconds":732.022390586,"stop_reason":"empty","succeeded":0,"tickets_processed":2,"ts":"2026-03-01T06:32:09Z"}
+loop: building ko-59c8 — If `ko project set` is run on a project that already has an entry in the registry, that prior entry should be replaced. The project shouldn't answer to multiple project tags

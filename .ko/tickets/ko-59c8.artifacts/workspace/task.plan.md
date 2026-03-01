@@ -1,11 +1,5 @@
-Plan written to `.ko/tickets/ko-59c8.artifacts/plan.md`. Here's a summary:
+The plan was already complete. The only open question — whether to transfer or clear the default when evicting a stale tag — has been answered in the ticket notes: **transfer to the new tag**. I've updated the plan to mark it resolved.
 
-**Goal:** Evict stale registry entries before inserting a new tag for an already-registered project path.
-
-**Root cause:** `cmd_project.go:110` does `reg.Projects[tag] = root` with no prior scan for existing entries pointing to the same `root`. Both old and new tags survive.
-
-**Fix (one place):** Add a short loop before that assignment in `cmdProjectSet` — iterate `reg.Projects`, delete any `existingTag → root` pair where `existingTag != tag`, clean up the matching `reg.Prefixes` entry, and transfer `reg.Default` if it was the evicted tag.
-
-**Test:** New `TestCmdProjectSetRetagEvictsOldTag` — register under `#foo`, re-register under `#bar`, assert exactly one entry remains keyed `"bar"` with `"foo"` gone. Second sub-case covers default-transfer.
-
-**One open question:** whether the default should be *transferred* to the new tag (chosen here) or *cleared* when the evicted tag was the default.
+The plan is ready to implement:
+1. **`cmd_project.go:110`** — Add a pre-eviction loop before `reg.Projects[tag] = root` that removes any existing entry pointing to the same `root` under a different tag, cleans up `reg.Prefixes`, and transfers `reg.Default` if it pointed to the evicted tag.
+2. **`cmd_project_test.go`** — Add `TestCmdProjectSetRetagEvictsOldTag` covering the retag scenario and the default-transfer sub-case.
