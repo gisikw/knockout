@@ -1,22 +1,4 @@
----
-id: ko-5b3c
-status: resolved
-deps: [ko-bfe7]
-created: 2026-03-01T06:18:30Z
-type: task
-priority: 2
----
-# Add support for a "hidden" flag in projects (which can be set similarly to the --default flag). If a project is hidden, it should be excluded from ko project ls
-
-## Notes
-
-**2026-03-01 13:40:38 UTC:** Question: Should hidden projects be revealed with a `--all` flag, or remain permanently unlisted?
-Answer: Reveal with --all flag
-Add `ko project ls --all` to show hidden projects alongside normal ones
-
-**2026-03-01 13:40:41 UTC:** ko: FAIL at node 'build' — unknown workflow 'main'
-
-**2026-03-01 13:54:17 UTC:** # Summary
+# Summary
 
 ## What was done
 
@@ -53,5 +35,3 @@ All 9 planned tasks were completed. `go test ./...` passes.
 ## Future reader note
 
 `cmd_project_test.go` is now at 566 lines, crossing the 500-line INVARIANT threshold (it was 464 before this change). The INVARIANTS call for ticketing the split rather than blocking work; the test mirrors its source file (`cmd_project.go`) so a separate test file isn't appropriate without first splitting the source. A ticket to split `cmd_project.go` along behavioral seams would bring both files back into compliance.
-
-**2026-03-01 13:54:17 UTC:** ko: SUCCEED

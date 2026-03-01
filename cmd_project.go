@@ -13,14 +13,15 @@ type projectJSON struct {
 	Tag       string `json:"tag"`
 	Path      string `json:"path"`
 	IsDefault bool   `json:"is_default"`
+	IsHidden  bool   `json:"is_hidden"`
 }
 
 func cmdProject(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "ko project: subcommand required (set, ls)")
 		fmt.Fprintln(os.Stderr, "Usage:")
-		fmt.Fprintln(os.Stderr, "  ko project set #<tag> [--path=dir] [--prefix=p] [--default]")
-		fmt.Fprintln(os.Stderr, "  ko project ls")
+		fmt.Fprintln(os.Stderr, "  ko project set #<tag> [--path=dir] [--prefix=p] [--default] [--hidden]")
+		fmt.Fprintln(os.Stderr, "  ko project ls [--all]")
 		return 1
 	}
 
@@ -43,6 +44,7 @@ func cmdProjectSet(args []string) int {
 	// Parse flags
 	var prefix string
 	var setDefault bool
+	var setHidden bool
 	var tag string
 
 	var pathOverride string
@@ -54,6 +56,8 @@ func cmdProjectSet(args []string) int {
 			pathOverride = strings.TrimPrefix(arg, "--path=")
 		} else if arg == "--default" {
 			setDefault = true
+		} else if arg == "--hidden" {
+			setHidden = true
 		} else if strings.HasPrefix(arg, "#") {
 			tag = CleanTag(arg)
 		} else {
@@ -65,7 +69,7 @@ func cmdProjectSet(args []string) int {
 	// Validate tag is provided
 	if tag == "" {
 		fmt.Fprintln(os.Stderr, "ko project set: #tag argument required")
-		fmt.Fprintln(os.Stderr, "Usage: ko project set #<tag> [--path=dir] [--prefix=p] [--default]")
+		fmt.Fprintln(os.Stderr, "Usage: ko project set #<tag> [--path=dir] [--prefix=p] [--default] [--hidden]")
 		return 1
 	}
 
@@ -127,6 +131,7 @@ func cmdProjectSet(args []string) int {
 		if existingPath == root && existingTag != tag {
 			delete(reg.Projects, existingTag)
 			delete(reg.Prefixes, existingTag)
+			delete(reg.Hidden, existingTag)
 			if reg.Default == existingTag {
 				reg.Default = tag
 			}
@@ -149,6 +154,11 @@ func cmdProjectSet(args []string) int {
 		reg.Default = tag
 	}
 
+	// Set as hidden if requested
+	if setHidden {
+		reg.Hidden[tag] = true
+	}
+
 	if err := SaveRegistry(regPath, reg); err != nil {
 		fmt.Fprintf(os.Stderr, "ko project set: %v\n", err)
 		return 1
@@ -161,6 +171,8 @@ func cmdProjectSet(args []string) int {
 		fmt.Printf("project %s initialized with prefix %q and registered\n", tag, prefix)
 	} else if setDefault {
 		fmt.Printf("project %s registered and set as default\n", tag)
+	} else if setHidden {
+		fmt.Printf("project %s registered as hidden\n", tag)
 	} else {
 		fmt.Printf("project %s registered\n", tag)
 	}
@@ -171,6 +183,7 @@ func cmdProjectSet(args []string) int {
 func cmdProjectLs(args []string) int {
 	fs := flag.NewFlagSet("project ls", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "output as JSON")
+	allProjects := fs.Bool("all", false, "include hidden projects")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko project ls: %v\n", err)
 		return 1
@@ -207,10 +220,14 @@ func cmdProjectLs(args []string) int {
 	if *jsonOutput {
 		projects := make([]projectJSON, 0, len(keys))
 		for _, k := range keys {
+			if reg.Hidden[k] && !*allProjects {
+				continue
+			}
 			projects = append(projects, projectJSON{
 				Tag:       k,
 				Path:      reg.Projects[k],
 				IsDefault: k == reg.Default,
+				IsHidden:  reg.Hidden[k],
 			})
 		}
 		enc := json.NewEncoder(os.Stdout)
@@ -221,6 +238,9 @@ func cmdProjectLs(args []string) int {
 	} else {
 		// Print with default marker
 		for _, k := range keys {
+			if reg.Hidden[k] && !*allProjects {
+				continue
+			}
 			marker := "  "
 			if k == reg.Default {
 				marker = "* "

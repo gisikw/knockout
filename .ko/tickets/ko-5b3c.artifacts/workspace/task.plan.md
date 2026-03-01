@@ -1,14 +1,12 @@
-The plan is written to `.ko/tickets/ko-5b3c.artifacts/plan.md`. Here's a summary:
+Plan updated. Here's a summary of what changed from the prior plan:
 
-**Goal**: Add `--hidden` flag to `ko project set` so hidden projects are excluded from `ko project ls`.
+**What was answered:** The open question about `--all` is resolved — hidden projects are revealed via `ko project ls --all`.
 
-**Key findings**:
-- `Registry` struct in `registry.go` uses separate maps per attribute (`Projects`, `Prefixes`). A `Hidden map[string]bool` field follows the same pattern.
-- `ParseRegistry`/`FormatRegistry` handle the nested YAML format — adding `hidden: true` as a 4-space-indented property is straightforward.
-- `cmdProjectSet` already has a flag-parsing loop for `--default` and `--prefix=` — `--hidden` slots in identically.
-- `cmdProjectLs` needs a skip condition in both the text and JSON paths.
-- Per INVARIANTS: spec (`specs/project_registry.feature`) must be written first, then a testscript in `testdata/project_registry/`, then the implementation.
+**Key plan changes:**
+- Task 1: Added a third Gherkin scenario for `ko project ls --all` showing hidden projects.
+- Task 6 (`cmdProjectLs`): Now includes adding `--all` flag to `flag.NewFlagSet`, filtering logic keyed on `*allProjects`, adding `IsHidden bool` to `projectJSON` for `--all` JSON output, and updating the usage string.
+- Task 8: Added `TestCmdProjectLsAllShowsHidden` unit test.
+- Task 9 (testscript): Now also exercises `ko project ls --all` and asserts the hidden project appears.
+- Open Questions: None remaining.
 
-**Open questions flagged in the plan**:
-1. Should `ko project ls --all` reveal hidden projects? (No mention in ticket)
-2. Is un-hiding (`ko project set #tag` without `--hidden`) expected to clear the flag? (Proceeding with additive-only, consistent with `--default`)
+The build failure ("unknown workflow 'main'") was a transient system error from the prior run — it doesn't affect the plan.

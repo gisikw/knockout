@@ -100,6 +100,28 @@ Feature: Project Registry
     Then the command should succeed
     And the output should contain "no projects registered"
 
+  Scenario: Set project as hidden during registration
+    Given I am in a project directory "/tmp/test-projects/secret"
+    When I run "ko project set #secret --hidden"
+    Then the command should succeed
+    And the registry YAML should contain "hidden: true" under project "secret"
+
+  Scenario: List excludes hidden projects
+    Given a registry with project "secret" at "/tmp/test-projects/secret" that is hidden
+    And a registry with project "visible" at "/tmp/test-projects/visible"
+    When I run "ko project ls"
+    Then the command should succeed
+    And the output should not contain "secret"
+    And the output should contain "visible"
+
+  Scenario: List with --all includes hidden projects
+    Given a registry with project "secret" at "/tmp/test-projects/secret" that is hidden
+    And a registry with project "visible" at "/tmp/test-projects/visible"
+    When I run "ko project ls --all"
+    Then the command should succeed
+    And the output should contain "secret"
+    And the output should contain "visible"
+
   Scenario: Commands accept #tag shorthand for --project flag
     Given a registry with project "exo" at "/tmp/test-projects/exo"
     And project "exo" has a ticket "exo-0001" with title "Test ticket"

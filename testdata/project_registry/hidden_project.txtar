@@ -1,0 +1,29 @@
+# Hidden projects are excluded from ko project ls and revealed with --all
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Register a hidden project
+exec ko project set '#secret' --hidden
+stdout 'project secret registered as hidden'
+
+# Register a visible project
+mkdir $WORK/visible/.ko/tickets
+cd $WORK/visible
+exec ko project set '#visible'
+stdout 'project visible registered'
+
+# ko project ls excludes the hidden project
+cd $WORK
+exec ko project ls
+stdout 'visible'
+! stdout 'secret'
+
+# ko project ls --all includes the hidden project
+exec ko project ls --all
+stdout 'visible'
+stdout 'secret'
+
+# Registry YAML contains hidden: true
+grep 'hidden: true' $WORK/home/.config/knockout/projects.yml
+
+-- .ko/tickets/.keep --

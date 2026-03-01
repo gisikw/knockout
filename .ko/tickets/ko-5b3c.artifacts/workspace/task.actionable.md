@@ -1,46 +1,27 @@
-Looking at the plan, I can identify one open question that requires human input:
+Looking at the plan, I'll evaluate it against the three criteria:
 
-**Section: "Open Questions"**
-- The plan explicitly flags the `--all` flag question as needing "product input"
-- This is a genuine design decision: should `ko project ls --all` reveal hidden projects, or are hidden projects permanently unlisted?
-- The plan decides to proceed without it unless asked, but this choice affects the feature scope
+## 1. Open Questions
+The plan explicitly states "None" in the Open Questions section. The ticket notes already answered the design question about using `--all` to reveal hidden projects. The choice to make un-hiding additive-only (matching `--default` behavior) is a clear design decision. ✓
 
-The second point about un-hiding is presented as a decision the plan is making ("Proceeding with additive-only for consistency"), not as a question needing input.
+## 2. Completeness
+The plan is well-structured:
+- **Clear goal**: Add `--hidden` flag to `ko project set` with `ko project ls --all` to reveal hidden projects
+- **Identified files**: All key files are specified (`registry.go`, `cmd_project.go`, specs, testdata, tests)
+- **Ordered tasks**: 9 sequential tasks progressing from specs → data structure → parsing/formatting → CLI commands → unit tests → integration tests
+- **Verification steps**: Each task has explicit verification (e.g., "go build succeeds", "spec is valid Gherkin", "round-trip test passes", "testscript passes")
 
-**Completeness check:**
-- ✅ Clear goal
-- ✅ Identified files with existing patterns
-- ✅ 9 ordered tasks with specific code locations
-- ✅ Verification steps (go test ./...)
-- ✅ Correct sequencing (specs → tests → implementation per INVARIANTS)
+The INVARIANTS requirement (spec first, test second, implementation third) is respected in the task ordering. ✓
 
-**Feasibility check:**
-- ✅ Files exist and are correctly identified
-- ✅ Approach is sound (add Hidden map, parse YAML, filter output)
-- ✅ Reuses existing patterns (--default flag model)
-- ✅ No apparent blockers
+## 3. Feasibility
+The plan demonstrates strong understanding of the codebase:
+- Correctly identifies the existing `Registry` struct shape with `Projects`, `Prefixes` maps
+- Knows `cmdProjectSet` uses hand-rolled arg parsing while `cmdProjectLs` uses `flag.NewFlagSet`
+- References the `projectJSON` struct for JSON output
+- Correctly models the `Hidden` field as `map[string]bool` (consistent with `Prefixes`)
+- Understands the YAML indentation requirements (4 spaces for properties)
+
+All referenced patterns and file structures are standard Go project conventions. ✓
 
 ```json
-{
-  "disposition": "needs_input",
-  "plan_questions": [
-    {
-      "id": "q1",
-      "question": "Should hidden projects be revealed with a `--all` flag, or remain permanently unlisted?",
-      "context": "The plan excludes hidden projects from `ko project ls` output. If users can't discover what they've hidden, they may lose track of hidden projects. A `--all` flag provides an escape hatch for visibility.",
-      "options": [
-        {
-          "label": "Always hidden (Recommended)",
-          "value": "always_hidden",
-          "description": "Hidden projects never appear in listings; users must know the tag to reference them"
-        },
-        {
-          "label": "Reveal with --all flag",
-          "value": "all_flag",
-          "description": "Add `ko project ls --all` to show hidden projects alongside normal ones"
-        }
-      ]
-    }
-  ]
-}
+{"disposition": "continue"}
 ```

@@ -1,45 +1,62 @@
 ## Goal
-Add a `--hidden` flag to `ko project set` that causes a project to be excluded from `ko project ls` output.
+Add a `--hidden` flag to `ko project set` that excludes a project from `ko project ls`, with `ko project ls --all` revealing hidden projects alongside normal ones.
 
 ## Context
 The registry is stored in `~/.config/knockout/projects.yml` using a nested YAML format. Each project can have `path`, `prefix`, and `default` properties under its tag key. The `--default` flag is the existing model for setting a per-project boolean property via `ko project set`.
 
 Key files:
-- `registry.go`: `Registry` struct, `ParseRegistry`, `FormatRegistry`, `SaveRegistry`, `LoadRegistry`. The struct currently has `Default string`, `Projects map[string]string`, `Prefixes map[string]string`. The pattern for booleans is a single `Default string` (tag name), not a map.
-- `cmd_project.go`: `cmdProjectSet` (flag parsing and registry mutation), `cmdProjectLs` (listing with filter logic), `projectJSON` struct (for `--json` output).
+- `registry.go`: `Registry` struct, `ParseRegistry`, `FormatRegistry`, `SaveRegistry`, `LoadRegistry`. The struct currently has `Default string`, `Projects map[string]string`, `Prefixes map[string]string`. Boolean flags per-project use a map (see `Prefixes`), not a single string.
+- `cmd_project.go`: `cmdProjectSet` (flag parsing, hand-rolled loop over args), `cmdProjectLs` (uses `flag.NewFlagSet`, currently only has `--json`), `projectJSON` struct (for `--json` output).
 - `specs/project_registry.feature`: The spec that must be updated first (per INVARIANTS).
 - `testdata/project_registry/*.txtar`: Integration tests via testscript.
 - `registry_test.go` and `cmd_project_test.go`: Unit tests.
 
 The INVARIANTS require: spec first, then test, then implementation. Every behavior needs both a Gherkin scenario and a testscript file.
 
+Open question resolved: hidden projects are revealed via `ko project ls --all` (ticket notes, 2026-03-01).
+
 ## Approach
-Add a `Hidden map[string]bool` field to `Registry`. Extend `ParseRegistry` to read `hidden: true` and `FormatRegistry` to emit it. Add `--hidden` parsing in `cmdProjectSet` and filtering in `cmdProjectLs`. Update the spec and tests accordingly.
+Add `Hidden map[string]bool` to `Registry`. Extend `ParseRegistry`/`FormatRegistry` to handle `hidden: true` as a 4-space-indented project property. Add `--hidden` to `cmdProjectSet`'s arg loop and `--all` to `cmdProjectLs`'s `flag.NewFlagSet`. Filter hidden projects from `cmdProjectLs` output unless `--all` is passed.
 
 ## Tasks
 
-1. **[specs/project_registry.feature]** — Add two scenarios: one for setting a project as hidden (`ko project set #tag --hidden` stores `hidden: true`), and one for listing verifying hidden projects are excluded from `ko project ls` output.
+1. **[specs/project_registry.feature]** — Add three scenarios:
+   - `ko project set #tag --hidden` stores `hidden: true` in the registry YAML.
+   - `ko project ls` excludes hidden projects from output.
+   - `ko project ls --all` includes hidden projects in output (alongside normal ones).
+   Verify: spec file is valid Gherkin (review manually).
 
-2. **[registry.go:Registry]** — Add `Hidden map[string]bool` to the `Registry` struct. Initialize it in `LoadRegistry`'s empty-registry path (alongside the existing `Prefixes` map init).
+2. **[registry.go:Registry]** — Add `Hidden map[string]bool` field. Initialize it alongside `Prefixes` in `LoadRegistry`'s empty-registry return (`&Registry{Projects: map[string]string{}, Prefixes: map[string]string{}, Hidden: map[string]bool{}}`).
+   Verify: `go build ./...` succeeds.
 
-3. **[registry.go:ParseRegistry]** — In the 4-space indented block handler (new-format nested project properties), add a `case "hidden":` that sets `r.Hidden[currentProject] = (val == "true")`. Initialize `r.Hidden = map[string]bool{}` at the top of `ParseRegistry`.
+3. **[registry.go:ParseRegistry]** — Initialize `r.Hidden = map[string]bool{}` at the top of `ParseRegistry` (alongside `Projects` and `Prefixes`). In the 4-space-indented property switch, add `case "hidden": if val == "true" { r.Hidden[currentProject] = true }`.
+   Verify: existing parse tests still pass.
 
-4. **[registry.go:FormatRegistry]** — In the loop that writes each project's properties, after writing `prefix` and `default`, write `    hidden: true\n` if `r.Hidden[k]` is true.
+4. **[registry.go:FormatRegistry]** — In the per-project loop, after writing `default: true` (if applicable), write `    hidden: true\n` if `r.Hidden[k]` is true.
+   Verify: round-trip test passes (format then parse gives same struct).
 
-5. **[cmd_project.go:cmdProjectSet]** — Add `--hidden` to the flag-parsing loop (same pattern as `--default`). After the eviction block, set `reg.Hidden[tag] = true` when the flag is present. Also ensure the eviction block clears `reg.Hidden[existingTag]` when evicting old entries.
+5. **[cmd_project.go:cmdProjectSet]** — Add `--hidden` to the hand-rolled flag-parsing loop (same `else if arg == "--hidden"` pattern as `--default`). In the eviction block, also `delete(reg.Hidden, existingTag)`. After setting `reg.Projects[tag] = root`, set `reg.Hidden[tag] = true` when the flag was present. Update the success message to mention "hidden" when appropriate.
+   Verify: `go build ./...` succeeds.
 
-6. **[cmd_project.go:cmdProjectLs]** — In both the plain-text and JSON output paths, skip any project where `reg.Hidden[k]` is true. For JSON output, also add `IsHidden bool` to `projectJSON` (though hidden projects won't appear in the list; alternatively, keep `projectJSON` unchanged since hidden projects are simply absent).
+6. **[cmd_project.go:cmdProjectLs]** — Add `allProjects := fs.Bool("all", false, "include hidden projects")` to the `flag.NewFlagSet` setup. In both the text and JSON output paths, skip entries where `reg.Hidden[k]` is true unless `*allProjects` is true. Add `IsHidden bool` to `projectJSON` so JSON output marks hidden projects when `--all` is used (instead of silently omitting the field). Update the usage string in `cmdProject` to note `--all`.
+   Verify: `go build ./...` succeeds.
 
-7. **[registry_test.go]** — Add `TestParseRegistryHidden` verifying that `hidden: true` is parsed into `reg.Hidden`, and extend `TestFormatRegistryRoundTrip` to include a hidden project and verify round-trip fidelity.
+7. **[registry_test.go]** — Add `TestParseRegistryHidden`: input YAML with `hidden: true` on one project, assert `reg.Hidden["tag"]` is true and other tags are not present in `Hidden`. Extend `TestFormatRegistryRoundTrip` to include a hidden project and verify the round-trip preserves it.
+   Verify: `go test ./... -run TestParseRegistryHidden` and round-trip test pass.
 
-8. **[cmd_project_test.go]** — Add `TestCmdProjectSetHidden` verifying the flag is stored, and `TestCmdProjectLsExcludesHidden` verifying that hidden projects do not appear in `cmdProjectLs` output (capture stdout, check absence).
+8. **[cmd_project_test.go]** — Add:
+   - `TestCmdProjectSetHidden`: call `cmdProjectSet` with `--hidden`, load the registry, assert `reg.Hidden["tag"]` is true.
+   - `TestCmdProjectLsExcludesHidden`: register a hidden project, capture stdout from `cmdProjectLs`, assert tag is absent.
+   - `TestCmdProjectLsAllShowsHidden`: register a hidden project, capture stdout from `cmdProjectLs([]string{"--all"})`, assert tag is present.
+   Verify: `go test ./... -run TestCmdProject` passes.
 
-9. **[testdata/project_registry/hidden_project.txtar]** — New testscript covering: register a project with `--hidden`, verify `ko project ls` does not show it, verify the project is still usable (e.g. routing still works if applicable).
-
-   Verify all: `go test ./...` passes.
+9. **[testdata/project_registry/hidden_project.txtar]** — New testscript:
+   - Register a project with `ko project set #secret --hidden`.
+   - Run `ko project ls` and assert `secret` does not appear.
+   - Run `ko project ls --all` and assert `secret` appears.
+   - Optionally verify the YAML file contains `hidden: true`.
+   Verify: `go test ./...` passes (testscript tests run as part of the test suite).
 
 ## Open Questions
 
-1. **`--all` flag**: Should `ko project ls --all` reveal hidden projects? The ticket doesn't mention it. If hidden projects can never be listed, users lose discoverability of what they've hidden. A `--all` flag is the obvious escape hatch. Flagging for product input — proceeding without it unless asked (hidden means hidden).
-
-2. **Un-hiding**: Is `ko project set #tag` (without `--hidden`) idempotent on the hidden flag, or does it clear it? The `--default` flag is additive-only (you can't un-default via `ko project set`). Likely the same model: `--hidden` sets the flag; clearing it would require a future `--no-hidden` flag or direct file edit. Proceeding with additive-only for consistency.
+None. The `--all` flag question was answered in the ticket notes (2026-03-01). Un-hiding is additive-only (consistent with `--default`): `--hidden` sets the flag; clearing it requires direct file edit or a future `--no-hidden` flag.

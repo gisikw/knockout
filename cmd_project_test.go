@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -267,6 +268,107 @@ func TestCmdProjectSetRetagEvictsOldTag(t *testing.T) {
 			t.Errorf("reg.Default = %q, want %q", reg.Default, "bar")
 		}
 	})
+}
+
+func TestCmdProjectSetHidden(t *testing.T) {
+	dir := t.TempDir()
+	regPath := filepath.Join(dir, "knockout", "projects.yml")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	orig, _ := os.Getwd()
+	projectDir := filepath.Join(dir, "myproject")
+	os.MkdirAll(projectDir, 0755)
+	os.Chdir(projectDir)
+	defer os.Chdir(orig)
+
+	rc := cmdProjectSet([]string{"#secret", "--hidden"})
+	if rc != 0 {
+		t.Fatalf("cmdProjectSet returned %d, want 0", rc)
+	}
+
+	reg, err := LoadRegistry(regPath)
+	if err != nil {
+		t.Fatalf("LoadRegistry error: %v", err)
+	}
+	if !reg.Hidden["secret"] {
+		t.Error("Hidden[\"secret\"] should be true")
+	}
+}
+
+func TestCmdProjectLsExcludesHidden(t *testing.T) {
+	dir := t.TempDir()
+	regPath := filepath.Join(dir, "knockout", "projects.yml")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	reg := &Registry{
+		Projects: map[string]string{
+			"secret":  "/tmp/secret",
+			"visible": "/tmp/visible",
+		},
+		Prefixes: map[string]string{},
+		Hidden:   map[string]bool{"secret": true},
+	}
+	SaveRegistry(regPath, reg)
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	rc := cmdProjectLs([]string{})
+
+	w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	if rc != 0 {
+		t.Fatalf("cmdProjectLs returned %d, want 0", rc)
+	}
+	if strings.Contains(output, "secret") {
+		t.Errorf("output should not contain hidden project 'secret', got: %s", output)
+	}
+	if !strings.Contains(output, "visible") {
+		t.Errorf("output should contain visible project, got: %s", output)
+	}
+}
+
+func TestCmdProjectLsAllShowsHidden(t *testing.T) {
+	dir := t.TempDir()
+	regPath := filepath.Join(dir, "knockout", "projects.yml")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	reg := &Registry{
+		Projects: map[string]string{
+			"secret":  "/tmp/secret",
+			"visible": "/tmp/visible",
+		},
+		Prefixes: map[string]string{},
+		Hidden:   map[string]bool{"secret": true},
+	}
+	SaveRegistry(regPath, reg)
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	rc := cmdProjectLs([]string{"--all"})
+
+	w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	if rc != 0 {
+		t.Fatalf("cmdProjectLs --all returned %d, want 0", rc)
+	}
+	if !strings.Contains(output, "secret") {
+		t.Errorf("output with --all should contain hidden project 'secret', got: %s", output)
+	}
+	if !strings.Contains(output, "visible") {
+		t.Errorf("output with --all should contain visible project, got: %s", output)
+	}
 }
 
 func TestCmdProjectLsEmpty(t *testing.T) {

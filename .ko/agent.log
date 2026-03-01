@@ -212,3 +212,10 @@ loop: building ko-e33d — If pipeline.yml has auto_triage: true, ko agent triag
 loop: building ko-5073 — ko triage should resolve the project from the ticket id prefix, just like ko close does
 {"blocked":0,"decomposed":0,"failed":2,"runtime_seconds":732.022390586,"stop_reason":"empty","succeeded":0,"tickets_processed":2,"ts":"2026-03-01T06:32:09Z"}
 loop: building ko-59c8 — If `ko project set` is run on a project that already has an entry in the registry, that prior entry should be replaced. The project shouldn't answer to multiple project tags
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":762.433926367,"stop_reason":"empty","succeeded":2,"tickets_processed":3,"ts":"2026-03-01T06:52:20Z"}
+loop: building ko-5b3c — Add support for a "hidden" flag in projects (which can be set similarly to the --default flag). If a project is hidden, it should be excluded from ko project ls
+loop: ko-5b3c FAIL
+loop complete: 1 processed (0 succeeded, 1 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":0.018139395,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-03-01T13:40:41Z"}
+loop: building ko-5b3c — Add support for a "hidden" flag in projects (which can be set similarly to the --default flag). If a project is hidden, it should be excluded from ko project ls

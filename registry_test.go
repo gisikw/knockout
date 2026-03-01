@@ -85,10 +85,14 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 		Projects: map[string]string{
 			"exo":      "/tmp/exo",
 			"fort-nix": "/tmp/fort-nix",
+			"secret":   "/tmp/secret",
 		},
 		Prefixes: map[string]string{
 			"exo":      "exo",
 			"fort-nix": "fn",
+		},
+		Hidden: map[string]bool{
+			"secret": true,
 		},
 	}
 	output := FormatRegistry(reg)
@@ -119,6 +123,11 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 	for k, v := range reg.Prefixes {
 		if parsed.Prefixes[k] != v {
 			t.Errorf("Prefixes[%s] = %q, want %q", k, parsed.Prefixes[k], v)
+		}
+	}
+	for k, v := range reg.Hidden {
+		if parsed.Hidden[k] != v {
+			t.Errorf("Hidden[%s] = %v, want %v", k, parsed.Hidden[k], v)
 		}
 	}
 }
@@ -164,6 +173,26 @@ func TestExtractPrefix(t *testing.T) {
 	}
 }
 
+
+func TestParseRegistryHidden(t *testing.T) {
+	input := `projects:
+  secret:
+    path: /tmp/secret
+    hidden: true
+  visible:
+    path: /tmp/visible
+`
+	reg, err := ParseRegistry(input)
+	if err != nil {
+		t.Fatalf("ParseRegistry: %v", err)
+	}
+	if !reg.Hidden["secret"] {
+		t.Error("Hidden[\"secret\"] should be true")
+	}
+	if reg.Hidden["visible"] {
+		t.Error("Hidden[\"visible\"] should be false")
+	}
+}
 
 func TestCleanTag(t *testing.T) {
 	tests := []struct {

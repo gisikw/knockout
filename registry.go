@@ -12,6 +12,7 @@ type Registry struct {
 	Default  string
 	Projects map[string]string // tag -> absolute path
 	Prefixes map[string]string // tag -> ticket prefix (e.g. "fn" for fort-nix)
+	Hidden   map[string]bool   // tag -> true if project is hidden from ls
 }
 
 // RegistryPath returns the path to the registry file.
@@ -34,7 +35,7 @@ func LoadRegistry(path string) (*Registry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}, nil
+			return &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}, Hidden: map[string]bool{}}, nil
 		}
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func LoadRegistry(path string) (*Registry, error) {
 // ParseRegistry parses a registry from its YAML content.
 // Handles both the old flat format and the new nested format.
 func ParseRegistry(content string) (*Registry, error) {
-	r := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
+	r := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}, Hidden: map[string]bool{}}
 	var section string        // "", "projects", "prefixes"
 	var currentProject string // non-empty when inside a new-format nested project block
 
@@ -90,6 +91,10 @@ func ParseRegistry(content string) (*Registry, error) {
 				case "default":
 					if val == "true" {
 						r.Default = currentProject
+					}
+				case "hidden":
+					if val == "true" {
+						r.Hidden[currentProject] = true
 					}
 				}
 			}
@@ -144,6 +149,9 @@ func FormatRegistry(r *Registry) string {
 		}
 		if r.Default == k {
 			b.WriteString("    default: true\n")
+		}
+		if r.Hidden[k] {
+			b.WriteString("    hidden: true\n")
 		}
 	}
 	return b.String()
