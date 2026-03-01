@@ -1,0 +1,32 @@
+# ko triage sets triage on a cross-project ticket by ID prefix
+env HOME=$WORK/home
+mkdir $WORK/home
+
+# Register the "fn" project
+mkdir $WORK/fn/.ko/tickets
+cd $WORK/fn
+exec ko project set '#fn'
+cp $WORK/fn_ticket.txt $WORK/fn/.ko/tickets/fn-test.md
+
+# Change to a directory outside the fn project
+cd $WORK/outside
+
+exec ko triage fn-test do something
+stdout 'fn-test updated'
+
+env TICKETS_DIR=$WORK/fn/.ko/tickets
+exec ko show fn-test
+stdout 'triage: do something'
+
+-- outside/.gitkeep --
+
+-- fn_ticket.txt --
+---
+id: fn-test
+status: open
+deps: []
+created: 2026-01-01T00:00:00Z
+type: task
+priority: 2
+---
+# Cross-project ticket

@@ -15,10 +15,6 @@ func cmdAgentTriage(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko agent triage: %v\n", err)
 		return 1
 	}
-	if ticketsDir == "" {
-		fmt.Fprintf(os.Stderr, "ko agent triage: no .ko/tickets directory found (use --project or run from a project dir)\n")
-		return 1
-	}
 
 	args = reorderArgs(args, map[string]bool{})
 

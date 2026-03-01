@@ -1,0 +1,20 @@
+## Summary
+
+### What was done
+
+Three changes implement cross-project project resolution for `ko triage` and `ko agent triage`:
+
+1. **`cmd_list.go` (`cmdTriage`)** — Moved the `ticketsDir == ""` guard from before `fs.Parse` to after the `NArg >= 2` branch that delegates to `cmdUpdate`. The guard now only fires on the listing path (zero positional args), where a local project directory is genuinely required. The update path already delegates to `cmdUpdate`, which calls `ResolveTicket` with full cross-project fallback.
+
+2. **`cmd_agent_triage.go` (`cmdAgentTriage`)** — Removed the early `ticketsDir == ""` guard entirely. `ResolveTicket` on line 36 already handles the cross-project case when `ticketsDir == ""`.
+
+3. **Tests** — `TestCmdTriageCrossProject` added to `cmd_list_test.go`; verifies that calling `ko triage fn-test <instructions>` from outside the `fn` project directory succeeds and sets the triage field.
+
+### Reviewer fix applied
+
+The original implementation was missing a spec scenario (`specs/ticket_triage.feature`) and a corresponding testscript (`testdata/ticket_triage/triage_cross_project.txtar`) for the new cross-project behaviour, which is required by INVARIANTS (every behaviour has a spec; every spec has a testscript). Both were added during review. All tests pass.
+
+### Notable decisions
+
+- The fix is purely mechanical: the guard was in the wrong place. No logic changes to `ResolveTicket` or `cmdUpdate` were needed.
+- `cmdAgentTriage` needed a full guard removal (not just a move) because every call requires a ticket ID — there is no listing branch that needs a local `ticketsDir`.

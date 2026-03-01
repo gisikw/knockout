@@ -1,0 +1,16 @@
+{"event":"build_start","ticket":"ko-5073","ts":"2026-03-01T03:10:49Z"}
+{"event":"workflow_start","ticket":"ko-5073","ts":"2026-03-01T03:10:49Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-5073","ts":"2026-03-01T03:10:49Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-5073","ts":"2026-03-01T03:10:56Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-5073","ts":"2026-03-01T03:10:56Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-5073","ts":"2026-03-01T03:10:56Z","workflow":"task"}
+{"event":"node_complete","node":"plan","result":"done","ticket":"ko-5073","ts":"2026-03-01T03:14:54Z","workflow":"task"}
+{"event":"node_start","node":"actionable","ticket":"ko-5073","ts":"2026-03-01T03:14:54Z","workflow":"task"}
+{"event":"node_complete","node":"actionable","result":"continue","ticket":"ko-5073","ts":"2026-03-01T03:15:06Z","workflow":"task"}
+{"event":"node_start","node":"implement","ticket":"ko-5073","ts":"2026-03-01T03:15:06Z","workflow":"task"}
+{"event":"node_complete","node":"implement","result":"done","ticket":"ko-5073","ts":"2026-03-01T03:16:54Z","workflow":"task"}
+{"event":"node_start","node":"verify","ticket":"ko-5073","ts":"2026-03-01T03:16:54Z","workflow":"task"}
+{"event":"node_complete","node":"verify","result":"done","ticket":"ko-5073","ts":"2026-03-01T03:17:04Z","workflow":"task"}
+{"event":"node_start","node":"review","ticket":"ko-5073","ts":"2026-03-01T03:17:04Z","workflow":"task"}
+{"event":"node_complete","node":"review","result":"continue","ticket":"ko-5073","ts":"2026-03-01T03:19:14Z","workflow":"task"}
+{"event":"build_complete","outcome":"succeed","ticket":"ko-5073","ts":"2026-03-01T03:19:14Z"}

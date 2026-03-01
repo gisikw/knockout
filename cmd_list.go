@@ -297,10 +297,6 @@ func cmdTriage(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko triage: %v\n", err)
 		return 1
 	}
-	if ticketsDir == "" {
-		fmt.Fprintf(os.Stderr, "ko triage: no .ko/tickets directory found (use --project or run from a project dir)\n")
-		return 1
-	}
 
 	fs := flag.NewFlagSet("triage", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
@@ -315,6 +311,11 @@ func cmdTriage(args []string) int {
 	}
 	if fs.NArg() == 1 {
 		fmt.Fprintln(os.Stderr, "ko triage: instructions required")
+		return 1
+	}
+
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko triage: no .ko/tickets directory found (use --project or run from a project dir)\n")
 		return 1
 	}
 

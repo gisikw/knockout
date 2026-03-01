@@ -208,3 +208,5 @@ loop: building ko-13af — Add triage field to ticket frontmatter — a free-tex
 loop: building ko-6733 — ko agent triage <id> — load default model and prompt it to handle the ticket per its triage instructions. Provide ko usage tokens so the model can operate on tickets. On success (no error), clear the triage field from the ticket (if it still exists).
 {"blocked":0,"decomposed":0,"failed":2,"runtime_seconds":857.775320259,"stop_reason":"empty","succeeded":1,"tickets_processed":3,"ts":"2026-02-28T13:59:59Z"}
 loop: building ko-e33d — If pipeline.yml has auto_triage: true, ko agent triage should be triggered automatically when a ticket is created or modified to have triage instructions
+{"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":1662.93580268,"stop_reason":"empty","succeeded":2,"tickets_processed":2,"ts":"2026-02-28T15:20:34Z"}
+loop: building ko-5073 — ko triage should resolve the project from the ticket id prefix, just like ko close does

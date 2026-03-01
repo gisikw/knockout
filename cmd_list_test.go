@@ -331,6 +331,65 @@ func TestCmdTriageSet(t *testing.T) {
 	})
 }
 
+func TestCmdTriageCrossProject(t *testing.T) {
+	// Set up a registry with a "fn" prefix project containing a ticket.
+	regDir := t.TempDir()
+	fnProjectDir := t.TempDir()
+	fnTicketsDir := filepath.Join(fnProjectDir, ".ko", "tickets")
+	if err := os.MkdirAll(fnTicketsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a ticket in the fn project
+	ticket := &Ticket{
+		ID:       "fn-test",
+		Status:   "open",
+		Deps:     []string{},
+		Created:  "2026-01-01T00:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Cross-project ticket",
+	}
+	if err := SaveTicket(fnTicketsDir, ticket); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write registry with fn prefix
+	configDir := filepath.Join(regDir, ".config", "knockout")
+	os.MkdirAll(configDir, 0755)
+	regContent := "projects:\n  fn: " + fnProjectDir + "\nprefixes:\n  fn: fn\n"
+	os.WriteFile(filepath.Join(configDir, "projects.yml"), []byte(regContent), 0644)
+
+	// Override HOME so RegistryPath resolves to our temp registry
+	oldHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", oldHome)
+	os.Setenv("HOME", regDir)
+
+	// Change into a temp dir that is NOT the fn project
+	outsideDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+	if err := os.Chdir(outsideDir); err != nil {
+		t.Fatal(err)
+	}
+
+	code := cmdTriage([]string{"fn-test", "do something"})
+	if code != 0 {
+		t.Fatalf("cmdTriage cross-project returned %d, want 0", code)
+	}
+
+	updated, err := LoadTicket(fnTicketsDir, "fn-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Triage != "do something" {
+		t.Errorf("Triage = %q, want %q", updated.Triage, "do something")
+	}
+}
+
 func TestResolveProjectTicketsDir_ProjectFlagOverridesHashTag(t *testing.T) {
 	// Set up a registry with two test projects
 	regDir := t.TempDir()

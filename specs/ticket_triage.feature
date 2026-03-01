@@ -128,3 +128,10 @@ Feature: Ticket Triage Field
     And the created ticket frontmatter should contain "triage: unblock this"
     And the error output should contain "auto-triage for"
     And the error output should contain "failed"
+
+  Scenario: ko triage sets triage on a cross-project ticket by ID prefix
+    Given a project "fn" is registered in the registry with a ticket "fn-test"
+    And the current directory is not the "fn" project
+    When I run "ko triage fn-test do something"
+    Then the command should succeed
+    And the ticket "fn-test" in the "fn" project should have triage "do something"
