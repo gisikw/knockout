@@ -68,7 +68,9 @@ Update `ParseRegistry` to recognize both the old flat format (backward compat) a
 
 ## Open Questions
 
-- **Indentation for properties**: Using 4 spaces (2+2) for properties under a project tag. This is consistent with nested YAML style. No 2-space vs tab decision needed since the project already uses spaces.
-- **Empty prefix**: If `reg.Prefixes[tag]` is empty string, skip writing the `prefix:` line. Same behavior as current code (which also skips missing prefixes). This is assumed correct.
-- **Projects with no default**: If `reg.Default == ""`, no project gets `default: true`. Correct — only set when explicitly assigned.
-- **Assumption**: The auto-migration in task 3 is desirable. If the user prefers to manually migrate their config (rather than having it rewritten silently), task 3 can be skipped. Given the simplicity of the migration, silent auto-migration seems preferable.
+None. All decisions resolved:
+
+- **Auto-migration**: Confirmed — silent auto-migration on first read (task 3 is in scope).
+- **Indentation for properties**: 4 spaces (2+2) under a project tag. Consistent with nested YAML style.
+- **Empty prefix**: If `reg.Prefixes[tag]` is empty string, skip writing the `prefix:` line.
+- **Projects with no default**: If `reg.Default == ""`, no project gets `default: true`.

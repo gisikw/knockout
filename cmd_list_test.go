@@ -41,9 +41,7 @@ func TestResolveProjectTicketsDir_WithFlag(t *testing.T) {
 	os.MkdirAll(projectTicketsDir, 0755)
 
 	// Write a minimal registry
-	regContent := `projects:
-  testproj: ` + projectDir + `
-`
+	regContent := "projects:\n  testproj:\n    path: " + projectDir + "\n"
 
 	// Override RegistryPath for this test
 	oldHome := os.Getenv("HOME")
@@ -81,9 +79,7 @@ func TestResolveProjectTicketsDir_UnknownProject(t *testing.T) {
 	configDir := filepath.Join(regDir, ".config", "knockout")
 	os.MkdirAll(configDir, 0755)
 
-	regContent := `projects:
-  knownproj: /some/path
-`
+	regContent := "projects:\n  knownproj:\n    path: /some/path\n"
 	os.WriteFile(filepath.Join(configDir, "projects.yml"), []byte(regContent), 0644)
 
 	// Call with unknown --project
@@ -110,9 +106,7 @@ func TestResolveProjectTicketsDir_MissingTicketsDir(t *testing.T) {
 	configDir := filepath.Join(regDir, ".config", "knockout")
 	os.MkdirAll(configDir, 0755)
 
-	regContent := `projects:
-  testproj: ` + projectDir + `
-`
+	regContent := "projects:\n  testproj:\n    path: " + projectDir + "\n"
 	os.WriteFile(filepath.Join(configDir, "projects.yml"), []byte(regContent), 0644)
 
 	// Call with --project flag for project without tickets dir
@@ -137,9 +131,7 @@ func TestResolveProjectTicketsDir_HashTagShorthand(t *testing.T) {
 	os.MkdirAll(projectTicketsDir, 0755)
 
 	// Write a minimal registry
-	regContent := `projects:
-  testproj: ` + projectDir + `
-`
+	regContent := "projects:\n  testproj:\n    path: " + projectDir + "\n"
 
 	// Override RegistryPath for this test
 	oldHome := os.Getenv("HOME")
@@ -175,9 +167,7 @@ func TestResolveProjectTicketsDir_HashTagAnyPosition(t *testing.T) {
 	os.MkdirAll(projectTicketsDir, 0755)
 
 	// Write a minimal registry
-	regContent := `projects:
-  testproj: ` + projectDir + `
-`
+	regContent := "projects:\n  testproj:\n    path: " + projectDir + "\n"
 
 	// Override RegistryPath for this test
 	oldHome := os.Getenv("HOME")
@@ -215,9 +205,7 @@ func TestResolveProjectTicketsDir_HashTagUnknownProject(t *testing.T) {
 	configDir := filepath.Join(regDir, ".config", "knockout")
 	os.MkdirAll(configDir, 0755)
 
-	regContent := `projects:
-  knownproj: /some/path
-`
+	regContent := "projects:\n  knownproj:\n    path: /some/path\n"
 	os.WriteFile(filepath.Join(configDir, "projects.yml"), []byte(regContent), 0644)
 
 	// Call with unknown #tag
@@ -357,7 +345,7 @@ func TestCmdTriageCrossProject(t *testing.T) {
 	// Write registry with fn prefix
 	configDir := filepath.Join(regDir, ".config", "knockout")
 	os.MkdirAll(configDir, 0755)
-	regContent := "projects:\n  fn: " + fnProjectDir + "\nprefixes:\n  fn: fn\n"
+	regContent := "projects:\n  fn:\n    path: " + fnProjectDir + "\n    prefix: fn\n"
 	os.WriteFile(filepath.Join(configDir, "projects.yml"), []byte(regContent), 0644)
 
 	// Override HOME so RegistryPath resolves to our temp registry
@@ -403,10 +391,7 @@ func TestResolveProjectTicketsDir_ProjectFlagOverridesHashTag(t *testing.T) {
 	os.MkdirAll(projectTicketsDir2, 0755)
 
 	// Write a minimal registry
-	regContent := `projects:
-  testproj: ` + projectDir1 + `
-  other: ` + projectDir2 + `
-`
+	regContent := "projects:\n  other:\n    path: " + projectDir2 + "\n  testproj:\n    path: " + projectDir1 + "\n"
 
 	// Override RegistryPath for this test
 	oldHome := os.Getenv("HOME")

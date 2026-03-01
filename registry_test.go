@@ -1,14 +1,19 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestParseRegistry(t *testing.T) {
-	input := `default: exo
-projects:
-  exo: /home/dev/Projects/exocortex
-  fort-nix: /home/dev/Projects/fort-nix
+	input := `projects:
+  exo:
+    path: /home/dev/Projects/exocortex
+    default: true
+  fort-nix:
+    path: /home/dev/Projects/fort-nix
 `
 	reg, err := ParseRegistry(input)
 	if err != nil {
@@ -30,7 +35,8 @@ projects:
 
 func TestParseRegistryNoDefault(t *testing.T) {
 	input := `projects:
-  exo: /tmp/exo
+  exo:
+    path: /tmp/exo
 `
 	reg, err := ParseRegistry(input)
 	if err != nil {
@@ -41,6 +47,37 @@ func TestParseRegistryNoDefault(t *testing.T) {
 	}
 	if reg.Projects["exo"] != "/tmp/exo" {
 		t.Errorf("Projects[exo] = %q", reg.Projects["exo"])
+	}
+}
+
+func TestParseRegistryNewFormat(t *testing.T) {
+	input := `projects:
+  exo:
+    path: /tmp/exo
+    prefix: exo
+    default: true
+  fort-nix:
+    path: /tmp/fn
+    prefix: fn
+`
+	reg, err := ParseRegistry(input)
+	if err != nil {
+		t.Fatalf("ParseRegistry: %v", err)
+	}
+	if reg.Default != "exo" {
+		t.Errorf("Default = %q, want %q", reg.Default, "exo")
+	}
+	if reg.Projects["exo"] != "/tmp/exo" {
+		t.Errorf("Projects[exo] = %q", reg.Projects["exo"])
+	}
+	if reg.Projects["fort-nix"] != "/tmp/fn" {
+		t.Errorf("Projects[fort-nix] = %q", reg.Projects["fort-nix"])
+	}
+	if reg.Prefixes["exo"] != "exo" {
+		t.Errorf("Prefixes[exo] = %q, want %q", reg.Prefixes["exo"], "exo")
+	}
+	if reg.Prefixes["fort-nix"] != "fn" {
+		t.Errorf("Prefixes[fort-nix] = %q, want %q", reg.Prefixes["fort-nix"], "fn")
 	}
 }
 
@@ -57,6 +94,12 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 		},
 	}
 	output := FormatRegistry(reg)
+	if strings.Contains(output, "prefixes:") {
+		t.Error("FormatRegistry output contains 'prefixes:' section (should use nested format)")
+	}
+	if strings.HasPrefix(output, "default:") {
+		t.Error("FormatRegistry output starts with top-level 'default:' key")
+	}
 	parsed, err := ParseRegistry(output)
 	if err != nil {
 		t.Fatalf("ParseRegistry round-trip: %v", err)
@@ -83,7 +126,7 @@ func TestFormatRegistryRoundTrip(t *testing.T) {
 }
 
 func TestParseRegistryBackwardCompatible(t *testing.T) {
-	// Old format without prefixes section should still parse
+	// Old flat format should still parse (backward compat preserved)
 	input := `default: exo
 projects:
   exo: /tmp/exo
@@ -97,6 +140,44 @@ projects:
 	}
 	if reg.Projects["exo"] != "/tmp/exo" {
 		t.Errorf("Projects[exo] = %q", reg.Projects["exo"])
+	}
+	if reg.Default != "exo" {
+		t.Errorf("Default = %q, want %q", reg.Default, "exo")
+	}
+}
+
+func TestLoadRegistryAutoMigrates(t *testing.T) {
+	dir := t.TempDir()
+	regPath := filepath.Join(dir, "projects.yml")
+
+	// Write old-format file
+	oldContent := "default: exo\nprojects:\n  exo: /tmp/exo\nprefixes:\n  exo: exo\n"
+	if err := os.WriteFile(regPath, []byte(oldContent), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	reg, err := LoadRegistry(regPath)
+	if err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+	if reg.Projects["exo"] != "/tmp/exo" {
+		t.Errorf("Projects[exo] = %q, want /tmp/exo", reg.Projects["exo"])
+	}
+
+	// Verify file was rewritten in new format
+	data, err := os.ReadFile(regPath)
+	if err != nil {
+		t.Fatalf("ReadFile after migration: %v", err)
+	}
+	newContent := string(data)
+	if strings.Contains(newContent, "prefixes:") {
+		t.Error("migrated file still contains 'prefixes:' section")
+	}
+	if strings.HasPrefix(newContent, "default:") {
+		t.Error("migrated file still has top-level 'default:' key")
+	}
+	if !strings.Contains(newContent, "    path: /tmp/exo") {
+		t.Error("migrated file does not contain nested 'path:' entry")
 	}
 }
 

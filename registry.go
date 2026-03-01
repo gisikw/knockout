@@ -28,8 +28,20 @@ func RegistryPath() string {
 	return filepath.Join(configDir, "knockout", "projects.yml")
 }
 
+// isOldFormat returns true if content uses the old flat format (has a top-level
+// "prefixes:" section or a top-level "default:" key).
+func isOldFormat(content string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "prefixes:") || strings.HasPrefix(line, "default:") {
+			return true
+		}
+	}
+	return false
+}
+
 // LoadRegistry reads the registry from disk.
 // Returns an empty registry (not an error) if the file does not exist.
+// Auto-migrates old-format files to the new nested format on first read.
 func LoadRegistry(path string) (*Registry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -42,17 +54,20 @@ func LoadRegistry(path string) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Lazy backfill: detect prefixes for projects that have tickets but no prefix
-	if backfillPrefixes(reg) {
+	// Lazy backfill: detect prefixes for projects that have tickets but no prefix.
+	// Also auto-migrate old-format files to new nested format.
+	if backfillPrefixes(reg) || isOldFormat(string(data)) {
 		SaveRegistry(path, reg)
 	}
 	return reg, nil
 }
 
 // ParseRegistry parses a registry from its YAML content.
+// Handles both the old flat format and the new nested format.
 func ParseRegistry(content string) (*Registry, error) {
 	r := &Registry{Projects: map[string]string{}, Prefixes: map[string]string{}}
-	var section string // "", "projects", "prefixes"
+	var section string        // "", "projects", "prefixes"
+	var currentProject string // non-empty when inside a new-format nested project block
 
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -62,10 +77,12 @@ func ParseRegistry(content string) (*Registry, error) {
 
 		if trimmed == "projects:" {
 			section = "projects"
+			currentProject = ""
 			continue
 		}
 		if trimmed == "prefixes:" {
 			section = "prefixes"
+			currentProject = ""
 			continue
 		}
 
@@ -74,33 +91,57 @@ func ParseRegistry(content string) (*Registry, error) {
 			continue
 		}
 
-		indented := strings.HasPrefix(line, "  ")
+		is4space := strings.HasPrefix(line, "    ")
+		is2space := strings.HasPrefix(line, "  ") && !is4space
 
-		if !indented {
-			section = ""
-			if key == "default" {
-				r.Default = val
+		if is4space {
+			// Properties of a nested project block (new format)
+			if section == "projects" && currentProject != "" {
+				switch key {
+				case "path":
+					r.Projects[currentProject] = val
+				case "prefix":
+					r.Prefixes[currentProject] = val
+				case "default":
+					if val == "true" {
+						r.Default = currentProject
+					}
+				}
 			}
 			continue
 		}
 
-		switch section {
-		case "projects":
-			r.Projects[key] = val
-		case "prefixes":
-			r.Prefixes[key] = val
+		if is2space {
+			switch section {
+			case "projects":
+				if val == "" {
+					// New format: bare project tag, start nested block
+					currentProject = key
+				} else {
+					// Old format: tag: path
+					r.Projects[key] = val
+					currentProject = ""
+				}
+			case "prefixes":
+				r.Prefixes[key] = val
+			}
+			continue
+		}
+
+		// Top-level (no indent): reset section
+		section = ""
+		currentProject = ""
+		if key == "default" {
+			r.Default = val
 		}
 	}
 
 	return r, nil
 }
 
-// FormatRegistry serializes a registry to YAML.
+// FormatRegistry serializes a registry to YAML using the nested format.
 func FormatRegistry(r *Registry) string {
 	var b strings.Builder
-	if r.Default != "" {
-		b.WriteString(fmt.Sprintf("default: %s\n", r.Default))
-	}
 	b.WriteString("projects:\n")
 
 	// Sort keys for deterministic output
@@ -111,18 +152,13 @@ func FormatRegistry(r *Registry) string {
 	sortStrings(keys)
 
 	for _, k := range keys {
-		b.WriteString(fmt.Sprintf("  %s: %s\n", k, r.Projects[k]))
-	}
-
-	if len(r.Prefixes) > 0 {
-		b.WriteString("prefixes:\n")
-		pkeys := make([]string, 0, len(r.Prefixes))
-		for k := range r.Prefixes {
-			pkeys = append(pkeys, k)
+		b.WriteString(fmt.Sprintf("  %s:\n", k))
+		b.WriteString(fmt.Sprintf("    path: %s\n", r.Projects[k]))
+		if prefix := r.Prefixes[k]; prefix != "" {
+			b.WriteString(fmt.Sprintf("    prefix: %s\n", prefix))
 		}
-		sortStrings(pkeys)
-		for _, k := range pkeys {
-			b.WriteString(fmt.Sprintf("  %s: %s\n", k, r.Prefixes[k]))
+		if r.Default == k {
+			b.WriteString("    default: true\n")
 		}
 	}
 	return b.String()

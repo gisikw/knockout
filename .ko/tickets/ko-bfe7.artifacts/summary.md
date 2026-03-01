@@ -1,20 +1,4 @@
----
-id: ko-bfe7
-status: resolved
-deps: []
-created: 2026-03-01T06:17:26Z
-type: task
-priority: 2
----
-# Restructure the projects.yml to avoid redundant lists of things. Everything (path, default, prefix) can just be aggregated under a project name. Update everywhere in knockout that has dependencies on this file structure
-
-## Notes
-
-**2026-03-01 06:39:19 UTC:** Question: Should knockout auto-migrate users' existing projects.yml files from the old format to new format on first read, or should users manually migrate their config?
-Answer: Silent auto-migration (Recommended)
-Implement task 3: auto-detect old format and rewrite config file automatically on first read
-
-**2026-03-01 06:50:23 UTC:** ## Summary
+## Summary
 
 Restructured `projects.yml` from a flat three-section format (`default:` top-level + `projects:` map + `prefixes:` map) to a single nested format where each project's `path`, `prefix`, and `default` are grouped under the project tag.
 
@@ -40,5 +24,3 @@ Restructured `projects.yml` from a flat three-section format (`default:` top-lev
 ### Test results
 
 All tests pass: `go test ./...` — `ok git.gisi.network/infra/knockout 10.446s`
-
-**2026-03-01 06:50:23 UTC:** ko: SUCCEED

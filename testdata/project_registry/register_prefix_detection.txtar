@@ -13,8 +13,7 @@ stdout 'project fort-nix registered'
 
 # Verify prefix was stored in registry
 exec cat $WORK/home/.config/knockout/projects.yml
-stdout 'prefixes:'
-stdout 'fort-nix: fn'
+stdout 'prefix: fn'
 
 -- fn_ticket.txt --
 ---
