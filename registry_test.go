@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -143,41 +141,6 @@ projects:
 	}
 	if reg.Default != "exo" {
 		t.Errorf("Default = %q, want %q", reg.Default, "exo")
-	}
-}
-
-func TestLoadRegistryAutoMigrates(t *testing.T) {
-	dir := t.TempDir()
-	regPath := filepath.Join(dir, "projects.yml")
-
-	// Write old-format file
-	oldContent := "default: exo\nprojects:\n  exo: /tmp/exo\nprefixes:\n  exo: exo\n"
-	if err := os.WriteFile(regPath, []byte(oldContent), 0644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	reg, err := LoadRegistry(regPath)
-	if err != nil {
-		t.Fatalf("LoadRegistry: %v", err)
-	}
-	if reg.Projects["exo"] != "/tmp/exo" {
-		t.Errorf("Projects[exo] = %q, want /tmp/exo", reg.Projects["exo"])
-	}
-
-	// Verify file was rewritten in new format
-	data, err := os.ReadFile(regPath)
-	if err != nil {
-		t.Fatalf("ReadFile after migration: %v", err)
-	}
-	newContent := string(data)
-	if strings.Contains(newContent, "prefixes:") {
-		t.Error("migrated file still contains 'prefixes:' section")
-	}
-	if strings.HasPrefix(newContent, "default:") {
-		t.Error("migrated file still has top-level 'default:' key")
-	}
-	if !strings.Contains(newContent, "    path: /tmp/exo") {
-		t.Error("migrated file does not contain nested 'path:' entry")
 	}
 }
 

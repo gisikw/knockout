@@ -28,20 +28,8 @@ func RegistryPath() string {
 	return filepath.Join(configDir, "knockout", "projects.yml")
 }
 
-// isOldFormat returns true if content uses the old flat format (has a top-level
-// "prefixes:" section or a top-level "default:" key).
-func isOldFormat(content string) bool {
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "prefixes:") || strings.HasPrefix(line, "default:") {
-			return true
-		}
-	}
-	return false
-}
-
 // LoadRegistry reads the registry from disk.
 // Returns an empty registry (not an error) if the file does not exist.
-// Auto-migrates old-format files to the new nested format on first read.
 func LoadRegistry(path string) (*Registry, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -55,10 +43,7 @@ func LoadRegistry(path string) (*Registry, error) {
 		return nil, err
 	}
 	// Lazy backfill: detect prefixes for projects that have tickets but no prefix.
-	// Also auto-migrate old-format files to new nested format.
-	if backfillPrefixes(reg) || isOldFormat(string(data)) {
-		SaveRegistry(path, reg)
-	}
+	backfillPrefixes(reg)
 	return reg, nil
 }
 
