@@ -219,3 +219,5 @@ loop complete: 1 processed (0 succeeded, 1 failed, 0 blocked, 0 decomposed)
 stopped: empty
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":0.018139395,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-03-01T13:40:41Z"}
 loop: building ko-5b3c — Add support for a "hidden" flag in projects (which can be set similarly to the --default flag). If a project is hidden, it should be excluded from ko project ls
+loop: ko-5b3c SUCCEED
+loop: building ko-65bd — Please update the existing registry to make the "user" and "tickler" projects hidden

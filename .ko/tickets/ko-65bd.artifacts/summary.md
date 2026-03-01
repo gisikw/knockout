@@ -1,16 +1,4 @@
----
-id: ko-65bd
-status: resolved
-deps: [ko-5b3c]
-created: 2026-03-01T06:19:34Z
-type: task
-priority: 2
----
-# Please update the existing registry to make the "user" and "tickler" projects hidden
-
-## Notes
-
-**2026-03-01 13:56:06 UTC:** ## Summary
+## Summary
 
 Updated `~/.config/knockout/projects.yml` to mark the "user" and "tickler" projects as hidden by adding `hidden: true` under each project's entry.
 
@@ -25,5 +13,3 @@ Updated `~/.config/knockout/projects.yml` to mark the "user" and "tickler" proje
 ### Verification
 - `ko project ls` correctly omits both "tickler" and "user" from output
 - `ko project ls --all` correctly shows both hidden projects alongside visible ones
-
-**2026-03-01 13:56:06 UTC:** ko: SUCCEED
