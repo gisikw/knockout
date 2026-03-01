@@ -19,7 +19,7 @@ func cmdProject(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "ko project: subcommand required (set, ls)")
 		fmt.Fprintln(os.Stderr, "Usage:")
-		fmt.Fprintln(os.Stderr, "  ko project set #<tag> [--prefix=p] [--default]")
+		fmt.Fprintln(os.Stderr, "  ko project set #<tag> [--path=dir] [--prefix=p] [--default]")
 		fmt.Fprintln(os.Stderr, "  ko project ls")
 		return 1
 	}
@@ -45,9 +45,13 @@ func cmdProjectSet(args []string) int {
 	var setDefault bool
 	var tag string
 
+	var pathOverride string
+
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "--prefix=") {
 			prefix = strings.TrimPrefix(arg, "--prefix=")
+		} else if strings.HasPrefix(arg, "--path=") {
+			pathOverride = strings.TrimPrefix(arg, "--path=")
 		} else if arg == "--default" {
 			setDefault = true
 		} else if strings.HasPrefix(arg, "#") {
@@ -61,7 +65,7 @@ func cmdProjectSet(args []string) int {
 	// Validate tag is provided
 	if tag == "" {
 		fmt.Fprintln(os.Stderr, "ko project set: #tag argument required")
-		fmt.Fprintln(os.Stderr, "Usage: ko project set #<tag> [--prefix=p] [--default]")
+		fmt.Fprintln(os.Stderr, "Usage: ko project set #<tag> [--path=dir] [--prefix=p] [--default]")
 		return 1
 	}
 
@@ -71,11 +75,22 @@ func cmdProjectSet(args []string) int {
 		return 1
 	}
 
-	// Get current working directory as project root
-	root, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko project set: %v\n", err)
-		return 1
+	// Use --path if provided, otherwise cwd
+	var root string
+	if pathOverride != "" {
+		abs, err := filepath.Abs(pathOverride)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko project set: %v\n", err)
+			return 1
+		}
+		root = abs
+	} else {
+		var err error
+		root, err = os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko project set: %v\n", err)
+			return 1
+		}
 	}
 
 	ticketsDir := filepath.Join(root, ".ko", "tickets")

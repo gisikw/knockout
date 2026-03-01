@@ -153,8 +153,8 @@ Commands:
   agent status       Check if an agent is running
   agent triage <id>  Run triage instructions against a ticket
 
-  project set #<tag> [--prefix=p] [--default]
-                     Initialize .ko dir, register project, optionally set default
+  project set #<tag> [--path=dir] [--prefix=p] [--default]
+                     Register project (uses --path or cwd), optionally set default
   project ls         List registered projects (default marked with *)
 
   help               Show this help
