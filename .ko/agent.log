@@ -221,3 +221,5 @@ stopped: empty
 loop: building ko-5b3c — Add support for a "hidden" flag in projects (which can be set similarly to the --default flag). If a project is hidden, it should be excluded from ko project ls
 loop: ko-5b3c SUCCEED
 loop: building ko-65bd — Please update the existing registry to make the "user" and "tickler" projects hidden
+{"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":154.534889957,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-03-06T13:06:13Z"}
+loop: building ko-12a4 — When a ticket is created in a project that has agent auto start, the agent start message comes through stdout too. I suspect we should make it output to stderr, since it ruins the composability by cluttering stdout

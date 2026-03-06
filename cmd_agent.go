@@ -175,7 +175,7 @@ func cmdAgentStart(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("agent started (pid %d), logging to %s\n", cmd.Process.Pid, logPath)
+	fmt.Fprintf(os.Stderr, "agent started (pid %d), logging to %s\n", cmd.Process.Pid, logPath)
 	return 0
 }
 
@@ -224,7 +224,7 @@ func cmdAgentStop(args []string) int {
 	}
 
 	os.Remove(pidPath)
-	fmt.Printf("agent stopped (pid %d)\n", pid)
+	fmt.Fprintf(os.Stderr, "agent stopped (pid %d)\n", pid)
 
 	// Clean up: reset any in_progress ticket and run on_fail hooks.
 	// The loop's own defers should have handled this on SIGTERM, but
