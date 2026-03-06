@@ -1,6 +1,6 @@
 ---
 id: ko-5b3c
-status: resolved
+status: closed
 deps: [ko-bfe7]
 created: 2026-03-01T06:18:30Z
 type: task

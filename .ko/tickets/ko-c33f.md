@@ -1,6 +1,6 @@
 ---
 id: ko-c33f
-status: resolved
+status: closed
 deps: [ko-7a57]
 created: 2026-02-28T07:09:50Z
 type: task

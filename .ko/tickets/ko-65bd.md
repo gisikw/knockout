@@ -1,6 +1,6 @@
 ---
 id: ko-65bd
-status: resolved
+status: closed
 deps: [ko-5b3c]
 created: 2026-03-01T06:19:34Z
 type: task
