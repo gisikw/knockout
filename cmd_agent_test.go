@@ -15,8 +15,10 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 		setupPipeline   bool
 		setupPid        bool
 		pidAlive        bool
+		tickets         []string // ticket file contents to write into ticketsDir
 		wantProvisioned bool
 		wantRunning     bool
+		wantActionable  bool
 	}{
 		{
 			name:            "not provisioned",
@@ -25,6 +27,7 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 			pidAlive:        false,
 			wantProvisioned: false,
 			wantRunning:     false,
+			wantActionable:  false,
 		},
 		{
 			name:            "provisioned but not running",
@@ -33,6 +36,7 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 			pidAlive:        false,
 			wantProvisioned: true,
 			wantRunning:     false,
+			wantActionable:  false,
 		},
 		{
 			name:            "provisioned and running",
@@ -41,6 +45,7 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 			pidAlive:        true,
 			wantProvisioned: true,
 			wantRunning:     true,
+			wantActionable:  false,
 		},
 		{
 			name:            "stale pid file",
@@ -49,6 +54,40 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 			pidAlive:        false,
 			wantProvisioned: true,
 			wantRunning:     false,
+			wantActionable:  false,
+		},
+		{
+			name:          "provisioned, no tickets",
+			setupPipeline: true,
+			wantProvisioned: true,
+			wantActionable:  false,
+		},
+		{
+			name:          "provisioned, one ready ticket",
+			setupPipeline: true,
+			tickets: []string{
+				"---\nid: ko-0001\nstatus: open\ndeps: []\nlinks: []\ncreated: 2026-01-01T00:00:00Z\ntype: task\npriority: 2\n---\n# Test ticket\n",
+			},
+			wantProvisioned: true,
+			wantActionable:  true,
+		},
+		{
+			name:          "provisioned, one triage ticket",
+			setupPipeline: true,
+			tickets: []string{
+				"---\nid: ko-0002\nstatus: open\ndeps: []\nlinks: []\ncreated: 2026-01-01T00:00:00Z\ntype: task\npriority: 2\ntriage: needs-review\n---\n# Triage ticket\n",
+			},
+			wantProvisioned: true,
+			wantActionable:  true,
+		},
+		{
+			name:          "not provisioned with tickets",
+			setupPipeline: false,
+			tickets: []string{
+				"---\nid: ko-0003\nstatus: open\ndeps: []\nlinks: []\ncreated: 2026-01-01T00:00:00Z\ntype: task\npriority: 2\n---\n# Test ticket\n",
+			},
+			wantProvisioned: false,
+			wantActionable:  false,
 		},
 	}
 
@@ -59,6 +98,14 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 			ticketsDir := filepath.Join(koDir, "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
 				t.Fatal(err)
+			}
+
+			// Write ticket files if provided
+			for i, content := range tt.tickets {
+				ticketPath := filepath.Join(ticketsDir, "ko-test"+strconv.Itoa(i)+".md")
+				if err := os.WriteFile(ticketPath, []byte(content), 0644); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			// Setup pipeline config if requested
@@ -125,6 +172,10 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 
 			if status.Running != tt.wantRunning {
 				t.Errorf("Running = %v, want %v", status.Running, tt.wantRunning)
+			}
+
+			if status.Actionable != tt.wantActionable {
+				t.Errorf("Actionable = %v, want %v", status.Actionable, tt.wantActionable)
 			}
 
 			if tt.wantRunning && status.Pid != pid {

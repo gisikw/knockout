@@ -267,6 +267,7 @@ type agentStatusJSON struct {
 	Running     bool   `json:"running"`
 	Pid         int    `json:"pid,omitempty"`
 	LastLog     string `json:"last_log,omitempty"`
+	Actionable  bool   `json:"actionable"`
 }
 
 func cmdAgentStatus(args []string) int {
@@ -299,6 +300,10 @@ func cmdAgentStatus(args []string) int {
 		return 0
 	}
 	status.Provisioned = true
+
+	ready, _ := ReadyQueue(ticketsDir)
+	triage, _ := TriageQueue(ticketsDir)
+	status.Actionable = len(ready) > 0 || len(triage) > 0
 
 	pidPath := agentPidPath(ticketsDir)
 	pid, err := readAgentPid(pidPath)

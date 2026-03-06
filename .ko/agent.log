@@ -223,3 +223,8 @@ loop: ko-5b3c SUCCEED
 loop: building ko-65bd — Please update the existing registry to make the "user" and "tickler" projects hidden
 {"blocked":0,"decomposed":0,"failed":1,"runtime_seconds":154.534889957,"stop_reason":"empty","succeeded":0,"tickets_processed":1,"ts":"2026-03-06T13:06:13Z"}
 loop: building ko-12a4 — When a ticket is created in a project that has agent auto start, the agent start message comes through stdout too. I suspect we should make it output to stderr, since it ruins the composability by cluttering stdout
+loop: ko-12a4 SUCCEED
+loop complete: 1 processed (1 succeeded, 0 failed, 0 blocked, 0 decomposed)
+stopped: empty
+{"blocked":0,"decomposed":0,"failed":0,"runtime_seconds":177.536980159,"stop_reason":"empty","succeeded":1,"tickets_processed":1,"ts":"2026-03-06T16:59:25Z"}
+loop: building ko-c482 — Add actionable field to ko agent status --json — true when ready queue is non-empty or triageable tickets exist. Consumers (XO, Punchlist) should use this to gate showing the agent toggle.
