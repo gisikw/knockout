@@ -159,6 +159,28 @@ func cmdShow(args []string) int {
 			}
 		}
 
+		// Questions section
+		if len(t.PlanQuestions) > 0 {
+			fmt.Println()
+			fmt.Println("## Questions")
+			for i, q := range t.PlanQuestions {
+				if i > 0 {
+					fmt.Println()
+				}
+				fmt.Printf("? %s [%s]\n", q.Question, q.ID)
+				if q.Context != "" {
+					fmt.Printf("  Context: %s\n", q.Context)
+				}
+				for _, o := range q.Options {
+					if o.Description != "" {
+						fmt.Printf("  - %s — %s\n", o.Label, o.Description)
+					} else {
+						fmt.Printf("  - %s\n", o.Label)
+					}
+				}
+			}
+		}
+
 		// Body content
 		if t.Body != "" {
 			fmt.Print(t.Body)
