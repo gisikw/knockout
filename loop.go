@@ -124,16 +124,6 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 	result := LoopResult{}
 
 	for {
-		// Check for stop signal
-		if stop != nil {
-			select {
-			case <-stop:
-				result.Stopped = "signal"
-				return result
-			default:
-			}
-		}
-
 		// Check limits
 		if ok, reason := config.ShouldContinue(result.Processed, time.Since(start)); !ok {
 			result.Stopped = reason
@@ -143,7 +133,7 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 		// Run triage pre-pass before picking up ready tickets
 		runTriagePass(ticketsDir, p, config.Verbose, config.Quiet, stop)
 
-		// Get next ready ticket
+		// Get next ready ticket — empty queue is definitive, check before signal
 		queue, err := ReadyQueue(ticketsDir)
 		if err != nil {
 			result.Stopped = "build_error"
@@ -152,6 +142,16 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 		if len(queue) == 0 {
 			result.Stopped = "empty"
 			return result
+		}
+
+		// Check for stop signal (only meaningful if there's work remaining)
+		if stop != nil {
+			select {
+			case <-stop:
+				result.Stopped = "signal"
+				return result
+			default:
+			}
 		}
 
 		id := queue[0]
