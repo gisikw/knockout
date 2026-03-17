@@ -1,2 +1,5 @@
 /ko
 /knockout
+result
+.env
+.direnv/

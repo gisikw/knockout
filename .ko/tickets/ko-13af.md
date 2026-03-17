@@ -1,6 +1,6 @@
 ---
 id: ko-13af
-status: resolved
+status: closed
 deps: []
 created: 2026-02-28T07:40:18Z
 type: task

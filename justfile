@@ -1,22 +1,48 @@
+# === Project: knockout ===
+
 default:
     @just --list
 
-build:
-    go build -ldflags="-X main.version=$(git rev-parse --short HEAD)" -o ko
+# --- Environment ---
 
+# Enter nix development shell
+develop:
+    nix develop
+
+# --- Quality ---
+
+# Run tests
 test:
     go test ./...
 
-install:
-    go build -ldflags="-X main.version=$(git rev-parse --short HEAD)" -o $(go env GOPATH)/bin/ko
+# Format code
+fmt:
+    go fmt ./...
 
-restart:
-    just install
-    fort ratched systemd '{"action": "restart", "unit": "knockout"}'
+# Run all quality checks
+check: fmt test
 
-agent-session-complete:
+# --- Build ---
+
+# Build the project (iterative dev build)
+build:
+    go build -ldflags="-X main.version=$(git rev-parse --short HEAD)" -o ko
+
+# --- Shipping ---
+
+# Commit and push. CI handles deployment.
+ship message="ship":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! git diff --quiet HEAD 2>/dev/null \
+        || ! git diff --cached --quiet 2>/dev/null \
+        || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+        git add -A
+        git commit -m "{{message}}"
+    fi
     git push
-    just restart
+
+# --- Project-specific ---
 
 # Symlink this project's pipeline and prompts into another project.
 # Usage: just link-pipeline nerve
