@@ -122,6 +122,22 @@ func cmdCreate(args []string) int {
 	// Determine prefix from existing tickets or derive from directory name
 	prefix := detectPrefix(ticketsDir)
 
+	// Auto-summarize long titles if a summarizer is configured
+	if words := strings.Fields(title); len(words) > TitleMaxWords {
+		if summarizer := ResolveSummarizer(ticketsDir); summarizer != "" {
+			original := title
+			title = SummarizeTitle(summarizer, title)
+			// Move the original verbose title into the description
+			if title != original {
+				if descFromInput != "" {
+					descFromInput = original + "\n\n" + descFromInput
+				} else {
+					descFromInput = original
+				}
+			}
+		}
+	}
+
 	var t *Ticket
 	if *parent != "" {
 		// Resolve parent ID (cross-project prefix lookup supported)

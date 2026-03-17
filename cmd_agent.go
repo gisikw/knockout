@@ -51,6 +51,8 @@ Commands:
 		return cmdAgentTriage(args[1:])
 	case "_daemonize":
 		return cmdAgentDaemonize(args[1:])
+	case "_summarize":
+		return cmdAgentSummarize(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "ko agent: unknown subcommand '%s'\n", args[0])
 		return 1
@@ -79,6 +81,26 @@ func readAgentPid(path string) (int, error) {
 		return 0, fmt.Errorf("invalid pid in %s: %v", path, err)
 	}
 	return pid, nil
+}
+
+// cleanEnvForNesting returns os.Environ() with Claude nesting-detection env
+// vars stripped, allowing child processes to spawn Claude sessions.
+func cleanEnvForNesting() []string {
+	strip := map[string]bool{
+		"CLAUDECODE":                               true,
+		"CLAUDE_CODE_ENTRYPOINT":                   true,
+		"CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY":      true,
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": true,
+	}
+	var clean []string
+	for _, env := range os.Environ() {
+		if idx := strings.IndexByte(env, '='); idx >= 0 {
+			if !strip[env[:idx]] {
+				clean = append(clean, env)
+			}
+		}
+	}
+	return clean
 }
 
 // isProcessAlive checks if a process with the given PID is running.
@@ -215,21 +237,7 @@ func cmdAgentDaemonize(args []string) int {
 	cmd.Stderr = logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
-	// Strip env vars that prevent nested Claude sessions
-	var cleanEnv []string
-	stripVars := map[string]bool{
-		"CLAUDECODE":                              true,
-		"CLAUDE_CODE_ENTRYPOINT":                  true,
-		"CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY":     true,
-		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": true,
-	}
-	for _, env := range os.Environ() {
-		key := env[:strings.IndexByte(env, '=')]
-		if !stripVars[key] {
-			cleanEnv = append(cleanEnv, env)
-		}
-	}
-	cmd.Env = cleanEnv
+	cmd.Env = cleanEnvForNesting()
 
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
@@ -240,6 +248,38 @@ func cmdAgentDaemonize(args []string) int {
 
 	// Print grandchild PID for the parent to capture
 	fmt.Println(cmd.Process.Pid)
+	return 0
+}
+
+// cmdAgentSummarize runs a command with Claude nesting env vars stripped.
+// Stdin is forwarded. Stdout from the command is printed to our stdout.
+// This allows commands like `claude -p` to run from inside a Claude session.
+//
+// Usage: ko agent _summarize <cmd> [args...]
+func cmdAgentSummarize(args []string) int {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "ko agent _summarize: usage: _summarize <cmd> [args...]")
+		return 1
+	}
+
+	// Shell-exec the command so that multi-word summarizers like
+	// "ollama run qwen3:0.6b --nowordwrap" work correctly.
+	shellCmd := strings.Join(args, " ")
+	cmd := exec.Command("sh", "-c", shellCmd)
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	// Strip env vars that prevent nested Claude sessions
+	cmd.Env = cleanEnvForNesting()
+
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko agent _summarize: %v\n", err)
+		return 1
+	}
+
+	fmt.Print(string(out))
 	return 0
 }
 

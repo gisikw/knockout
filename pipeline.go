@@ -11,8 +11,9 @@ import (
 // Config represents a unified .ko/config.yaml file containing both project
 // settings and pipeline configuration.
 type Config struct {
-	Project  ProjectConfig // project-level settings (prefix, etc.)
-	Pipeline Pipeline      // pipeline configuration
+	Project    ProjectConfig // project-level settings (prefix, etc.)
+	Pipeline   Pipeline      // pipeline configuration
+	Summarizer string        // command to summarize long titles (overrides global)
 }
 
 // ProjectConfig holds project-level settings from the config.yaml project: section.
@@ -440,7 +441,7 @@ func ParseConfig(content string) (*Config, error) {
 			continue
 		}
 
-		// Detect top-level sections (no indentation)
+		// Detect top-level sections and keys (no indentation)
 		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
 			if trimmed == "project:" {
 				section = "project"
@@ -450,6 +451,19 @@ func ParseConfig(content string) (*Config, error) {
 			if trimmed == "pipeline:" {
 				section = "pipeline"
 				inPipeline = true
+				continue
+			}
+			// Top-level scalar keys
+			if key, val, ok := parseYAMLLine(trimmed); ok {
+				inPipeline = false
+				section = ""
+				if idx := strings.Index(val, " #"); idx >= 0 {
+					val = strings.TrimSpace(val[:idx])
+				}
+				switch key {
+				case "summarizer":
+					c.Summarizer = val
+				}
 				continue
 			}
 			// Unknown top-level key — might be pipeline content if we're in that section
