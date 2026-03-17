@@ -494,7 +494,7 @@ func maybeAutoAgent(ticketsDir string) {
 			for slug, path := range reg.Projects {
 				td := filepath.Join(path, ".ko", "tickets")
 				if td == ticketsDir {
-					projectFlag = "#" + slug
+					projectFlag = slug
 					break
 				}
 			}
