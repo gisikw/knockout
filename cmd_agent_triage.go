@@ -158,6 +158,8 @@ func runAgentTriage(ticketsDir string, t *Ticket, p *Pipeline, verbose bool) err
 		return fmt.Errorf("failed to save ticket: %v", err)
 	}
 
+	maybeAutoAgent(ticketsDir)
+
 	return nil
 }
 

@@ -195,6 +195,8 @@ func cmdCreate(args []string) int {
 		maybeAutoTriage(ticketsDir, t.ID)
 	}
 
+	maybeAutoAgent(ticketsDir)
+
 	fmt.Println(t.ID)
 	return 0
 }

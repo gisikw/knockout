@@ -462,3 +462,61 @@ func cmdAgentReport(args []string) int {
 	}
 	return 0
 }
+
+// maybeAutoAgent checks if auto_agent is enabled in the pipeline config and,
+// if the agent loop is not already running, starts it in the background.
+// Failures are non-fatal: a warning is printed to stderr.
+func maybeAutoAgent(ticketsDir string) {
+	configPath, err := FindConfig(ticketsDir)
+	if err != nil {
+		return
+	}
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		return
+	}
+
+	if !config.Pipeline.AutoAgent {
+		return
+	}
+
+	if isAgentLocked(ticketsDir) {
+		return // already running
+	}
+
+	// Resolve the project flag so cmdAgentStart finds the right project
+	projectFlag := ""
+	regPath := RegistryPath()
+	if regPath != "" {
+		reg, err := LoadRegistry(regPath)
+		if err == nil {
+			for slug, path := range reg.Projects {
+				td := filepath.Join(path, ".ko", "tickets")
+				if td == ticketsDir {
+					projectFlag = "#" + slug
+					break
+				}
+			}
+		}
+	}
+
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko: auto-agent failed: %v\n", err)
+		return
+	}
+
+	args := []string{"agent", "start"}
+	if projectFlag != "" {
+		args = append(args, "--project="+projectFlag)
+	}
+
+	cmd := exec.Command(self, args...)
+	cmd.Dir = ProjectRoot(ticketsDir)
+	cmd.Stdout = os.Stderr // start message goes to stderr
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "ko: auto-agent failed: %v\n", err)
+	}
+}

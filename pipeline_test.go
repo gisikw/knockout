@@ -1078,3 +1078,45 @@ workflows:
 		}
 	})
 }
+
+func TestParsePipelineAutoAgent(t *testing.T) {
+	minimalWorkflow := `
+workflows:
+  main:
+    - name: implement
+      type: action
+      run: echo done
+`
+	t.Run("auto_agent true", func(t *testing.T) {
+		config := "command: fake-llm\nauto_agent: true\n" + minimalWorkflow
+		p, err := ParsePipeline(config)
+		if err != nil {
+			t.Fatalf("ParsePipeline failed: %v", err)
+		}
+		if !p.AutoAgent {
+			t.Errorf("AutoAgent = false, want true")
+		}
+	})
+
+	t.Run("auto_agent false", func(t *testing.T) {
+		config := "command: fake-llm\nauto_agent: false\n" + minimalWorkflow
+		p, err := ParsePipeline(config)
+		if err != nil {
+			t.Fatalf("ParsePipeline failed: %v", err)
+		}
+		if p.AutoAgent {
+			t.Errorf("AutoAgent = true, want false")
+		}
+	})
+
+	t.Run("auto_agent absent defaults to false", func(t *testing.T) {
+		config := "command: fake-llm\n" + minimalWorkflow
+		p, err := ParsePipeline(config)
+		if err != nil {
+			t.Fatalf("ParsePipeline failed: %v", err)
+		}
+		if p.AutoAgent {
+			t.Errorf("AutoAgent = true, want false when not specified")
+		}
+	})
+}

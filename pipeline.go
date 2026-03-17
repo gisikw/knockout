@@ -35,6 +35,8 @@ type Pipeline struct {
 	RequireCleanTree bool
 	// AutoTriage automatically runs ko agent triage when a ticket is created or updated with a triage field set
 	AutoTriage bool
+	// AutoAgent automatically starts the agent loop when a ticket is created or becomes actionable
+	AutoAgent bool
 	Workflows        map[string]*Workflow  // named workflows; "main" is the entry point
 	OnSucceed      []string              // shell commands to run after all stages pass
 	OnFail         []string              // shell commands to run on build failure
@@ -225,6 +227,8 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				p.RequireCleanTree = val == "true"
 			case "auto_triage":
 				p.AutoTriage = val == "true"
+			case "auto_agent":
+				p.AutoAgent = val == "true"
 			case "allowed_tools":
 				// Handle inline list: allowed_tools: [a, b, c]
 				if strings.HasPrefix(val, "[") {
