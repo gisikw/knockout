@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
+	iofs "io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,11 +15,14 @@ import (
 	"time"
 )
 
+//go:embed web/index.html
+var webFS embed.FS
+
 func cmdServe(args []string) int {
 	// Parse flags
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	port := fs.String("port", "9876", "port to listen on")
+	port := fs.String("port", "19876", "port to listen on")
 
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -103,6 +108,10 @@ func cmdServe(args []string) int {
 		w.WriteHeader(http.StatusOK)
 		w.Write(output)
 	})
+
+	// Serve web UI
+	webContent, _ := iofs.Sub(webFS, "web")
+	mux.Handle("/", http.FileServer(http.FS(webContent)))
 
 	// Create server
 	addr := ":" + *port
