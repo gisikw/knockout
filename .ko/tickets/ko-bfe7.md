@@ -1,6 +1,6 @@
 ---
 id: ko-bfe7
-status: resolved
+status: closed
 deps: []
 created: 2026-03-01T06:17:26Z
 type: task
