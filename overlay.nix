@@ -18,10 +18,10 @@
   bins = [ "${storePath}/bin/ko" ];
 
   health = {
-    type = "http";
-    endpoint = "http://127.0.0.1:${port}/healthz";
-    interval = 5;
-    grace = 10;
-    stabilize = 30;
+    type = "tcp";
+    endpoint = "127.0.0.1:${port}";
+    interval = 2;
+    grace = 3;
+    stabilize = 10;
   };
 }
