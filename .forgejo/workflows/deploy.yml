@@ -30,11 +30,12 @@ jobs:
       - name: Push to Attic
         run: attic push fort ./result
 
-      - name: Register Package
+      - name: Register Overlay
         run: |
           STORE_PATH=$(readlink -f ./result)
-          fort drhorrible runtime-package-register "{\"repo\": \"infra/knockout\", \"storePath\": \"$STORE_PATH\", \"rev\": \"$GITHUB_SHA\"}"
+          curl -sf -X POST https://overlay-registry.gisi.network/infra/knockout \
+            -d "{\"storePath\":\"$STORE_PATH\"}"
 
       - name: Trigger Refresh
         run: |
-          fort drhorrible refresh '{"capability": "runtime-package"}'
+          fort ratched refresh '{"overlay": "knockout"}'

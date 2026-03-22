@@ -26,6 +26,7 @@
 
           postInstall = ''
             mv $out/bin/knockout $out/bin/ko
+            cp ${./overlay.nix} $out/overlay.nix
           '';
         };
 
