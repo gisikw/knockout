@@ -43,8 +43,11 @@ type Pipeline struct {
 	OnFail         []string              // shell commands to run on build failure
 	OnClose        []string              // shell commands to run after ticket is closed
 	OnLoopComplete []string              // shell commands to run after agent loop completes
+	// TemplatePromptDir is the prompts/ directory from a from: template, used as fallback for prompt resolution.
+	TemplatePromptDir string
 
 	agentExplicit bool              // true if agent: was explicitly set in config
+	setFields     map[string]bool   // tracks which fields were explicitly set in config (for merge)
 }
 
 // Adapter returns the AgentAdapter for this pipeline config.
@@ -135,15 +138,30 @@ func LoadPipeline(path string) (*Pipeline, error) {
 	return &config.Pipeline, nil
 }
 
-// ParsePipeline parses pipeline YAML content (v2 format).
+// ParsePipeline parses pipeline YAML content (v2 format) and validates workflows.
 // Uses the same minimal YAML approach as ticket parsing — no external deps.
 func ParsePipeline(content string) (*Pipeline, error) {
+	p, err := parsePipelineRaw(content)
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateWorkflows(p.Workflows); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// parsePipelineRaw parses pipeline YAML without validating workflows.
+// Used by ParsePipeline (which adds validation) and by the from: override path
+// (where workflows may be absent, inherited from the template).
+func parsePipelineRaw(content string) (*Pipeline, error) {
 	p := &Pipeline{
 		Agent:      "claude",
 		MaxRetries: 2,
 		MaxDepth:   2,
 		Discretion: "medium",
 		Workflows:  make(map[string]*Workflow),
+		setFields:  make(map[string]bool),
 	}
 
 	lines := strings.Split(content, "\n")
@@ -182,22 +200,27 @@ func ParsePipeline(content string) (*Pipeline, error) {
 
 			if trimmed == "workflows:" {
 				section = "workflows"
+				p.setFields["workflows"] = true
 				continue
 			}
 			if trimmed == "on_succeed:" {
 				section = "on_succeed"
+				p.setFields["on_succeed"] = true
 				continue
 			}
 			if trimmed == "on_fail:" {
 				section = "on_fail"
+				p.setFields["on_fail"] = true
 				continue
 			}
 			if trimmed == "on_close:" {
 				section = "on_close"
+				p.setFields["on_close"] = true
 				continue
 			}
 			if trimmed == "on_loop_complete:" {
 				section = "on_loop_complete"
+				p.setFields["on_loop_complete"] = true
 				continue
 			}
 
@@ -207,30 +230,44 @@ func ParsePipeline(content string) (*Pipeline, error) {
 				continue
 			}
 			switch key {
+			case "from":
+				return nil, fmt.Errorf("from: directive is only supported in unified config.yaml format (under pipeline: section)")
 			case "agent":
 				p.Agent = val
 				p.agentExplicit = true
+				p.setFields["agent"] = true
 			case "command":
 				p.Command = val
+				p.setFields["command"] = true
 			case "allow_all_tool_calls":
 				p.AllowAll = val == "true"
+				p.setFields["allow_all_tool_calls"] = true
 			case "model":
 				p.Model = val
+				p.setFields["model"] = true
 			case "max_retries":
 				fmt.Sscanf(val, "%d", &p.MaxRetries)
+				p.setFields["max_retries"] = true
 			case "max_depth":
 				fmt.Sscanf(val, "%d", &p.MaxDepth)
+				p.setFields["max_depth"] = true
 			case "discretion":
 				p.Discretion = val
+				p.setFields["discretion"] = true
 			case "step_timeout":
 				p.StepTimeout = val
+				p.setFields["step_timeout"] = true
 			case "require_clean_tree":
 				p.RequireCleanTree = val == "true"
+				p.setFields["require_clean_tree"] = true
 			case "auto_triage":
 				p.AutoTriage = val == "true"
+				p.setFields["auto_triage"] = true
 			case "auto_agent":
 				p.AutoAgent = val == "true"
+				p.setFields["auto_agent"] = true
 			case "allowed_tools":
+				p.setFields["allowed_tools"] = true
 				// Handle inline list: allowed_tools: [a, b, c]
 				if strings.HasPrefix(val, "[") {
 					p.AllowedTools = parseYAMLList(val)
@@ -407,9 +444,6 @@ func ParsePipeline(content string) (*Pipeline, error) {
 	if p.Agent != "" && p.Command != "" {
 		return nil, fmt.Errorf("pipeline config cannot set both 'agent' and 'command'")
 	}
-	if err := ValidateWorkflows(p.Workflows); err != nil {
-		return nil, err
-	}
 
 	return p, nil
 }
@@ -498,8 +532,50 @@ func ParseConfig(content string) (*Config, error) {
 		}
 	}
 
-	// Parse the accumulated pipeline content
-	if len(pipelineLines) > 0 {
+	// Check for from: directive in pipeline lines
+	var fromDir string
+	var overrideLines []string
+	for _, line := range pipelineLines {
+		trimmed := strings.TrimSpace(line)
+		if key, val, ok := parseYAMLLine(trimmed); ok && key == "from" {
+			// Strip inline comments
+			if idx := strings.Index(val, " #"); idx >= 0 {
+				val = strings.TrimSpace(val[:idx])
+			}
+			fromDir = val
+			continue
+		}
+		overrideLines = append(overrideLines, line)
+	}
+
+	if fromDir != "" {
+		expanded, err := expandTilde(fromDir)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline from: %v", err)
+		}
+		if !filepath.IsAbs(expanded) {
+			return nil, fmt.Errorf("pipeline from: path must be absolute or tilde-prefixed, got %q", fromDir)
+		}
+
+		base, err := LoadTemplatePipeline(expanded)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline from: %v", err)
+		}
+
+		if len(overrideLines) > 0 {
+			override, err := parsePipelineRaw(strings.Join(overrideLines, "\n"))
+			if err != nil {
+				return nil, fmt.Errorf("pipeline overrides: %v", err)
+			}
+			c.Pipeline = *MergePipeline(base, override)
+		} else {
+			c.Pipeline = *base
+		}
+		// Validate the merged result
+		if err := ValidateWorkflows(c.Pipeline.Workflows); err != nil {
+			return nil, err
+		}
+	} else if len(pipelineLines) > 0 {
 		p, err := ParsePipeline(strings.Join(pipelineLines, "\n"))
 		if err != nil {
 			return nil, err
@@ -592,15 +668,156 @@ func countIndent(line string) int {
 	return count
 }
 
-// LoadPromptFile reads a prompt file from .ko/prompts/<name>.
-func LoadPromptFile(ticketsDir, name string) (string, error) {
-	projectRoot := ProjectRoot(ticketsDir)
-	path := filepath.Join(projectRoot, ".ko", "prompts", name)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("prompt file '%s' not found", name)
+// expandTilde replaces a leading ~ with the user's home directory.
+// Returns the path unchanged if it doesn't start with ~.
+func expandTilde(path string) (string, error) {
+	if !strings.HasPrefix(path, "~") {
+		return path, nil
 	}
-	return string(data), nil
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot expand ~: %v", err)
+	}
+	if len(path) == 1 {
+		return home, nil
+	}
+	// Skip ~/
+	return filepath.Join(home, path[2:]), nil
+}
+
+// LoadTemplatePipeline reads and parses a template pipeline.yaml from a template
+// directory. Rejects templates that themselves contain a from: directive.
+func LoadTemplatePipeline(templateDir string) (*Pipeline, error) {
+	pipelinePath := filepath.Join(templateDir, "pipeline.yaml")
+	data, err := os.ReadFile(pipelinePath)
+	if err != nil {
+		return nil, fmt.Errorf("template pipeline not found: %v", err)
+	}
+
+	content := string(data)
+
+	// Guard against recursive from:
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if key, _, ok := parseYAMLLine(trimmed); ok && key == "from" {
+			return nil, fmt.Errorf("template %s cannot itself contain a from: directive", pipelinePath)
+		}
+	}
+
+	p, err := ParsePipeline(content)
+	if err != nil {
+		return nil, fmt.Errorf("parsing template pipeline %s: %v", pipelinePath, err)
+	}
+
+	p.TemplatePromptDir = filepath.Join(templateDir, "prompts")
+	return p, nil
+}
+
+// MergePipeline merges an override pipeline into a base pipeline.
+// Only fields explicitly set in the override (tracked via setFields) replace the base value.
+// TemplatePromptDir is always preserved from the base.
+func MergePipeline(base, override *Pipeline) *Pipeline {
+	result := *base
+	// Deep-copy maps and slices from base so we don't alias
+	result.Workflows = make(map[string]*Workflow, len(base.Workflows))
+	for k, v := range base.Workflows {
+		result.Workflows[k] = v
+	}
+	if base.OnSucceed != nil {
+		result.OnSucceed = append([]string(nil), base.OnSucceed...)
+	}
+	if base.OnFail != nil {
+		result.OnFail = append([]string(nil), base.OnFail...)
+	}
+	if base.OnClose != nil {
+		result.OnClose = append([]string(nil), base.OnClose...)
+	}
+	if base.OnLoopComplete != nil {
+		result.OnLoopComplete = append([]string(nil), base.OnLoopComplete...)
+	}
+	if base.AllowedTools != nil {
+		result.AllowedTools = append([]string(nil), base.AllowedTools...)
+	}
+
+	s := override.setFields
+	if s["agent"] {
+		result.Agent = override.Agent
+		result.agentExplicit = override.agentExplicit
+	}
+	if s["command"] {
+		result.Command = override.Command
+	}
+	if s["allow_all_tool_calls"] {
+		result.AllowAll = override.AllowAll
+	}
+	if s["allowed_tools"] {
+		result.AllowedTools = override.AllowedTools
+	}
+	if s["model"] {
+		result.Model = override.Model
+	}
+	if s["max_retries"] {
+		result.MaxRetries = override.MaxRetries
+	}
+	if s["max_depth"] {
+		result.MaxDepth = override.MaxDepth
+	}
+	if s["discretion"] {
+		result.Discretion = override.Discretion
+	}
+	if s["step_timeout"] {
+		result.StepTimeout = override.StepTimeout
+	}
+	if s["require_clean_tree"] {
+		result.RequireCleanTree = override.RequireCleanTree
+	}
+	if s["auto_triage"] {
+		result.AutoTriage = override.AutoTriage
+	}
+	if s["auto_agent"] {
+		result.AutoAgent = override.AutoAgent
+	}
+	if s["workflows"] {
+		result.Workflows = override.Workflows
+	}
+	if s["on_succeed"] {
+		result.OnSucceed = override.OnSucceed
+	}
+	if s["on_fail"] {
+		result.OnFail = override.OnFail
+	}
+	if s["on_close"] {
+		result.OnClose = override.OnClose
+	}
+	if s["on_loop_complete"] {
+		result.OnLoopComplete = override.OnLoopComplete
+	}
+
+	// Always preserve template prompt dir from base
+	result.TemplatePromptDir = base.TemplatePromptDir
+	return &result
+}
+
+// LoadPromptFile reads a prompt file, searching local .ko/prompts/<name> first,
+// then falling back to templatePromptDir/<name> if provided.
+func LoadPromptFile(ticketsDir, name, templatePromptDir string) (string, error) {
+	projectRoot := ProjectRoot(ticketsDir)
+	localPath := filepath.Join(projectRoot, ".ko", "prompts", name)
+	data, err := os.ReadFile(localPath)
+	if err == nil {
+		return string(data), nil
+	}
+
+	if templatePromptDir != "" {
+		templatePath := filepath.Join(templatePromptDir, name)
+		data, err = os.ReadFile(templatePath)
+		if err == nil {
+			return string(data), nil
+		}
+		return "", fmt.Errorf("prompt file '%s' not found in .ko/prompts/ or template %s", name, templatePromptDir)
+	}
+
+	return "", fmt.Errorf("prompt file '%s' not found", name)
 }
 
 // DiscretionGuidance returns instructional text for a discretion level.

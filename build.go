@@ -454,7 +454,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 		promptContent = node.Prompt
 	} else {
 		// File-based prompt
-		promptContent, err = LoadPromptFile(ticketsDir, node.Prompt)
+		promptContent, err = LoadPromptFile(ticketsDir, node.Prompt, p.TemplatePromptDir)
 		if err != nil {
 			return "", err
 		}

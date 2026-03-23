@@ -1120,3 +1120,419 @@ workflows:
 		}
 	})
 }
+
+// --- from: directive tests ---
+
+func TestExpandTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"tilde only", "~", home},
+		{"tilde slash path", "~/foo/bar", filepath.Join(home, "foo/bar")},
+		{"absolute unchanged", "/abs/path", "/abs/path"},
+		{"relative unchanged", "rel/path", "rel/path"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := expandTilde(tt.in)
+			if err != nil {
+				t.Fatalf("expandTilde(%q) error: %v", tt.in, err)
+			}
+			if got != tt.want {
+				t.Errorf("expandTilde(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParsePipelineFromRejected(t *testing.T) {
+	config := `
+from: /some/path
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	_, err := ParsePipeline(config)
+	if err == nil {
+		t.Fatal("expected error for from: in legacy format")
+	}
+	if !containsStr(err.Error(), "only supported in unified config.yaml") {
+		t.Errorf("error = %q, want mention of unified format", err.Error())
+	}
+}
+
+// setupTemplateDir creates a template directory with pipeline.yaml and optional prompt files.
+func setupTemplateDir(t *testing.T, pipelineYAML string, prompts map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "pipeline.yaml"), []byte(pipelineYAML), 0644); err != nil {
+		t.Fatalf("write pipeline.yaml: %v", err)
+	}
+	if len(prompts) > 0 {
+		promptDir := filepath.Join(dir, "prompts")
+		if err := os.MkdirAll(promptDir, 0755); err != nil {
+			t.Fatalf("mkdir prompts: %v", err)
+		}
+		for name, content := range prompts {
+			if err := os.WriteFile(filepath.Join(promptDir, name), []byte(content), 0644); err != nil {
+				t.Fatalf("write prompt %s: %v", name, err)
+			}
+		}
+	}
+	return dir
+}
+
+func TestParseConfigWithFrom(t *testing.T) {
+	templatePipeline := `
+model: opus
+max_retries: 5
+discretion: high
+workflows:
+  main:
+    - name: classify
+      type: decision
+      prompt: classify.md
+      routes: [task]
+  task:
+    - name: implement
+      type: action
+      prompt: implement.md
+`
+	templateDir := setupTemplateDir(t, templatePipeline, nil)
+
+	configYAML := "project:\n  prefix: myproj\n\npipeline:\n  from: " + templateDir + "\n  model: sonnet\n  on_succeed:\n    - git commit\n"
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	if c.Project.Prefix != "myproj" {
+		t.Errorf("Project.Prefix = %q, want %q", c.Project.Prefix, "myproj")
+	}
+
+	// model should be overridden
+	if c.Pipeline.Model != "sonnet" {
+		t.Errorf("Pipeline.Model = %q, want %q (override)", c.Pipeline.Model, "sonnet")
+	}
+
+	// max_retries should be preserved from template (not clobbered by default 2)
+	if c.Pipeline.MaxRetries != 5 {
+		t.Errorf("Pipeline.MaxRetries = %d, want 5 (from template)", c.Pipeline.MaxRetries)
+	}
+
+	// discretion should be preserved from template
+	if c.Pipeline.Discretion != "high" {
+		t.Errorf("Pipeline.Discretion = %q, want %q (from template)", c.Pipeline.Discretion, "high")
+	}
+
+	// workflows should come from template
+	if len(c.Pipeline.Workflows) != 2 {
+		t.Fatalf("len(Workflows) = %d, want 2", len(c.Pipeline.Workflows))
+	}
+	if _, ok := c.Pipeline.Workflows["main"]; !ok {
+		t.Error("main workflow missing")
+	}
+	if _, ok := c.Pipeline.Workflows["task"]; !ok {
+		t.Error("task workflow missing")
+	}
+
+	// on_succeed should be from override
+	if len(c.Pipeline.OnSucceed) != 1 || c.Pipeline.OnSucceed[0] != "git commit" {
+		t.Errorf("OnSucceed = %v, want [git commit]", c.Pipeline.OnSucceed)
+	}
+
+	// TemplatePromptDir should be set
+	want := filepath.Join(templateDir, "prompts")
+	if c.Pipeline.TemplatePromptDir != want {
+		t.Errorf("TemplatePromptDir = %q, want %q", c.Pipeline.TemplatePromptDir, want)
+	}
+}
+
+func TestParseConfigFromNoOverrides(t *testing.T) {
+	templatePipeline := `
+model: opus
+max_retries: 3
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+on_succeed:
+  - echo done
+`
+	templateDir := setupTemplateDir(t, templatePipeline, nil)
+
+	configYAML := "project:\n  prefix: bare\n\npipeline:\n  from: " + templateDir + "\n"
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	if c.Pipeline.Model != "opus" {
+		t.Errorf("Pipeline.Model = %q, want %q", c.Pipeline.Model, "opus")
+	}
+	if c.Pipeline.MaxRetries != 3 {
+		t.Errorf("Pipeline.MaxRetries = %d, want 3", c.Pipeline.MaxRetries)
+	}
+	if len(c.Pipeline.OnSucceed) != 1 || c.Pipeline.OnSucceed[0] != "echo done" {
+		t.Errorf("OnSucceed = %v, want [echo done]", c.Pipeline.OnSucceed)
+	}
+}
+
+func TestParseConfigFromListOverride(t *testing.T) {
+	templatePipeline := `
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+on_succeed:
+  - git add .
+  - git commit
+`
+	templateDir := setupTemplateDir(t, templatePipeline, nil)
+
+	configYAML := "pipeline:\n  from: " + templateDir + "\n  on_succeed:\n    - custom commit\n"
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	// Override replaces, not appends
+	if len(c.Pipeline.OnSucceed) != 1 || c.Pipeline.OnSucceed[0] != "custom commit" {
+		t.Errorf("OnSucceed = %v, want [custom commit] (replace not append)", c.Pipeline.OnSucceed)
+	}
+}
+
+func TestParseConfigFromWorkflowOverride(t *testing.T) {
+	templatePipeline := `
+workflows:
+  main:
+    - name: classify
+      type: decision
+      prompt: classify.md
+      routes: [task, research]
+  task:
+    - name: implement
+      type: action
+      prompt: implement.md
+  research:
+    - name: investigate
+      type: action
+      prompt: investigate.md
+`
+	templateDir := setupTemplateDir(t, templatePipeline, nil)
+
+	// Override with completely different workflows
+	configYAML := "pipeline:\n  from: " + templateDir + "\n  workflows:\n    main:\n      - name: do_it\n        type: action\n        prompt: do_it.md\n"
+
+	c, err := ParseConfig(configYAML)
+	if err != nil {
+		t.Fatalf("ParseConfig failed: %v", err)
+	}
+
+	// Should have only the override's workflows, not template's
+	if len(c.Pipeline.Workflows) != 1 {
+		t.Fatalf("len(Workflows) = %d, want 1 (override replaces entirely)", len(c.Pipeline.Workflows))
+	}
+	if _, ok := c.Pipeline.Workflows["main"]; !ok {
+		t.Error("main workflow missing")
+	}
+	if c.Pipeline.Workflows["main"].Nodes[0].Name != "do_it" {
+		t.Errorf("main node name = %q, want %q", c.Pipeline.Workflows["main"].Nodes[0].Name, "do_it")
+	}
+}
+
+func TestParseConfigFromRecursiveError(t *testing.T) {
+	templatePipeline := `
+from: /some/other/path
+workflows:
+  main:
+    - name: impl
+      type: action
+      prompt: impl.md
+`
+	templateDir := setupTemplateDir(t, templatePipeline, nil)
+
+	configYAML := "pipeline:\n  from: " + templateDir + "\n"
+
+	_, err := ParseConfig(configYAML)
+	if err == nil {
+		t.Fatal("expected error for recursive from:")
+	}
+	if !containsStr(err.Error(), "cannot itself contain a from:") {
+		t.Errorf("error = %q, want mention of recursive from:", err.Error())
+	}
+}
+
+func TestParseConfigFromRelativePathError(t *testing.T) {
+	configYAML := `
+pipeline:
+  from: ./relative/path
+  workflows:
+    main:
+      - name: impl
+        type: action
+        prompt: impl.md
+`
+	_, err := ParseConfig(configYAML)
+	if err == nil {
+		t.Fatal("expected error for relative from: path")
+	}
+	if !containsStr(err.Error(), "must be absolute or tilde-prefixed") {
+		t.Errorf("error = %q, want mention of absolute path", err.Error())
+	}
+}
+
+func TestParseConfigFromMissingError(t *testing.T) {
+	configYAML := `
+pipeline:
+  from: /nonexistent/path/to/template
+`
+	_, err := ParseConfig(configYAML)
+	if err == nil {
+		t.Fatal("expected error for missing template dir")
+	}
+	if !containsStr(err.Error(), "template pipeline not found") {
+		t.Errorf("error = %q, want mention of template not found", err.Error())
+	}
+}
+
+func TestMergePipeline(t *testing.T) {
+	base := &Pipeline{
+		Agent:      "claude",
+		Model:      "opus",
+		MaxRetries: 5,
+		MaxDepth:   3,
+		Discretion: "high",
+		Workflows: map[string]*Workflow{
+			"main": {Name: "main", Nodes: []Node{{Name: "impl", Type: NodeAction}}},
+		},
+		OnSucceed:         []string{"git add ."},
+		OnFail:            []string{"echo fail"},
+		TemplatePromptDir: "/template/prompts",
+	}
+
+	override := &Pipeline{
+		Agent:      "claude", // default — should NOT override since setFields won't include it
+		Model:      "sonnet",
+		MaxRetries: 2, // default — should NOT override
+		setFields:  map[string]bool{"model": true, "on_succeed": true},
+		OnSucceed:  []string{"git commit -m 'done'"},
+	}
+
+	result := MergePipeline(base, override)
+
+	if result.Model != "sonnet" {
+		t.Errorf("Model = %q, want %q (overridden)", result.Model, "sonnet")
+	}
+	if result.MaxRetries != 5 {
+		t.Errorf("MaxRetries = %d, want 5 (base preserved, override was default)", result.MaxRetries)
+	}
+	if result.MaxDepth != 3 {
+		t.Errorf("MaxDepth = %d, want 3 (base preserved)", result.MaxDepth)
+	}
+	if result.Discretion != "high" {
+		t.Errorf("Discretion = %q, want %q (base preserved)", result.Discretion, "high")
+	}
+	if len(result.OnSucceed) != 1 || result.OnSucceed[0] != "git commit -m 'done'" {
+		t.Errorf("OnSucceed = %v, want [git commit -m 'done'] (overridden)", result.OnSucceed)
+	}
+	if len(result.OnFail) != 1 || result.OnFail[0] != "echo fail" {
+		t.Errorf("OnFail = %v, want [echo fail] (base preserved)", result.OnFail)
+	}
+	if result.TemplatePromptDir != "/template/prompts" {
+		t.Errorf("TemplatePromptDir = %q, want %q (always from base)", result.TemplatePromptDir, "/template/prompts")
+	}
+
+	// Workflows should be from base (not overridden)
+	if len(result.Workflows) != 1 {
+		t.Fatalf("len(Workflows) = %d, want 1", len(result.Workflows))
+	}
+	if result.Workflows["main"].Nodes[0].Name != "impl" {
+		t.Errorf("main node = %q, want %q", result.Workflows["main"].Nodes[0].Name, "impl")
+	}
+
+	// Mutating result's base-sourced slices shouldn't affect original
+	result.OnFail[0] = "modified"
+	if base.OnFail[0] != "echo fail" {
+		t.Error("MergePipeline aliased base slices — mutation leaked")
+	}
+}
+
+func TestLoadPromptFileFallback(t *testing.T) {
+	// Set up project dir with .ko/prompts/ and a template prompts dir
+	projectDir := t.TempDir()
+	ticketsDir := filepath.Join(projectDir, ".ko", "tickets")
+	localPrompts := filepath.Join(projectDir, ".ko", "prompts")
+	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(localPrompts, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	templatePrompts := filepath.Join(t.TempDir(), "prompts")
+	if err := os.MkdirAll(templatePrompts, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write plan.md only in template
+	if err := os.WriteFile(filepath.Join(templatePrompts, "plan.md"), []byte("template plan"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should find template version
+	content, err := LoadPromptFile(ticketsDir, "plan.md", templatePrompts)
+	if err != nil {
+		t.Fatalf("LoadPromptFile fallback failed: %v", err)
+	}
+	if content != "template plan" {
+		t.Errorf("content = %q, want %q", content, "template plan")
+	}
+
+	// Write local override
+	if err := os.WriteFile(filepath.Join(localPrompts, "plan.md"), []byte("local plan"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should prefer local version
+	content, err = LoadPromptFile(ticketsDir, "plan.md", templatePrompts)
+	if err != nil {
+		t.Fatalf("LoadPromptFile local override failed: %v", err)
+	}
+	if content != "local plan" {
+		t.Errorf("content = %q, want %q (local should override template)", content, "local plan")
+	}
+
+	// Missing in both should error with both paths mentioned
+	_, err = LoadPromptFile(ticketsDir, "missing.md", templatePrompts)
+	if err == nil {
+		t.Fatal("expected error for missing prompt")
+	}
+	if !containsStr(err.Error(), "template") {
+		t.Errorf("error = %q, want mention of template path", err.Error())
+	}
+
+	// No template dir — should error with simple message
+	_, err = LoadPromptFile(ticketsDir, "missing.md", "")
+	if err == nil {
+		t.Fatal("expected error for missing prompt without template")
+	}
+	if containsStr(err.Error(), "template") {
+		t.Errorf("error = %q, should not mention template when no template dir", err.Error())
+	}
+}
