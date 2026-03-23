@@ -1,0 +1,5 @@
+project:
+  prefix: ko
+
+pipeline:
+  from: ~/Projects/hoard/pipelines/coding
