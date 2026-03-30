@@ -356,6 +356,17 @@ func createWorktree(mainTicketsDir, ticketID string) (string, string, error) {
 	}
 
 	wtTicketsDir := filepath.Join(worktreeRoot, relTicketsDir)
+
+	// Copy the ticket file into the worktree if it's uncommitted (untracked
+	// or modified in the working tree). The worktree is created from HEAD,
+	// so any ticket created since the last commit won't exist there.
+	srcTicket := filepath.Join(absTicketsDir, ticketID+".md")
+	dstTicket := filepath.Join(wtTicketsDir, ticketID+".md")
+	if data, err := os.ReadFile(srcTicket); err == nil {
+		os.MkdirAll(wtTicketsDir, 0755) // ensure dir exists
+		os.WriteFile(dstTicket, data, 0644)
+	}
+
 	return wtTicketsDir, branchName, nil
 }
 
