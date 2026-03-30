@@ -67,14 +67,23 @@ func ParseGlobalConfig(content string) (*GlobalConfig, error) {
 	return g, nil
 }
 
+// isSummarizerDisabled returns true if the value explicitly opts out of summarization.
+func isSummarizerDisabled(val string) bool {
+	return val == "false" || val == "none"
+}
+
 // ResolveSummarizer returns the summarizer command to use for a given project.
 // Project-level config overrides global. Returns "" if none configured.
+// A project can explicitly disable summarization by setting summarizer: false.
 func ResolveSummarizer(ticketsDir string) string {
 	// Check project-level config first
 	configPath, err := FindConfig(ticketsDir)
 	if err == nil {
 		config, err := LoadConfig(configPath)
 		if err == nil && config.Summarizer != "" {
+			if isSummarizerDisabled(config.Summarizer) {
+				return ""
+			}
 			return config.Summarizer
 		}
 	}
@@ -82,6 +91,9 @@ func ResolveSummarizer(ticketsDir string) string {
 	// Fall back to global config
 	global, err := LoadGlobalConfig()
 	if err != nil || global.Summarizer == "" {
+		return ""
+	}
+	if isSummarizerDisabled(global.Summarizer) {
 		return ""
 	}
 	return global.Summarizer
