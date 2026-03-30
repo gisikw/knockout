@@ -82,7 +82,7 @@ func writeAgentLogSummary(ticketsDir string, result LoopResult, elapsed time.Dur
 
 func cmdAgentLoop(args []string) int {
 	args = reorderArgs(args, map[string]bool{
-		"project": true, "max-tickets": true, "max-duration": true,
+		"project": true, "max-tickets": true, "max-duration": true, "workers": true,
 	})
 
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
@@ -106,6 +106,7 @@ func cmdAgentLoop(args []string) int {
 	fs := flag.NewFlagSet("agent loop", flag.ContinueOnError)
 	maxTickets := fs.Int("max-tickets", 0, "max tickets to process (0 = unlimited)")
 	maxDuration := fs.String("max-duration", "", "max wall-clock duration (e.g. 30m, 2h)")
+	workers := fs.Int("workers", 0, "parallel workers (0 = use pipeline config, default 1)")
 	quiet := fs.Bool("quiet", false, "suppress stdout; emit summary on exit")
 	verbose := fs.Bool("verbose", false, "stream full agent output to stdout")
 	fs.BoolVar(verbose, "v", false, "stream full agent output to stdout")
@@ -125,6 +126,10 @@ func cmdAgentLoop(args []string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko agent loop: %v\n", err)
 		return 1
+	}
+
+	if *workers > 0 {
+		p.Workers = *workers
 	}
 
 	config := LoopConfig{MaxTickets: *maxTickets, Quiet: *quiet, Verbose: *verbose}

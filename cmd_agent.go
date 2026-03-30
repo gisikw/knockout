@@ -346,6 +346,13 @@ func cmdAgentStop(args []string) int {
 // Pipeline may be nil if config couldn't be loaded — hooks are skipped but
 // ticket reset still happens.
 func cleanupAfterStop(ticketsDir string, p *Pipeline) {
+	// Prune any stale worktrees from this or prior runs
+	if p != nil && p.Workers > 1 {
+		pruneWorktrees(ticketsDir)
+		worktreeBase := filepath.Join(os.TempDir(), fmt.Sprintf("ko-workers-%d", os.Getpid()))
+		os.RemoveAll(worktreeBase) // best-effort
+	}
+
 	tickets, err := ListTickets(ticketsDir)
 	if err != nil {
 		return

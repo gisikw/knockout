@@ -38,6 +38,9 @@ type Pipeline struct {
 	AutoTriage bool
 	// AutoAgent automatically starts the agent loop when a ticket is created or becomes actionable
 	AutoAgent bool
+	// Workers is the number of parallel ticket builds (default: 1 = sequential).
+	// When > 1, each ticket runs in its own git worktree for filesystem isolation.
+	Workers int
 	Workflows        map[string]*Workflow  // named workflows; "main" is the entry point
 	OnSucceed      []string              // shell commands to run after all stages pass
 	OnFail         []string              // shell commands to run on build failure
@@ -160,6 +163,7 @@ func parsePipelineRaw(content string) (*Pipeline, error) {
 		MaxRetries: 2,
 		MaxDepth:   2,
 		Discretion: "medium",
+		Workers:    1,
 		Workflows:  make(map[string]*Workflow),
 		setFields:  make(map[string]bool),
 	}
@@ -266,6 +270,12 @@ func parsePipelineRaw(content string) (*Pipeline, error) {
 			case "auto_agent":
 				p.AutoAgent = val == "true"
 				p.setFields["auto_agent"] = true
+			case "workers":
+				fmt.Sscanf(val, "%d", &p.Workers)
+				if p.Workers < 1 {
+					p.Workers = 1
+				}
+				p.setFields["workers"] = true
 			case "allowed_tools":
 				p.setFields["allowed_tools"] = true
 				// Handle inline list: allowed_tools: [a, b, c]
@@ -776,6 +786,9 @@ func MergePipeline(base, override *Pipeline) *Pipeline {
 	}
 	if s["auto_agent"] {
 		result.AutoAgent = override.AutoAgent
+	}
+	if s["workers"] {
+		result.Workers = override.Workers
 	}
 	if s["workflows"] {
 		result.Workflows = override.Workflows

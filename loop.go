@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -112,7 +114,8 @@ func ReadyQueue(ticketsDir string) ([]string, error) {
 	return ids, nil
 }
 
-// RunLoop burns down the ready queue, building one ticket at a time.
+// RunLoop burns down the ready queue, building one ticket at a time (or
+// multiple in parallel when Pipeline.Workers > 1).
 // Sets KO_NO_CREATE to prevent spawned agents from creating tickets.
 // If stop is non-nil, the loop checks it between builds and exits with
 // "signal" when closed.
@@ -122,6 +125,10 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 
 	start := time.Now()
 	result := LoopResult{}
+
+	if p.Workers > 1 {
+		pruneWorktrees(ticketsDir)
+	}
 
 	for {
 		// Check limits
@@ -154,44 +161,211 @@ func RunLoop(ticketsDir string, p *Pipeline, config LoopConfig, log *EventLogger
 			}
 		}
 
-		id := queue[0]
-		t, err := LoadTicket(ticketsDir, id)
-		if err != nil {
-			result.Stopped = "build_error"
-			return result
-		}
+		if p.Workers <= 1 {
+			// === Sequential path (original behavior) ===
+			id := queue[0]
+			t, err := LoadTicket(ticketsDir, id)
+			if err != nil {
+				result.Stopped = "build_error"
+				return result
+			}
 
-		if !config.Quiet {
-			fmt.Printf("loop: building %s — %s\n", id, t.Title)
-		}
-		log.LoopTicketStart(id, t.Title)
+			if !config.Quiet {
+				fmt.Printf("loop: building %s — %s\n", id, t.Title)
+			}
+			log.LoopTicketStart(id, t.Title)
 
-		outcome, err := RunBuild(ticketsDir, t, p, log, config.Verbose)
-		result.Processed++
+			outcome, err := RunBuild(ticketsDir, t, p, log, config.Verbose)
+			result.Processed++
 
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "loop: build error for %s: %v\n", id, err)
-			result.Stopped = "build_error"
-			return result
-		}
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "loop: build error for %s: %v\n", id, err)
+				result.Stopped = "build_error"
+				return result
+			}
 
-		switch outcome {
-		case OutcomeSucceed:
-			result.Succeeded++
-		case OutcomeFail:
-			result.Failed++
-		case OutcomeBlocked:
-			result.Blocked++
-		case OutcomeDecompose:
-			result.Decomposed++
-		}
+			switch outcome {
+			case OutcomeSucceed:
+				result.Succeeded++
+			case OutcomeFail:
+				result.Failed++
+			case OutcomeBlocked:
+				result.Blocked++
+			case OutcomeDecompose:
+				result.Decomposed++
+			}
 
-		outcomeStr := outcomeString(outcome)
-		if !config.Quiet {
-			fmt.Printf("loop: %s %s\n", id, strings.ToUpper(outcomeStr))
+			outcomeStr := outcomeString(outcome)
+			if !config.Quiet {
+				fmt.Printf("loop: %s %s\n", id, strings.ToUpper(outcomeStr))
+			}
+			log.LoopTicketComplete(id, outcomeStr)
+		} else {
+			// === Parallel path (worktree-isolated) ===
+			batchSize := p.Workers
+			if len(queue) < batchSize {
+				batchSize = len(queue)
+			}
+			if config.MaxTickets > 0 {
+				remaining := config.MaxTickets - result.Processed
+				if remaining <= 0 {
+					result.Stopped = "max_tickets"
+					return result
+				}
+				if batchSize > remaining {
+					batchSize = remaining
+				}
+			}
+
+			batch := queue[:batchSize]
+
+			type buildResult struct {
+				id         string
+				title      string
+				outcome    Outcome
+				err        error
+				branchName string
+			}
+			results := make([]buildResult, batchSize)
+
+			var wg sync.WaitGroup
+			for i, id := range batch {
+				t, err := LoadTicket(ticketsDir, id)
+				if err != nil {
+					result.Stopped = "build_error"
+					return result
+				}
+
+				if !config.Quiet {
+					fmt.Printf("loop: building %s — %s (worker %d/%d)\n", id, t.Title, i+1, batchSize)
+				}
+				log.LoopTicketStart(id, t.Title)
+
+				wg.Add(1)
+				go func(idx int, ticketID string) {
+					defer wg.Done()
+
+					wtTicketsDir, branchName, err := createWorktree(ticketsDir, ticketID)
+					if err != nil {
+						results[idx] = buildResult{id: ticketID, err: fmt.Errorf("worktree: %w", err)}
+						return
+					}
+
+					wtTicket, err := LoadTicket(wtTicketsDir, ticketID)
+					if err != nil {
+						results[idx] = buildResult{id: ticketID, err: err, branchName: branchName}
+						return
+					}
+
+					outcome, buildErr := RunBuild(wtTicketsDir, wtTicket, p, log, config.Verbose)
+					results[idx] = buildResult{
+						id:         ticketID,
+						outcome:    outcome,
+						err:        buildErr,
+						branchName: branchName,
+					}
+				}(i, id)
+			}
+			wg.Wait()
+
+			// Sequential merge phase
+			for _, br := range results {
+				result.Processed++
+
+				if br.err != nil {
+					fmt.Fprintf(os.Stderr, "loop: build error for %s: %v\n", br.id, br.err)
+					result.Failed++
+					if br.branchName != "" {
+						removeWorktree(ticketsDir, br.id, br.branchName)
+					}
+					log.LoopTicketComplete(br.id, "fail")
+					continue
+				}
+
+				// Merge worktree branch back into main
+				if br.branchName != "" {
+					if err := mergeWorktree(ticketsDir, br.branchName); err != nil {
+						fmt.Fprintf(os.Stderr, "loop: merge failed for %s: %v\n", br.id, err)
+						removeWorktree(ticketsDir, br.id, br.branchName)
+						result.Failed++
+						log.LoopTicketComplete(br.id, "fail")
+						continue
+					}
+					removeWorktree(ticketsDir, br.id, br.branchName)
+				}
+
+				switch br.outcome {
+				case OutcomeSucceed:
+					result.Succeeded++
+				case OutcomeFail:
+					result.Failed++
+				case OutcomeBlocked:
+					result.Blocked++
+				case OutcomeDecompose:
+					result.Decomposed++
+				}
+
+				outcomeStr := outcomeString(br.outcome)
+				if !config.Quiet {
+					fmt.Printf("loop: %s %s\n", br.id, strings.ToUpper(outcomeStr))
+				}
+				log.LoopTicketComplete(br.id, outcomeStr)
+			}
 		}
-		log.LoopTicketComplete(id, outcomeStr)
 	}
+}
+
+// createWorktree creates a git worktree for a parallel ticket build.
+// Returns the worktree's ticketsDir and branch name.
+func createWorktree(mainTicketsDir, ticketID string) (string, string, error) {
+	projectRoot := ProjectRoot(mainTicketsDir)
+	branchName := "ko-worker-" + ticketID
+
+	worktreeBase := filepath.Join(os.TempDir(), fmt.Sprintf("ko-workers-%d", os.Getpid()))
+	worktreeRoot := filepath.Join(worktreeBase, ticketID)
+
+	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreeRoot, "HEAD")
+	cmd.Dir = projectRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", "", fmt.Errorf("git worktree add: %v\n%s", err, string(out))
+	}
+
+	wtTicketsDir := filepath.Join(worktreeRoot, ".ko", "tickets")
+	return wtTicketsDir, branchName, nil
+}
+
+// mergeWorktree merges a worktree branch back into the current branch.
+func mergeWorktree(mainTicketsDir, branchName string) error {
+	projectRoot := ProjectRoot(mainTicketsDir)
+	cmd := exec.Command("git", "merge", branchName, "--no-edit")
+	cmd.Dir = projectRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git merge %s: %v\n%s", branchName, err, string(out))
+	}
+	return nil
+}
+
+// removeWorktree removes a worktree and deletes its temp branch.
+func removeWorktree(mainTicketsDir, ticketID, branchName string) {
+	projectRoot := ProjectRoot(mainTicketsDir)
+	worktreeBase := filepath.Join(os.TempDir(), fmt.Sprintf("ko-workers-%d", os.Getpid()))
+	worktreeRoot := filepath.Join(worktreeBase, ticketID)
+
+	cmd := exec.Command("git", "worktree", "remove", "--force", worktreeRoot)
+	cmd.Dir = projectRoot
+	cmd.CombinedOutput() // best-effort
+
+	cmd = exec.Command("git", "branch", "-D", branchName)
+	cmd.Dir = projectRoot
+	cmd.CombinedOutput() // best-effort
+}
+
+// pruneWorktrees cleans up stale worktrees from prior crashes.
+func pruneWorktrees(mainTicketsDir string) {
+	projectRoot := ProjectRoot(mainTicketsDir)
+	cmd := exec.Command("git", "worktree", "prune")
+	cmd.Dir = projectRoot
+	cmd.CombinedOutput() // best-effort
 }
 
 // runLoopHooks executes a list of shell commands with loop summary env vars set.

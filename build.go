@@ -524,6 +524,7 @@ func runPromptNode(ticketsDir string, t *Ticket, p *Pipeline, node *Node, model 
 			"KO_BUILD_HISTORY="+histPath,
 		)
 	}
+	cmdCtx.Dir = ProjectRoot(ticketsDir)
 
 	if verbose {
 		return runCmdVerbose(cmdCtx, wfName, node.Name)
@@ -555,6 +556,7 @@ func runRunNode(node *Node, timeout time.Duration, wsDir, artifactDir, histPath,
 		cmd = exec.CommandContext(ctx, "sh", "-c", node.Run)
 	}
 
+	cmd.Dir = ProjectRoot(ticketsDir)
 	cmd.Env = append(os.Environ(),
 		"KO_TICKET_WORKSPACE="+wsDir,
 		"KO_ARTIFACT_DIR="+artifactDir,

@@ -120,3 +120,35 @@ Feature: Build Loop
     When I run "ko loop"
     Then the loop should log a triage failure for "ko-a001"
     And ticket "ko-b002" should still be processed and closed
+
+  # Parallel workers
+
+  Scenario: Loop processes tickets in parallel with workers
+    Given 3 tickets with status "open" and no dependencies
+    And a pipeline with workers: 2 where all stages succeed
+    When I run "ko loop"
+    Then all 3 tickets should be closed
+    And the output should contain "3 processed"
+    And the output should contain "stopped: empty"
+
+  Scenario: --workers flag overrides pipeline config
+    Given 2 tickets with status "open" and no dependencies
+    And a pipeline where all stages succeed
+    When I run "ko loop --workers 2"
+    Then all 2 tickets should be closed
+    And the output should contain "2 processed"
+
+  Scenario: Parallel builds merge their changes back to the main branch
+    Given 2 tickets with status "open" and no dependencies
+    And a pipeline with workers: 2 and on_succeed hook that creates a file per ticket
+    When I run "ko loop"
+    Then both per-ticket files should exist in the working tree
+    And both tickets should be closed
+
+  Scenario: Parallel build failure does not stop the loop
+    Given ticket "ko-a001" with status "open"
+    And ticket "ko-b002" with status "open"
+    And a pipeline with workers: 2 where ko-a001 fails and ko-b002 succeeds
+    When I run "ko loop"
+    Then ticket "ko-b002" should have status "closed"
+    And the output should contain "2 processed"
