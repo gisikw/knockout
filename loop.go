@@ -321,6 +321,26 @@ func createWorktree(mainTicketsDir, ticketID string) (string, string, error) {
 	projectRoot := ProjectRoot(mainTicketsDir)
 	branchName := "ko-worker-" + ticketID
 
+	// Find the git toplevel so we can compute the relative path from git root
+	// to the tickets dir. This handles projects in subdirectories (e.g. research/
+	// inside discovery-zone).
+	gitTop := exec.Command("git", "rev-parse", "--show-toplevel")
+	gitTop.Dir = projectRoot
+	topOut, err := gitTop.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("git rev-parse --show-toplevel: %v", err)
+	}
+	gitRoot := strings.TrimSpace(string(topOut))
+
+	absTicketsDir, err := filepath.Abs(mainTicketsDir)
+	if err != nil {
+		return "", "", err
+	}
+	relTicketsDir, err := filepath.Rel(gitRoot, absTicketsDir)
+	if err != nil {
+		return "", "", err
+	}
+
 	worktreeBase := filepath.Join(os.TempDir(), fmt.Sprintf("ko-workers-%d", os.Getpid()))
 	worktreeRoot := filepath.Join(worktreeBase, ticketID)
 
@@ -335,7 +355,7 @@ func createWorktree(mainTicketsDir, ticketID string) (string, string, error) {
 		return "", "", fmt.Errorf("git worktree add: %v\n%s", err, string(out))
 	}
 
-	wtTicketsDir := filepath.Join(worktreeRoot, ".ko", "tickets")
+	wtTicketsDir := filepath.Join(worktreeRoot, relTicketsDir)
 	return wtTicketsDir, branchName, nil
 }
 
