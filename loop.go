@@ -324,6 +324,11 @@ func createWorktree(mainTicketsDir, ticketID string) (string, string, error) {
 	worktreeBase := filepath.Join(os.TempDir(), fmt.Sprintf("ko-workers-%d", os.Getpid()))
 	worktreeRoot := filepath.Join(worktreeBase, ticketID)
 
+	// Clean up stale branch from a prior crash if it exists
+	delBranch := exec.Command("git", "branch", "-D", branchName)
+	delBranch.Dir = projectRoot
+	delBranch.CombinedOutput() // best-effort, ignore errors if branch doesn't exist
+
 	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreeRoot, "HEAD")
 	cmd.Dir = projectRoot
 	if out, err := cmd.CombinedOutput(); err != nil {
