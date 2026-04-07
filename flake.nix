@@ -17,7 +17,8 @@
           pname = "ko";
           inherit version;
           src = ./.;
-          vendorHash = null; # deps vendored or pure Go
+          vendorHash = null; # deps vendored
+          CGO_ENABLED = "1";
           ldflags = [ "-X" "main.version=${version}" ];
 
           # Tests run via `just test` in CI; testscript needs
