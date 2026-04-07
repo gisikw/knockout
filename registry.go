@@ -157,12 +157,16 @@ func FormatRegistry(r *Registry) string {
 	return b.String()
 }
 
-// SaveRegistry writes the registry to disk, creating directories as needed.
+// SaveRegistry writes the registry to disk, then shadow-writes to SQLite.
 func SaveRegistry(path string, r *Registry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(FormatRegistry(r)), 0644)
+	if err := os.WriteFile(path, []byte(FormatRegistry(r)), 0644); err != nil {
+		return err
+	}
+	shadowWriteRegistry(r)
+	return nil
 }
 
 // sortStrings sorts a string slice in place.

@@ -424,9 +424,13 @@ func LoadTicket(ticketsDir, id string) (*Ticket, error) {
 	return t, nil
 }
 
-// SaveTicket writes a ticket to disk.
+// SaveTicket writes a ticket to disk, then shadow-writes to SQLite.
 func SaveTicket(ticketsDir string, t *Ticket) error {
-	return os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644)
+	if err := os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644); err != nil {
+		return err
+	}
+	shadowWriteTicket(t, ticketsDir)
+	return nil
 }
 
 // ListTickets reads all tickets from the tickets directory.

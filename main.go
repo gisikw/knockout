@@ -59,6 +59,8 @@ func run(args []string) int {
 		return cmdAgent(rest)
 	case "project":
 		return cmdProject(rest)
+	case "import":
+		return cmdImport(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":

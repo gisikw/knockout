@@ -17,9 +17,11 @@ func BuildHistoryPath(ticketsDir, id string) string {
 // build history file. Unlike EventLogger (which is per-build and truncated),
 // this is append-only and persists across builds and ticket close.
 type BuildHistoryLogger struct {
-	mu   sync.Mutex
-	file *os.File
-	path string
+	mu         sync.Mutex
+	file       *os.File
+	path       string
+	ticketID   string // user-visible ticket ID for shadow writes
+	ticketsDir string // tickets directory for shadow writes
 }
 
 // OpenBuildHistory opens (or creates) the build history file for a ticket.
@@ -30,7 +32,7 @@ func OpenBuildHistory(ticketsDir, id string) (*BuildHistoryLogger, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &BuildHistoryLogger{file: f, path: path}, nil
+	return &BuildHistoryLogger{file: f, path: path, ticketID: id, ticketsDir: ticketsDir}, nil
 }
 
 // Path returns the file path of the build history.
@@ -49,7 +51,8 @@ func (h *BuildHistoryLogger) emit(fields map[string]interface{}) {
 	if h.file == nil {
 		return
 	}
-	fields["ts"] = time.Now().UTC().Format(time.RFC3339)
+	ts := time.Now().UTC().Format(time.RFC3339)
+	fields["ts"] = ts
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return
@@ -59,6 +62,14 @@ func (h *BuildHistoryLogger) emit(fields map[string]interface{}) {
 	h.file.Write(data)
 	h.file.Sync()
 	h.mu.Unlock()
+
+	// Shadow write to SQLite.
+	if db := getShadowDB(); db != nil {
+		eventType, _ := fields["event"].(string)
+		prefix := extractPrefix(h.ticketID)
+		uuid := ticketUUID(prefix, h.ticketID)
+		db.InsertBuildEvent(uuid, eventType, ts, string(data))
+	}
 }
 
 // BuildStart records the beginning of a build.

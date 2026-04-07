@@ -62,4 +62,6 @@ func EmitMutationEvent(ticketsDir, ticketID, event string, data map[string]inter
 	}
 	defer f.Close()
 	f.Write(line)
+
+	shadowWriteMutation(e)
 }

@@ -34,17 +34,22 @@ be ticketed for remediation. No grandfathering.
 
 - **Version is injected via ldflags from `git rev-parse --short HEAD`.** No
   hardcoded version strings.
-- **Zero external runtime dependencies.** `ko` is a single static binary. It
-  must not shell out to other tools (no `git`, `jq`, `awk`, `sed` at runtime).
-  The bash implementation relied on coreutils; the Go implementation does not.
-  Build-time dependencies (Go toolchain) are fine. Test-time dependencies
-  (testscript) are fine. Runtime: just the binary.
+- **Zero external runtime dependencies.** `ko` is a single binary. It must not
+  shell out to other tools (no `git`, `jq`, `awk`, `sed` at runtime). The bash
+  implementation relied on coreutils; the Go implementation does not. Build-time
+  dependencies (Go toolchain, C compiler, system libraries like SQLite) are fine
+  — they get compiled into the binary. Test-time dependencies (testscript) are
+  fine. Runtime: just the binary. CGo is acceptable when the alternative is
+  vendoring hundreds of megabytes of transpiled C (see: `mattn/go-sqlite3` over
+  `modernc.org/sqlite`).
 
 ## Data Model
 
 - **Tickets are markdown files with YAML frontmatter.** The file is the source
-  of truth. There is no database, no index, no derived state that can drift.
-  If the file says it, that's what it is.
+  of truth. A SQLite shadow database (`~/.local/state/knockout/knockout.db`)
+  receives best-effort dual-writes for query acceleration, but is always
+  derived from the filesystem. If the file and the DB disagree, the file wins.
+  Shadow writes never fail the CLI — they log to stderr and move on.
 - **Ticket IDs encode hierarchy.** Root tickets: `<prefix>-<hash>`. Children:
   `<parent-id>.<hash>`. Depth is visible in the ID (count the dots). This is
   a structural invariant, not cosmetic — decomposition depth limits depend on it.
