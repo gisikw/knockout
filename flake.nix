@@ -18,8 +18,8 @@
           inherit version;
           src = ./.;
           vendorHash = null; # deps vendored
-          CGO_ENABLED = "1";
           ldflags = [ "-X" "main.version=${version}" ];
+          preBuild = "export CGO_ENABLED=1";
 
           # Tests run via `just test` in CI; testscript needs
           # git and a writable HOME which the sandbox doesn't provide.
