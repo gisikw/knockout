@@ -1,6 +1,6 @@
 ---
 id: ko-2d66
-status: in_progress
+status: open
 deps: []
 created: 2026-03-18T17:40:45Z
 type: task
