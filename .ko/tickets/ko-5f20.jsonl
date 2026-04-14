@@ -1,0 +1,10 @@
+{"event":"build_start","ticket":"ko-5f20","ts":"2026-04-14T18:26:27Z"}
+{"event":"workflow_start","ticket":"ko-5f20","ts":"2026-04-14T18:26:27Z","workflow":"main"}
+{"event":"node_start","node":"classify","ticket":"ko-5f20","ts":"2026-04-14T18:26:27Z","workflow":"main"}
+{"event":"node_complete","node":"classify","result":"route","ticket":"ko-5f20","ts":"2026-04-14T18:26:35Z","workflow":"main"}
+{"event":"workflow_start","ticket":"ko-5f20","ts":"2026-04-14T18:26:35Z","workflow":"task"}
+{"event":"node_start","node":"decompose","ticket":"ko-5f20","ts":"2026-04-14T18:26:35Z","workflow":"task"}
+{"event":"node_complete","node":"decompose","result":"done","ticket":"ko-5f20","ts":"2026-04-14T18:26:57Z","workflow":"task"}
+{"event":"node_start","node":"plan","ticket":"ko-5f20","ts":"2026-04-14T18:26:57Z","workflow":"task"}
+{"attempt":1,"event":"node_fail","node":"plan","reason":"agent command failed: signal: terminated","ticket":"ko-5f20","ts":"2026-04-14T18:28:23Z","workflow":"task"}
+{"attempt":2,"event":"node_retry","node":"plan","ticket":"ko-5f20","ts":"2026-04-14T18:28:23Z","workflow":"task"}

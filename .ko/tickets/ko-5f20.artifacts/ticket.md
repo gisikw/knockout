@@ -1,6 +1,6 @@
 ---
 id: ko-5f20
-status: in_progress
+status: open
 deps: []
 created: 2026-03-17T16:11:30Z
 type: task
