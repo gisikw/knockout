@@ -13,3 +13,7 @@ Double-fork daemonization doesn't survive systemd cgroup reaping. When ko agent 
 Fix: ko agent start should signal ko serve (which runs in its own long-lived service) to spawn the agent loop. The agent then lives in ko serve's cgroup and survives any caller's lifecycle.
 
 Discovery: res-c39d got killed 23 seconds into a build because the briefing one-shot exited and reaped the cgroup.
+
+## Notes
+
+**2026-04-14 18:17:17 UTC:** ko: reset to open (agent stopped)
