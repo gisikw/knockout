@@ -55,6 +55,9 @@ func cmdServe(args []string) int {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/subscribe/", handleSubscribe)
 	mux.HandleFunc("/status/", handleStatusSubscribe)
+	mux.HandleFunc("/agent/spawn", handleAgentSpawn)
+	mux.HandleFunc("/agent/kill", handleAgentKill)
+	mux.HandleFunc("/agent/status", handleAgentStatus)
 	mux.HandleFunc("/ko", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -142,6 +145,9 @@ func cmdServe(args []string) int {
 	// Wait for signal
 	sig := <-sigCh
 	fmt.Fprintf(os.Stdout, "ko serve: received %v, shutting down\n", sig)
+
+	// Stop any running agents first
+	shutdownAgents()
 
 	// Graceful shutdown with 5 second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -40,9 +40,9 @@ Commands:
 	case "init":
 		return cmdAgentInit(args[1:])
 	case "start":
-		return cmdAgentStart(args[1:])
+		return cmdAgentStartNew(args[1:])
 	case "stop":
-		return cmdAgentStop(args[1:])
+		return cmdAgentStopNew(args[1:])
 	case "status":
 		return cmdAgentStatus(args[1:])
 	case "report":
@@ -283,17 +283,8 @@ func cmdAgentSummarize(args []string) int {
 	return 0
 }
 
-func cmdAgentStop(args []string) int {
-	ticketsDir, _, err := resolveProjectTicketsDir(args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ko agent stop: %v\n", err)
-		return 1
-	}
-	if ticketsDir == "" {
-		fmt.Fprintf(os.Stderr, "ko agent stop: no .ko/tickets directory found (use --project or run from a project dir)\n")
-		return 1
-	}
-
+// cmdAgentStopDirect is the direct PID-based agent stop (fallback when serve isn't available).
+func cmdAgentStopDirect(ticketsDir string) int {
 	pidPath := agentPidPath(ticketsDir)
 	pid, err := readAgentPid(pidPath)
 	if err != nil {
