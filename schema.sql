@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 CREATE TABLE IF NOT EXISTS projects (
     id          INTEGER PRIMARY KEY,
     tag         TEXT    NOT NULL UNIQUE,
-    prefix      TEXT    NOT NULL UNIQUE,
+    prefix      TEXT    NOT NULL,
     tickets_dir TEXT    NOT NULL UNIQUE,
     is_default  INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
     created_at  TEXT    NOT NULL

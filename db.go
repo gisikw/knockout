@@ -86,7 +86,7 @@ func (d *DB) migrate() error {
 		if _, err := d.db.Exec(schemaSQL); err != nil {
 			return fmt.Errorf("schema init: %w", err)
 		}
-		_, err := d.db.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)",
+		_, err := d.db.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)",
 			time.Now().UTC().Format(time.RFC3339))
 		return err
 	}
@@ -95,8 +95,59 @@ func (d *DB) migrate() error {
 	}
 
 	// Check current version, run incremental migrations if needed.
-	// For now there's only version 1.
+	var version int
+	if err := d.db.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
+		return err
+	}
+
+	if version < 2 {
+		if err := d.migrateV2(); err != nil {
+			return fmt.Errorf("migrate v2: %w", err)
+		}
+	}
+
 	return nil
+}
+
+// migrateV2 removes the UNIQUE constraint from projects.prefix.
+// The prefix column is metadata describing what prefix tickets use in that directory,
+// but uniqueness is enforced at the Registry layer, not the DB layer.
+func (d *DB) migrateV2() error {
+	// SQLite doesn't support ALTER TABLE DROP CONSTRAINT, so recreate the table.
+	// DROP IF EXISTS handles partial previous runs.
+	// Disable foreign keys during migration since tickets references projects.
+	migrations := []string{
+		`PRAGMA foreign_keys = OFF`,
+		`DROP TABLE IF EXISTS projects_new`,
+		`CREATE TABLE projects_new (
+			id          INTEGER PRIMARY KEY,
+			tag         TEXT    NOT NULL UNIQUE,
+			prefix      TEXT    NOT NULL,
+			tickets_dir TEXT    NOT NULL UNIQUE,
+			is_default  INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
+			created_at  TEXT    NOT NULL
+		)`,
+		`INSERT INTO projects_new SELECT * FROM projects`,
+		`DROP TABLE projects`,
+		`ALTER TABLE projects_new RENAME TO projects`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_single_default
+			ON projects(is_default) WHERE is_default = 1`,
+		`PRAGMA foreign_keys = ON`,
+	}
+
+	for _, m := range migrations {
+		if _, err := d.db.Exec(m); err != nil {
+			preview := m
+			if len(preview) > 40 {
+				preview = preview[:40]
+			}
+			return fmt.Errorf("exec %q: %w", preview, err)
+		}
+	}
+
+	_, err := d.db.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)",
+		time.Now().UTC().Format(time.RFC3339))
+	return err
 }
 
 // Lazy global DB handle. Initialized on first shadow write.
