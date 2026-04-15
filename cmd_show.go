@@ -32,6 +32,7 @@ type showJSON struct {
 }
 
 func cmdShow(args []string) int {
+	// Extract --project flag before parsing (for cross-project lookups)
 	ticketsDir, args, err := resolveProjectTicketsDir(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
@@ -52,7 +53,25 @@ func cmdShow(args []string) int {
 		return 1
 	}
 
-	ticketsDir, id, err := ResolveTicket(ticketsDir, fs.Arg(0))
+	ticketID := fs.Arg(0)
+
+	// Try SQLite first (Phase 3), fall back to filesystem during migration
+	db, dbErr := OpenReadDB()
+	if dbErr == nil {
+		t, err := db.GetTicketDB(ticketID)
+		if err == nil {
+			blockers, _ := db.GetOpenDepsDB(t.ID)
+			blocking, _ := db.GetBlockingDB(t.ID)
+			children, _ := db.GetChildrenDB(t.ID)
+			db.Close()
+			return showTicket(t, blockers, blocking, children, *jsonOutput)
+		}
+		db.Close()
+		// Ticket not in DB - fall through to filesystem
+	}
+
+	// Fallback to filesystem (migration window)
+	ticketsDir, id, err := ResolveTicket(ticketsDir, ticketID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
 		return 1
@@ -64,12 +83,15 @@ func cmdShow(args []string) int {
 		return 1
 	}
 
-	if *jsonOutput {
-		// Compute derived fields
-		blockers := openDeps(ticketsDir, t.Deps)
-		blocking := findBlocking(ticketsDir, t.ID)
-		children := findChildren(ticketsDir, t.ID)
+	blockers := openDeps(ticketsDir, t.Deps)
+	blocking := findBlocking(ticketsDir, t.ID)
+	children := findChildren(ticketsDir, t.ID)
 
+	return showTicket(t, blockers, blocking, children, *jsonOutput)
+}
+
+func showTicket(t *Ticket, blockers, blocking, children []string, jsonOutput bool) int {
+	if jsonOutput {
 		modified := ""
 		if !t.ModTime.IsZero() {
 			modified = t.ModTime.UTC().Format(time.RFC3339)
@@ -129,18 +151,16 @@ func cmdShow(args []string) int {
 		fmt.Println()
 		fmt.Printf("# %s\n", t.Title)
 
-		// Blockers section: deps that are not closed
-		openDeps := openDeps(ticketsDir, t.Deps)
-		if len(openDeps) > 0 {
+		// Blockers section
+		if len(blockers) > 0 {
 			fmt.Println()
 			fmt.Println("## Blockers")
-			for _, d := range openDeps {
+			for _, d := range blockers {
 				fmt.Printf("  %s\n", d)
 			}
 		}
 
-		// Blocking section: tickets that depend on this one
-		blocking := findBlocking(ticketsDir, t.ID)
+		// Blocking section
 		if len(blocking) > 0 {
 			fmt.Println()
 			fmt.Println("## Blocking")
@@ -150,7 +170,6 @@ func cmdShow(args []string) int {
 		}
 
 		// Children section
-		children := findChildren(ticketsDir, t.ID)
 		if len(children) > 0 {
 			fmt.Println()
 			fmt.Println("## Children")

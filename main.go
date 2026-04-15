@@ -61,6 +61,12 @@ func run(args []string) int {
 		return cmdProject(rest)
 	case "import":
 		return cmdImport(rest)
+	case "stats":
+		return cmdStats(rest)
+	case "search":
+		return cmdSearch(rest)
+	case "history":
+		return cmdHistory(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -158,6 +164,13 @@ Commands:
   project set #<tag> [--path=dir] [--prefix=p] [--default]
                      Register project (uses --path or cwd), optionally set default
   project ls         List registered projects (default marked with *)
+
+  stats [--project=tag] [--json]
+                     Show aggregate statistics (cross-project by default)
+  search <query> [--project=tag] [--status=X] [--type=X] [--tag=X] [--limit=N] [--json]
+                     Search tickets by title and body (cross-project by default)
+  history [<id>] [--project=tag] [--limit=N] [--json]
+                     Show build/event history (per-ticket if ID given, global otherwise)
 
   help               Show this help
   version            Show version`)

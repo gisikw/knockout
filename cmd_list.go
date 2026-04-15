@@ -131,10 +131,6 @@ func cmdLs(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
-	if ticketsDir == "" {
-		fmt.Fprintf(os.Stderr, "ko ls: no .ko/tickets directory found (use --project or run from a project dir)\n")
-		return 1
-	}
 
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
@@ -143,6 +139,43 @@ func cmdLs(args []string) int {
 	allTickets := fs.Bool("all", false, "include closed tickets")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
+		return 1
+	}
+
+	// Try SQLite first (Phase 3), fall back to filesystem during migration
+	db, dbErr := OpenReadDB()
+	if dbErr == nil {
+		defer db.Close()
+		project, _ := db.ResolveProjectTag(ticketsDir)
+		tickets, err := db.ListTicketsDB(project, *statusFilter, *allTickets, *limit)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
+			return 1
+		}
+
+		if *jsonOutput {
+			result := make([]ticketJSON, 0, len(tickets))
+			for _, t := range tickets {
+				result = append(result, ticketToJSONFromDB(t, db))
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(result)
+		} else {
+			for _, t := range tickets {
+				line := fmt.Sprintf("%s [%s] (p%d) %s", t.ID, t.Status, t.Priority, t.Title)
+				if len(t.Deps) > 0 {
+					line += fmt.Sprintf(" <- [%s]", strings.Join(t.Deps, ", "))
+				}
+				fmt.Println(line)
+			}
+		}
+		return 0
+	}
+
+	// Fallback to filesystem (migration window)
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko ls: no .ko/tickets directory found (use --project or run from a project dir)\n")
 		return 1
 	}
 
@@ -160,7 +193,6 @@ func cmdLs(args []string) int {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
 			}
-			// Default: show non-closed tickets (unless --all is set)
 			if *statusFilter == "" && !*allTickets && t.Status == "closed" {
 				continue
 			}
@@ -179,7 +211,6 @@ func cmdLs(args []string) int {
 			if *statusFilter != "" && t.Status != *statusFilter {
 				continue
 			}
-			// Default: show non-closed tickets (unless --all is set)
 			if *statusFilter == "" && !*allTickets && t.Status == "closed" {
 				continue
 			}
@@ -197,6 +228,32 @@ func cmdLs(args []string) int {
 	return 0
 }
 
+// ticketToJSONFromDB converts a Ticket to ticketJSON using DB for dep resolution.
+func ticketToJSONFromDB(t *Ticket, db *DB) ticketJSON {
+	modified := ""
+	if !t.ModTime.IsZero() {
+		modified = t.ModTime.UTC().Format(time.RFC3339)
+	}
+	return ticketJSON{
+		ID:               t.ID,
+		Title:            t.Title,
+		Status:           t.Status,
+		Type:             t.Type,
+		Priority:         t.Priority,
+		Deps:             t.Deps,
+		Created:          t.Created,
+		Modified:         modified,
+		Assignee:         t.Assignee,
+		Parent:           t.Parent,
+		Tags:             t.Tags,
+		Description:      t.Body,
+		HasUnresolvedDep: !db.AllDepsResolvedDB(t.ID),
+		PlanQuestions:    t.PlanQuestions,
+		Snooze:           t.Snooze,
+		Triage:           t.Triage,
+	}
+}
+
 func cmdReady(args []string) int {
 	args = reorderArgs(args, map[string]bool{"project": true, "limit": true})
 
@@ -205,16 +262,45 @@ func cmdReady(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
 		return 1
 	}
-	if ticketsDir == "" {
-		fmt.Fprintf(os.Stderr, "ko ready: no .ko/tickets directory found (use --project or run from a project dir)\n")
-		return 1
-	}
 
 	fs := flag.NewFlagSet("ready", flag.ContinueOnError)
 	limit := fs.Int("limit", 0, "max tickets to show")
 	jsonOutput := fs.Bool("json", false, "output as JSON array")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
+		return 1
+	}
+
+	// Try SQLite first (Phase 3), fall back to filesystem during migration
+	db, dbErr := OpenReadDB()
+	if dbErr == nil {
+		defer db.Close()
+		project, _ := db.ResolveProjectTag(ticketsDir)
+		ready, err := db.ListReadyDB(project, *limit)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ko ready: %v\n", err)
+			return 1
+		}
+
+		if *jsonOutput {
+			result := make([]ticketJSON, 0, len(ready))
+			for _, t := range ready {
+				result = append(result, ticketToJSONFromDB(t, db))
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(result)
+		} else {
+			for _, t := range ready {
+				fmt.Printf("%s [%s] (p%d) %s\n", t.ID, t.Status, t.Priority, t.Title)
+			}
+		}
+		return 0
+	}
+
+	// Fallback to filesystem (migration window)
+	if ticketsDir == "" {
+		fmt.Fprintf(os.Stderr, "ko ready: no .ko/tickets directory found (use --project or run from a project dir)\n")
 		return 1
 	}
 
