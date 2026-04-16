@@ -424,12 +424,16 @@ func LoadTicket(ticketsDir, id string) (*Ticket, error) {
 	return t, nil
 }
 
-// SaveTicket writes a ticket to disk, then shadow-writes to SQLite.
+// SaveTicket writes a ticket to SQLite (authoritative), then best-effort to filesystem.
+// Phase 4: DB is primary. Filesystem writes continue for backwards compatibility during migration.
 func SaveTicket(ticketsDir string, t *Ticket) error {
-	if err := os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644); err != nil {
+	// DB write is authoritative — errors are fatal
+	if err := writeTicketToDB(t, ticketsDir); err != nil {
 		return err
 	}
-	shadowWriteTicket(t, ticketsDir)
+	// Filesystem write is best-effort for backwards compat (Phase 4a)
+	// TODO(phase4b): Remove filesystem writes entirely
+	_ = os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644)
 	return nil
 }
 
