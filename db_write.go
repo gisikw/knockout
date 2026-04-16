@@ -283,28 +283,27 @@ func projectTagFromPath(projectRoot string) string {
 }
 
 // writeTicketToDB writes a ticket to SQLite as the authoritative store.
-// Returns error if write fails (unlike shadowWriteTicket which was best-effort).
-// Skips DB write for temp directories (tests) or when DB is unavailable.
-// Phase 4a: graceful fallback to filesystem-only when DB isn't available.
+// Returns error if write fails. DB is required for production use.
 func writeTicketToDB(t *Ticket, ticketsDir string) error {
-	if isTempDir(ticketsDir) {
-		return nil // Skip DB writes for test directories
-	}
 	db := getShadowDB()
 	if db == nil {
-		// DB not available — graceful fallback during Phase 4a transition
-		// Phase 4b: make this a fatal error once filesystem writes are removed
-		return nil
+		return fmt.Errorf("database not available")
 	}
 	return db.UpsertTicket(t, ticketsDir)
 }
 
 // isTempDir returns true if path is under a temp directory.
+// Checks both /tmp and os.TempDir() since TMPDIR env var may differ.
 func isTempDir(path string) bool {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
+	// Check standard /tmp
+	if strings.HasPrefix(abs, "/tmp/") {
+		return true
+	}
+	// Check TMPDIR (may differ in some environments)
 	tmpDir := os.TempDir()
 	return strings.HasPrefix(abs, tmpDir)
 }

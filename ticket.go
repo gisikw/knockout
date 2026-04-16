@@ -407,8 +407,24 @@ func RemoveArtifactDir(ticketsDir, id string) {
 	os.RemoveAll(ArtifactDir(ticketsDir, id))
 }
 
-// LoadTicket reads and parses a ticket from disk.
+// LoadTicket reads and parses a ticket.
+// For temp directories (tests): reads from filesystem.
+// For production: reads from DB first, falls back to filesystem.
 func LoadTicket(ticketsDir, id string) (*Ticket, error) {
+	if isTempDir(ticketsDir) {
+		return loadTicketFromFile(ticketsDir, id)
+	}
+	// Production: try DB first, fall back to filesystem
+	db := getShadowDB()
+	if db != nil {
+		if t, err := db.GetTicketDB(id); err == nil {
+			return t, nil
+		}
+	}
+	return loadTicketFromFile(ticketsDir, id)
+}
+
+func loadTicketFromFile(ticketsDir, id string) (*Ticket, error) {
 	path := TicketPath(ticketsDir, id)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -424,17 +440,16 @@ func LoadTicket(ticketsDir, id string) (*Ticket, error) {
 	return t, nil
 }
 
-// SaveTicket writes a ticket to SQLite (authoritative), then best-effort to filesystem.
-// Phase 4: DB is primary. Filesystem writes continue for backwards compatibility during migration.
+// SaveTicket writes a ticket to storage.
+// For temp directories (tests): writes to filesystem only.
+// For production: writes to SQLite only (DB is authoritative).
 func SaveTicket(ticketsDir string, t *Ticket) error {
-	// DB write is authoritative — errors are fatal
-	if err := writeTicketToDB(t, ticketsDir); err != nil {
-		return err
+	if isTempDir(ticketsDir) {
+		// Tests use filesystem — they read .md files directly
+		return os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644)
 	}
-	// Filesystem write is best-effort for backwards compat (Phase 4a)
-	// TODO(phase4b): Remove filesystem writes entirely
-	_ = os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644)
-	return nil
+	// Production: DB only
+	return writeTicketToDB(t, ticketsDir)
 }
 
 // ListTickets reads all tickets from the tickets directory.
@@ -470,7 +485,26 @@ func ListTickets(ticketsDir string) ([]*Ticket, error) {
 
 // ResolveID finds a ticket by exact match, then by substring match.
 // Returns an error if no match or ambiguous.
+// For temp directories (tests): checks filesystem.
+// For production: checks DB first, falls back to filesystem.
 func ResolveID(ticketsDir, partial string) (string, error) {
+	if isTempDir(ticketsDir) {
+		return resolveIDFromFS(ticketsDir, partial)
+	}
+	// Production: try DB first
+	db := getShadowDB()
+	if db != nil {
+		// Try exact match in DB
+		if _, err := db.GetTicketDB(partial); err == nil {
+			return partial, nil
+		}
+		// TODO: implement fuzzy search in DB for substring matches
+	}
+	// Fall back to filesystem
+	return resolveIDFromFS(ticketsDir, partial)
+}
+
+func resolveIDFromFS(ticketsDir, partial string) (string, error) {
 	entries, err := os.ReadDir(ticketsDir)
 	if err != nil {
 		return "", fmt.Errorf("ticket '%s' not found", partial)

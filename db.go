@@ -170,6 +170,16 @@ func getShadowDB() *DB {
 	return shadowDB
 }
 
+// resetShadowDB closes the current DB and resets the Once, allowing reinitialization.
+// Used by tests to isolate DB state between test cases.
+func resetShadowDB() {
+	if shadowDB != nil {
+		shadowDB.Close()
+		shadowDB = nil
+	}
+	shadowOnce = sync.Once{}
+}
+
 // knockoutNamespace is a fixed UUID used as the namespace for deterministic
 // UUID v5 generation. Chosen arbitrarily; must never change.
 var knockoutNamespace = [16]byte{
