@@ -14,13 +14,19 @@ func TestMain(m *testing.M) {
 }
 
 // testParams returns testscript.Params with DB isolation configured.
-// Each test gets its own SQLite database via XDG_STATE_HOME=$WORK.
+// XDG_STATE_HOME points to a sibling temp dir (not env.WorkDir) so the
+// shadow DB never pollutes the project tree — tests that git-init inside
+// WorkDir would otherwise see it as an uncommitted change.
 func testParams(dir string) testscript.Params {
 	return testscript.Params{
 		Dir: dir,
 		Setup: func(env *testscript.Env) error {
-			// Point DB to test's work directory for isolation
-			env.Setenv("XDG_STATE_HOME", env.WorkDir)
+			stateDir, err := os.MkdirTemp("", "ko-state-")
+			if err != nil {
+				return err
+			}
+			env.Defer(func() { os.RemoveAll(stateDir) })
+			env.Setenv("XDG_STATE_HOME", stateDir)
 			return nil
 		},
 	}

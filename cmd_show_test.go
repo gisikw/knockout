@@ -9,6 +9,7 @@ import (
 )
 
 func TestCmdShowQuestionsSection(t *testing.T) {
+	defer setupTestDB(t)()
 	dir := t.TempDir()
 	ticketsDir := filepath.Join(dir, ".ko", "tickets")
 	os.MkdirAll(ticketsDir, 0755)
@@ -17,35 +18,37 @@ func TestCmdShowQuestionsSection(t *testing.T) {
 	defer os.Chdir(oldWd)
 	os.Chdir(dir)
 
-	ticket := `---
-id: test-0001
-status: blocked
-deps: []
-created: 2026-03-11T10:00:00Z
-type: task
-priority: 2
-plan-questions:
-  - id: q1
-    question: Tabs or spaces?
-    options:
-      - label: Spaces
-        value: spaces
-      - label: Tabs
-        value: tabs
-  - id: q2
-    question: Which library?
-    context: INVARIANTS.md says no external deps
-    options:
-      - label: Standard library
-        value: stdlib
-        description: Matches invariant
-      - label: External library
-        value: external
-        description: Violates invariant
----
-# Blocked ticket
-`
-	os.WriteFile(filepath.Join(ticketsDir, "test-0001.md"), []byte(ticket), 0644)
+	ticket := &Ticket{
+		ID:       "test-0001",
+		Status:   "blocked",
+		Deps:     []string{},
+		Created:  "2026-03-11T10:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Blocked ticket",
+		PlanQuestions: []PlanQuestion{
+			{
+				ID:       "q1",
+				Question: "Tabs or spaces?",
+				Options: []QuestionOption{
+					{Label: "Spaces", Value: "spaces"},
+					{Label: "Tabs", Value: "tabs"},
+				},
+			},
+			{
+				ID:       "q2",
+				Question: "Which library?",
+				Context:  "INVARIANTS.md says no external deps",
+				Options: []QuestionOption{
+					{Label: "Standard library", Value: "stdlib", Description: "Matches invariant"},
+					{Label: "External library", Value: "external", Description: "Violates invariant"},
+				},
+			},
+		},
+	}
+	if err := SaveTicket(ticketsDir, ticket); err != nil {
+		t.Fatal(err)
+	}
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -86,6 +89,7 @@ plan-questions:
 }
 
 func TestCmdShowNoQuestionsWhenEmpty(t *testing.T) {
+	defer setupTestDB(t)()
 	dir := t.TempDir()
 	ticketsDir := filepath.Join(dir, ".ko", "tickets")
 	os.MkdirAll(ticketsDir, 0755)
@@ -94,17 +98,18 @@ func TestCmdShowNoQuestionsWhenEmpty(t *testing.T) {
 	defer os.Chdir(oldWd)
 	os.Chdir(dir)
 
-	ticket := `---
-id: test-0002
-status: open
-deps: []
-created: 2026-03-11T10:00:00Z
-type: task
-priority: 2
----
-# Normal ticket
-`
-	os.WriteFile(filepath.Join(ticketsDir, "test-0002.md"), []byte(ticket), 0644)
+	ticket := &Ticket{
+		ID:       "test-0002",
+		Status:   "open",
+		Deps:     []string{},
+		Created:  "2026-03-11T10:00:00Z",
+		Type:     "task",
+		Priority: 2,
+		Title:    "Normal ticket",
+	}
+	if err := SaveTicket(ticketsDir, ticket); err != nil {
+		t.Fatal(err)
+	}
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()

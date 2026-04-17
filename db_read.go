@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -543,10 +544,11 @@ func (d *DB) ListTicketsDB(project, status string, includeAll bool, limit int) (
 	}
 
 	q := `SELECT t.ticket_id, t.title, t.status, t.type, t.priority,
-		         t.assignee, t.parent_id, t.external_ref, t.snooze, t.triage,
+		         t.assignee, parent.ticket_id, t.external_ref, t.snooze, t.triage,
 		         t.created_at, t.updated_at, t.body
 		  FROM tickets t
 		  JOIN projects p ON t.project_id = p.id
+		  LEFT JOIN tickets parent ON t.parent_id = parent.id
 		  WHERE ` + strings.Join(conditions, " AND ") + `
 		  ORDER BY t.priority, t.updated_at DESC`
 
@@ -562,28 +564,152 @@ func (d *DB) ListTicketsDB(project, status string, includeAll bool, limit int) (
 
 	var tickets []*Ticket
 	for rows.Next() {
-		t := &Ticket{}
-		var assignee, parentID, extRef, snooze, triage sql.NullString
+		t := &Ticket{
+			Deps: []string{},
+			Tags: []string{},
+		}
+		var assignee, parentTicketID, extRef, snooze, triage sql.NullString
 		var updatedAt string
 		if err := rows.Scan(&t.ID, &t.Title, &t.Status, &t.Type, &t.Priority,
-			&assignee, &parentID, &extRef, &snooze, &triage,
+			&assignee, &parentTicketID, &extRef, &snooze, &triage,
 			&t.Created, &updatedAt, &t.Body); err != nil {
 			return nil, err
 		}
 		t.Assignee = assignee.String
-		t.Parent = parentID.String
+		t.Parent = parentTicketID.String
 		t.ExternalRef = extRef.String
 		t.Snooze = snooze.String
 		t.Triage = triage.String
 		if updatedAt != "" {
 			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
 		}
-		// Load deps and tags
-		t.Deps, _ = d.GetTicketDeps(t.ID)
-		t.Tags, _ = d.GetTicketTags(t.ID)
+		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
+			t.Deps = deps
+		}
+		if tags, _ := d.GetTicketTags(t.ID); tags != nil {
+			t.Tags = tags
+		}
 		tickets = append(tickets, t)
 	}
 	return tickets, nil
+}
+
+// ListTicketsByDir returns all tickets belonging to the project registered
+// for the given tickets directory (absolute path). Includes all statuses.
+func (d *DB) ListTicketsByDir(ticketsDir string) ([]*Ticket, error) {
+	q := `SELECT t.ticket_id, t.title, t.status, t.type, t.priority,
+		         t.assignee, parent.ticket_id, t.external_ref, t.snooze, t.triage,
+		         t.created_at, t.updated_at, t.body
+		  FROM tickets t
+		  JOIN projects p ON t.project_id = p.id
+		  LEFT JOIN tickets parent ON t.parent_id = parent.id
+		  WHERE p.tickets_dir = ?
+		  ORDER BY t.priority, t.updated_at DESC`
+
+	rows, err := d.db.Query(q, ticketsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tickets []*Ticket
+	for rows.Next() {
+		t := &Ticket{
+			Deps: []string{},
+			Tags: []string{},
+		}
+		var assignee, parentTicketID, extRef, snooze, triage sql.NullString
+		var updatedAt string
+		if err := rows.Scan(&t.ID, &t.Title, &t.Status, &t.Type, &t.Priority,
+			&assignee, &parentTicketID, &extRef, &snooze, &triage,
+			&t.Created, &updatedAt, &t.Body); err != nil {
+			return nil, err
+		}
+		t.Assignee = assignee.String
+		t.Parent = parentTicketID.String
+		t.ExternalRef = extRef.String
+		t.Snooze = snooze.String
+		t.Triage = triage.String
+		if updatedAt != "" {
+			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
+		}
+		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
+			t.Deps = deps
+		}
+		if tags, _ := d.GetTicketTags(t.ID); tags != nil {
+			t.Tags = tags
+		}
+		tickets = append(tickets, t)
+	}
+	return tickets, nil
+}
+
+// ResolveIDDB finds a ticket by exact ID match, then by substring match.
+// If ticketsDir is non-empty, the search is scoped to that project first,
+// with a global fallback for cross-project partial IDs.
+func (d *DB) ResolveIDDB(ticketsDir, partial string) (string, error) {
+	var abs string
+	if ticketsDir != "" {
+		if a, err := filepath.Abs(ticketsDir); err == nil {
+			abs = a
+		} else {
+			abs = ticketsDir
+		}
+	}
+
+	// Exact match: project-scoped first, then global.
+	if abs != "" {
+		var id string
+		err := d.db.QueryRow(`SELECT t.ticket_id FROM tickets t
+			JOIN projects p ON t.project_id = p.id
+			WHERE p.tickets_dir = ? AND t.ticket_id = ?`, abs, partial).Scan(&id)
+		if err == nil {
+			return id, nil
+		}
+	}
+	var id string
+	if err := d.db.QueryRow("SELECT ticket_id FROM tickets WHERE ticket_id = ?", partial).Scan(&id); err == nil {
+		return id, nil
+	}
+
+	// Substring match: project-scoped first, then global.
+	like := "%" + partial + "%"
+	var matches []string
+	if abs != "" {
+		rows, err := d.db.Query(`SELECT t.ticket_id FROM tickets t
+			JOIN projects p ON t.project_id = p.id
+			WHERE p.tickets_dir = ? AND t.ticket_id LIKE ?`, abs, like)
+		if err == nil {
+			for rows.Next() {
+				var m string
+				if err := rows.Scan(&m); err == nil {
+					matches = append(matches, m)
+				}
+			}
+			rows.Close()
+		}
+	}
+	if len(matches) == 0 {
+		rows, err := d.db.Query("SELECT ticket_id FROM tickets WHERE ticket_id LIKE ?", like)
+		if err == nil {
+			for rows.Next() {
+				var m string
+				if err := rows.Scan(&m); err == nil {
+					matches = append(matches, m)
+				}
+			}
+			rows.Close()
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("ticket '%s' not found", partial)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous ID '%s' matches: %s", partial, strings.Join(matches, ", "))
+	}
 }
 
 // ListReadyDB returns ready tickets using the ready_tickets view.
@@ -599,10 +725,11 @@ func (d *DB) ListReadyDB(project string, limit int) ([]*Ticket, error) {
 	}
 
 	q := `SELECT r.ticket_id, r.title, r.status, r.type, r.priority,
-		         r.assignee, r.parent_id, r.external_ref, r.snooze, r.triage,
+		         r.assignee, parent.ticket_id, r.external_ref, r.snooze, r.triage,
 		         r.created_at, r.updated_at, r.body
 		  FROM ready_tickets r
 		  JOIN projects p ON r.project_id = p.id
+		  LEFT JOIN tickets parent ON r.parent_id = parent.id
 		  WHERE ` + strings.Join(conditions, " AND ") + `
 		  ORDER BY r.priority, r.updated_at DESC`
 
@@ -618,24 +745,31 @@ func (d *DB) ListReadyDB(project string, limit int) ([]*Ticket, error) {
 
 	var tickets []*Ticket
 	for rows.Next() {
-		t := &Ticket{}
-		var assignee, parentID, extRef, snooze, triage sql.NullString
+		t := &Ticket{
+			Deps: []string{},
+			Tags: []string{},
+		}
+		var assignee, parentTicketID, extRef, snooze, triage sql.NullString
 		var updatedAt string
 		if err := rows.Scan(&t.ID, &t.Title, &t.Status, &t.Type, &t.Priority,
-			&assignee, &parentID, &extRef, &snooze, &triage,
+			&assignee, &parentTicketID, &extRef, &snooze, &triage,
 			&t.Created, &updatedAt, &t.Body); err != nil {
 			return nil, err
 		}
 		t.Assignee = assignee.String
-		t.Parent = parentID.String
+		t.Parent = parentTicketID.String
 		t.ExternalRef = extRef.String
 		t.Snooze = snooze.String
 		t.Triage = triage.String
 		if updatedAt != "" {
 			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
 		}
-		t.Deps, _ = d.GetTicketDeps(t.ID)
-		t.Tags, _ = d.GetTicketTags(t.ID)
+		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
+			t.Deps = deps
+		}
+		if tags, _ := d.GetTicketTags(t.ID); tags != nil {
+			t.Tags = tags
+		}
 		tickets = append(tickets, t)
 	}
 	return tickets, nil
@@ -644,16 +778,20 @@ func (d *DB) ListReadyDB(project string, limit int) ([]*Ticket, error) {
 // GetTicketDB returns a single ticket by ID.
 func (d *DB) GetTicketDB(ticketID string) (*Ticket, error) {
 	q := `SELECT t.ticket_id, t.title, t.status, t.type, t.priority,
-		         t.assignee, t.parent_id, t.external_ref, t.snooze, t.triage,
+		         t.assignee, parent.ticket_id, t.external_ref, t.snooze, t.triage,
 		         t.created_at, t.updated_at, t.body
 		  FROM tickets t
+		  LEFT JOIN tickets parent ON t.parent_id = parent.id
 		  WHERE t.ticket_id = ?`
 
-	t := &Ticket{}
-	var assignee, parentID, extRef, snooze, triage sql.NullString
+	t := &Ticket{
+		Deps: []string{},
+		Tags: []string{},
+	}
+	var assignee, parentTicketID, extRef, snooze, triage sql.NullString
 	var updatedAt string
 	err := d.db.QueryRow(q, ticketID).Scan(&t.ID, &t.Title, &t.Status, &t.Type, &t.Priority,
-		&assignee, &parentID, &extRef, &snooze, &triage,
+		&assignee, &parentTicketID, &extRef, &snooze, &triage,
 		&t.Created, &updatedAt, &t.Body)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("ticket not found: %s", ticketID)
@@ -663,15 +801,19 @@ func (d *DB) GetTicketDB(ticketID string) (*Ticket, error) {
 	}
 
 	t.Assignee = assignee.String
-	t.Parent = parentID.String
+	t.Parent = parentTicketID.String
 	t.ExternalRef = extRef.String
 	t.Snooze = snooze.String
 	t.Triage = triage.String
 	if updatedAt != "" {
 		t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
 	}
-	t.Deps, _ = d.GetTicketDeps(t.ID)
-	t.Tags, _ = d.GetTicketTags(t.ID)
+	if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
+		t.Deps = deps
+	}
+	if tags, _ := d.GetTicketTags(t.ID); tags != nil {
+		t.Tags = tags
+	}
 	t.PlanQuestions, _ = d.GetPlanQuestions(t.ID)
 
 	return t, nil
@@ -703,7 +845,8 @@ func (d *DB) GetTicketDeps(ticketID string) ([]string, error) {
 func (d *DB) GetTicketTags(ticketID string) ([]string, error) {
 	q := `SELECT tt.tag FROM ticket_tags tt
 		  JOIN tickets t ON tt.ticket_id = t.id
-		  WHERE t.ticket_id = ?`
+		  WHERE t.ticket_id = ?
+		  ORDER BY tt.rowid`
 	rows, err := d.db.Query(q, ticketID)
 	if err != nil {
 		return nil, err

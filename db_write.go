@@ -56,7 +56,9 @@ func (d *DB) UpsertTicket(t *Ticket, ticketsDir string) error {
 
 	prefix := extractPrefix(t.ID)
 	uuid := ticketUUID(prefix, t.ID)
-	now := time.Now().UTC().Format(time.RFC3339)
+	// RFC3339Nano so updated_at can be compared against file mtimes at
+	// sub-second precision during FS reconciliation (see ensureProjectSynced).
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 
 	// Resolve parent UUID if present, but only set FK if parent exists in DB.
 	// Parents may be cross-project or deleted — soft reference is correct.
@@ -280,44 +282,6 @@ func projectTagFromPath(projectRoot string) string {
 		return ""
 	}
 	return filepath.Base(projectRoot)
-}
-
-// writeTicketToDB writes a ticket to SQLite as the authoritative store.
-// Returns error if write fails. DB is required for production use.
-func writeTicketToDB(t *Ticket, ticketsDir string) error {
-	db := getShadowDB()
-	if db == nil {
-		return fmt.Errorf("database not available")
-	}
-	return db.UpsertTicket(t, ticketsDir)
-}
-
-// isTempDir returns true if path is under a temp directory.
-// Checks both /tmp and os.TempDir() since TMPDIR env var may differ.
-func isTempDir(path string) bool {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-	// Check standard /tmp
-	if strings.HasPrefix(abs, "/tmp/") {
-		return true
-	}
-	// Check TMPDIR (may differ in some environments)
-	tmpDir := os.TempDir()
-	return strings.HasPrefix(abs, tmpDir)
-}
-
-// shadowWriteTicket is the best-effort shadow write called after SaveTicket.
-// Deprecated: Use writeTicketToDB for authoritative writes.
-func shadowWriteTicket(t *Ticket, ticketsDir string) {
-	db := getShadowDB()
-	if db == nil {
-		return
-	}
-	if err := db.UpsertTicket(t, ticketsDir); err != nil {
-		fmt.Fprintf(os.Stderr, "ko: shadow write ticket %s: %v\n", t.ID, err)
-	}
 }
 
 // shadowWriteRegistry is the best-effort shadow write called after SaveRegistry.

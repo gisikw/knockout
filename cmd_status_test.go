@@ -265,6 +265,7 @@ func TestCmdStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				// Suppress stderr
 				oldStderr := os.Stderr
@@ -369,6 +370,7 @@ func TestCmdStart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				// Suppress stderr
 				oldStderr := os.Stderr
@@ -473,6 +475,7 @@ func TestCmdClose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				// Suppress stderr
 				oldStderr := os.Stderr
@@ -577,6 +580,7 @@ func TestCmdOpen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				// Suppress stderr
 				oldStderr := os.Stderr
@@ -681,6 +685,7 @@ func TestCmdSnooze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				oldStderr := os.Stderr
 				os.Stderr, _ = os.Open(os.DevNull)
@@ -801,6 +806,7 @@ func TestCmdBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			if tt.wantErr {
 				// Suppress stderr
 				oldStderr := os.Stderr

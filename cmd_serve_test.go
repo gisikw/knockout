@@ -360,7 +360,11 @@ func setupSSETest(t *testing.T) (projectDir, eventsFile string, testTailer *tail
 	stateDir := filepath.Join(tmpDir, "state")
 	oldState := os.Getenv("XDG_STATE_HOME")
 	os.Setenv("XDG_STATE_HOME", stateDir)
-	t.Cleanup(func() { os.Setenv("XDG_STATE_HOME", oldState) })
+	resetShadowDB()
+	t.Cleanup(func() {
+		os.Setenv("XDG_STATE_HOME", oldState)
+		resetShadowDB()
+	})
 
 	projectDir = filepath.Join(tmpDir, "testproject")
 	ticketsDir := filepath.Join(projectDir, ".ko", "tickets")
@@ -368,17 +372,18 @@ func setupSSETest(t *testing.T) (projectDir, eventsFile string, testTailer *tail
 	os.MkdirAll(ticketsDir, 0755)
 	os.MkdirAll(filepath.Dir(eventsFile), 0755)
 	os.WriteFile(eventsFile, []byte{}, 0644)
-	os.WriteFile(filepath.Join(ticketsDir, "test-1234.md"), []byte(`---
-id: test-1234
-status: open
-type: task
-priority: 1
-created: 2024-01-01T00:00:00Z
----
-# Test Ticket
-
-Test ticket body.
-`), 0644)
+	if err := SaveTicket(ticketsDir, &Ticket{
+		ID:       "test-1234",
+		Status:   "open",
+		Type:     "task",
+		Priority: 1,
+		Created:  "2024-01-01T00:00:00Z",
+		Title:    "Test Ticket",
+		Body:     "\nTest ticket body.\n",
+		Deps:     []string{},
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	oldArgs := os.Args
 	t.Cleanup(func() { os.Args = oldArgs })

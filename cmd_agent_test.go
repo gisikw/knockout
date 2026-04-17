@@ -93,6 +93,7 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			koDir := filepath.Join(tmpDir, ".ko")
 			ticketsDir := filepath.Join(koDir, "tickets")
@@ -100,10 +101,13 @@ func TestCmdAgentStatusJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Write ticket files if provided
-			for i, content := range tt.tickets {
-				ticketPath := filepath.Join(ticketsDir, "ko-test"+strconv.Itoa(i)+".md")
-				if err := os.WriteFile(ticketPath, []byte(content), 0644); err != nil {
+			// Save tickets if provided
+			for _, content := range tt.tickets {
+				ticket, err := ParseTicket(content)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := SaveTicket(ticketsDir, ticket); err != nil {
 					t.Fatal(err)
 				}
 			}

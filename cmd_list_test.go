@@ -232,6 +232,7 @@ func TestCmdTriageSet(t *testing.T) {
 
 	setup := func(t *testing.T) (tmpDir string, ticketsDir string) {
 		t.Helper()
+		t.Cleanup(setupTestDB(t))
 		tmpDir = t.TempDir()
 		ticketsDir = filepath.Join(tmpDir, ".ko", "tickets")
 		if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -320,6 +321,7 @@ func TestCmdTriageSet(t *testing.T) {
 }
 
 func TestCmdTriageCrossProject(t *testing.T) {
+	defer setupTestDB(t)()
 	// Set up a registry with a "fn" prefix project containing a ticket.
 	regDir := t.TempDir()
 	fnProjectDir := t.TempDir()

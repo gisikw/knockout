@@ -73,6 +73,7 @@ func TestCmdUpdateBasicFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -172,6 +173,7 @@ func TestCmdUpdateTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -265,6 +267,7 @@ func TestCmdUpdateStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -391,6 +394,7 @@ func TestCmdUpdateAutoUnblock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -553,6 +557,7 @@ func TestCmdUpdateErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 
 			if tt.setupFunc != nil {
@@ -636,6 +641,7 @@ func TestCmdUpdateSnooze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {
@@ -744,6 +750,7 @@ func TestCmdUpdateDescriptionAndDesign(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {

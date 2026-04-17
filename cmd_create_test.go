@@ -147,32 +147,20 @@ func TestCreateWithShorthandPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			exitCode := cmdCreate(tt.args)
 			if exitCode != 0 {
 				t.Fatalf("cmdCreate failed with exit code %d", exitCode)
 			}
 
-			// Find the created ticket
-			entries, err := os.ReadDir(ticketsDir)
+			tickets, err := ListTickets(ticketsDir)
 			if err != nil {
-				t.Fatalf("failed to read tickets dir: %v", err)
+				t.Fatalf("failed to list tickets: %v", err)
 			}
-
-			var ticketPath string
-			for _, e := range entries {
-				if filepath.Ext(e.Name()) == ".md" {
-					ticketPath = filepath.Join(ticketsDir, e.Name())
-					break
-				}
+			if len(tickets) == 0 {
+				t.Fatal("no ticket created")
 			}
-
-			if ticketPath == "" {
-				t.Fatal("no ticket file created")
-			}
-
-			// Extract ticket ID from filename
-			ticketID := filepath.Base(ticketPath)
-			ticketID = ticketID[:len(ticketID)-3] // Remove .md extension
+			ticketID := tickets[0].ID
 
 			// Load and verify priority
 			ticket, err := LoadTicket(ticketsDir, ticketID)
@@ -184,8 +172,6 @@ func TestCreateWithShorthandPriority(t *testing.T) {
 				t.Errorf("ticket priority = %d, want %d", ticket.Priority, tt.wantPrio)
 			}
 
-			// Clean up for next test
-			os.Remove(ticketPath)
 		})
 	}
 }
@@ -239,32 +225,20 @@ func TestCreateWithDescription(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			exitCode := cmdCreate(tt.args)
 			if exitCode != 0 {
 				t.Fatalf("cmdCreate failed with exit code %d", exitCode)
 			}
 
-			// Find the created ticket
-			entries, err := os.ReadDir(ticketsDir)
+			tickets, err := ListTickets(ticketsDir)
 			if err != nil {
-				t.Fatalf("failed to read tickets dir: %v", err)
+				t.Fatalf("failed to list tickets: %v", err)
 			}
-
-			var ticketPath string
-			for _, e := range entries {
-				if filepath.Ext(e.Name()) == ".md" {
-					ticketPath = filepath.Join(ticketsDir, e.Name())
-					break
-				}
+			if len(tickets) == 0 {
+				t.Fatal("no ticket created")
 			}
-
-			if ticketPath == "" {
-				t.Fatal("no ticket file created")
-			}
-
-			// Extract ticket ID from filename
-			ticketID := filepath.Base(ticketPath)
-			ticketID = ticketID[:len(ticketID)-3] // Remove .md extension
+			ticketID := tickets[0].ID
 
 			// Load and verify description
 			ticket, err := LoadTicket(ticketsDir, ticketID)
@@ -290,8 +264,6 @@ func TestCreateWithDescription(t *testing.T) {
 				t.Errorf("ticket description = %q, want %q", gotDesc, tt.wantDesc)
 			}
 
-			// Clean up for next test
-			os.Remove(ticketPath)
 		})
 	}
 }
@@ -352,6 +324,7 @@ func TestCreateWithStdinDescription(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			// Create a pipe to mock stdin
 			r, w, err := os.Pipe()
 			if err != nil {
@@ -373,27 +346,14 @@ func TestCreateWithStdinDescription(t *testing.T) {
 				t.Fatalf("cmdCreate failed with exit code %d", exitCode)
 			}
 
-			// Find the created ticket
-			entries, err := os.ReadDir(ticketsDir)
+			tickets, err := ListTickets(ticketsDir)
 			if err != nil {
-				t.Fatalf("failed to read tickets dir: %v", err)
+				t.Fatalf("failed to list tickets: %v", err)
 			}
-
-			var ticketPath string
-			for _, e := range entries {
-				if filepath.Ext(e.Name()) == ".md" {
-					ticketPath = filepath.Join(ticketsDir, e.Name())
-					break
-				}
+			if len(tickets) == 0 {
+				t.Fatal("no ticket created")
 			}
-
-			if ticketPath == "" {
-				t.Fatal("no ticket file created")
-			}
-
-			// Extract ticket ID from filename
-			ticketID := filepath.Base(ticketPath)
-			ticketID = ticketID[:len(ticketID)-3] // Remove .md extension
+			ticketID := tickets[0].ID
 
 			// Load and verify description
 			ticket, err := LoadTicket(ticketsDir, ticketID)
@@ -416,9 +376,6 @@ func TestCreateWithStdinDescription(t *testing.T) {
 			if gotDesc != tt.wantDesc {
 				t.Errorf("ticket description = %q, want %q", gotDesc, tt.wantDesc)
 			}
-
-			// Clean up for next test
-			os.Remove(ticketPath)
 
 			// Restore stdin for next iteration
 			os.Stdin = origStdin
@@ -450,34 +407,26 @@ func TestCreateWithSnooze(t *testing.T) {
 	defer func() { os.Stdout = oldStdout }()
 
 	t.Run("valid snooze date", func(t *testing.T) {
+		defer setupTestDB(t)()
 		exitCode := cmdCreate([]string{"Snoozed ticket", "--snooze", "2026-05-01"})
 		if exitCode != 0 {
 			t.Fatalf("cmdCreate returned %d, want 0", exitCode)
 		}
 
-		entries, _ := os.ReadDir(ticketsDir)
-		var ticketID string
-		for _, e := range entries {
-			if filepath.Ext(e.Name()) == ".md" {
-				ticketID = e.Name()[:len(e.Name())-3]
-				break
-			}
-		}
-		if ticketID == "" {
-			t.Fatal("no ticket file created")
-		}
-
-		ticket, err := LoadTicket(ticketsDir, ticketID)
+		tickets, err := ListTickets(ticketsDir)
 		if err != nil {
-			t.Fatalf("LoadTicket: %v", err)
+			t.Fatalf("ListTickets: %v", err)
 		}
-		if ticket.Snooze != "2026-05-01" {
-			t.Errorf("Snooze = %q, want %q", ticket.Snooze, "2026-05-01")
+		if len(tickets) == 0 {
+			t.Fatal("no ticket created")
 		}
-		os.Remove(filepath.Join(ticketsDir, ticketID+".md"))
+		if tickets[0].Snooze != "2026-05-01" {
+			t.Errorf("Snooze = %q, want %q", tickets[0].Snooze, "2026-05-01")
+		}
 	})
 
 	t.Run("invalid snooze date", func(t *testing.T) {
+		defer setupTestDB(t)()
 		oldStderr := os.Stderr
 		os.Stderr, _ = os.Open(os.DevNull)
 		defer func() { os.Stderr = oldStderr }()
@@ -519,6 +468,7 @@ func TestCreateWithInvalidShorthandPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			exitCode := cmdCreate(tt.args)
 			// We expect these to succeed in creation, but the priority validation
 			// should be handled by the flag package or application logic.
@@ -528,24 +478,6 @@ func TestCreateWithInvalidShorthandPriority(t *testing.T) {
 				return
 			}
 
-			// If it succeeds, verify the created ticket exists
-			entries, err := os.ReadDir(ticketsDir)
-			if err != nil {
-				t.Fatalf("failed to read tickets dir: %v", err)
-			}
-
-			var ticketPath string
-			for _, e := range entries {
-				if filepath.Ext(e.Name()) == ".md" {
-					ticketPath = filepath.Join(ticketsDir, e.Name())
-					break
-				}
-			}
-
-			if ticketPath != "" {
-				// Clean up
-				os.Remove(ticketPath)
-			}
 		})
 	}
 }

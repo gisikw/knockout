@@ -407,53 +407,43 @@ func RemoveArtifactDir(ticketsDir, id string) {
 	os.RemoveAll(ArtifactDir(ticketsDir, id))
 }
 
-// LoadTicket reads and parses a ticket.
-// For temp directories (tests): reads from filesystem.
-// For production: reads from DB first, falls back to filesystem.
+// LoadTicket reads and parses a ticket from the database.
 func LoadTicket(ticketsDir, id string) (*Ticket, error) {
-	if isTempDir(ticketsDir) {
-		return loadTicketFromFile(ticketsDir, id)
-	}
-	// Production: try DB first, fall back to filesystem
 	db := getShadowDB()
-	if db != nil {
-		if t, err := db.GetTicketDB(id); err == nil {
-			return t, nil
-		}
+	if db == nil {
+		return nil, fmt.Errorf("database not available")
 	}
-	return loadTicketFromFile(ticketsDir, id)
+	ensureProjectSynced(db, ticketsDir)
+	return db.GetTicketDB(id)
 }
 
-func loadTicketFromFile(ticketsDir, id string) (*Ticket, error) {
-	path := TicketPath(ticketsDir, id)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("ticket '%s' not found", id)
-	}
-	t, err := ParseTicket(string(data))
-	if err != nil {
-		return nil, err
-	}
-	if info, statErr := os.Stat(path); statErr == nil {
-		t.ModTime = info.ModTime()
-	}
-	return t, nil
-}
-
-// SaveTicket writes a ticket to storage.
-// For temp directories (tests): writes to filesystem only.
-// For production: writes to SQLite only (DB is authoritative).
+// SaveTicket writes a ticket to the database.
 func SaveTicket(ticketsDir string, t *Ticket) error {
-	if isTempDir(ticketsDir) {
-		// Tests use filesystem — they read .md files directly
-		return os.WriteFile(TicketPath(ticketsDir, t.ID), []byte(FormatTicket(t)), 0644)
+	db := getShadowDB()
+	if db == nil {
+		return fmt.Errorf("database not available")
 	}
-	// Production: DB only
-	return writeTicketToDB(t, ticketsDir)
+	ensureProjectSynced(db, ticketsDir)
+	return db.UpsertTicket(t, ticketsDir)
 }
 
-// ListTickets reads all tickets from the tickets directory.
+// ListTickets returns all tickets for the given tickets directory from the database.
 func ListTickets(ticketsDir string) ([]*Ticket, error) {
+	db := getShadowDB()
+	if db == nil {
+		return nil, nil
+	}
+	ensureProjectSynced(db, ticketsDir)
+	abs, err := filepath.Abs(ticketsDir)
+	if err != nil {
+		abs = ticketsDir
+	}
+	return db.ListTicketsByDir(abs)
+}
+
+// listTicketsFromFS reads all tickets directly from the filesystem.
+// Used by import and auto-sync; production reads should go through ListTickets.
+func listTicketsFromFS(ticketsDir string) ([]*Ticket, error) {
 	entries, err := os.ReadDir(ticketsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -483,62 +473,53 @@ func ListTickets(ticketsDir string) ([]*Ticket, error) {
 	return tickets, nil
 }
 
-// ResolveID finds a ticket by exact match, then by substring match.
+// ResolveID finds a ticket by exact match, then by substring match, using the database.
 // Returns an error if no match or ambiguous.
-// For temp directories (tests): checks filesystem.
-// For production: checks DB first, falls back to filesystem.
 func ResolveID(ticketsDir, partial string) (string, error) {
-	if isTempDir(ticketsDir) {
-		return resolveIDFromFS(ticketsDir, partial)
-	}
-	// Production: try DB first
 	db := getShadowDB()
-	if db != nil {
-		// Try exact match in DB
-		if _, err := db.GetTicketDB(partial); err == nil {
-			return partial, nil
-		}
-		// TODO: implement fuzzy search in DB for substring matches
+	if db == nil {
+		return "", fmt.Errorf("ticket '%s' not found", partial)
 	}
-	// Fall back to filesystem
-	return resolveIDFromFS(ticketsDir, partial)
+	ensureProjectSynced(db, ticketsDir)
+	return db.ResolveIDDB(ticketsDir, partial)
 }
 
-func resolveIDFromFS(ticketsDir, partial string) (string, error) {
-	entries, err := os.ReadDir(ticketsDir)
+// ensureProjectSynced reconciles the DB with the tickets directory on disk.
+// Ensures the project row exists, imports any .md files new to the DB, and
+// re-imports files whose mtime is newer than the DB record (external edits).
+func ensureProjectSynced(db *DB, ticketsDir string) {
+	if db == nil || ticketsDir == "" {
+		return
+	}
+	abs, err := filepath.Abs(ticketsDir)
 	if err != nil {
-		return "", fmt.Errorf("ticket '%s' not found", partial)
+		return
 	}
-
-	var ids []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".md") {
-			ids = append(ids, strings.TrimSuffix(e.Name(), ".md"))
+	if _, err := db.ensureProject(abs); err != nil {
+		return
+	}
+	tickets, err := listTicketsFromFS(abs)
+	if err != nil || len(tickets) == 0 {
+		return
+	}
+	// Sort by depth so parents import before children (parent FK dependency).
+	sort.Slice(tickets, func(i, j int) bool {
+		return Depth(tickets[i].ID) < Depth(tickets[j].ID)
+	})
+	for _, t := range tickets {
+		uuid := ticketUUID(extractPrefix(t.ID), t.ID)
+		var updatedAt string
+		err := db.db.QueryRow("SELECT updated_at FROM tickets WHERE id = ?", uuid).Scan(&updatedAt)
+		if err == nil {
+			dbTime, perr := time.Parse(time.RFC3339Nano, updatedAt)
+			if perr != nil {
+				dbTime, perr = time.Parse(time.RFC3339, updatedAt)
+			}
+			if perr == nil && !t.ModTime.After(dbTime) {
+				continue
+			}
 		}
-	}
-
-	// Exact match first
-	for _, id := range ids {
-		if id == partial {
-			return id, nil
-		}
-	}
-
-	// Substring match
-	var matches []string
-	for _, id := range ids {
-		if strings.Contains(id, partial) {
-			matches = append(matches, id)
-		}
-	}
-
-	switch len(matches) {
-	case 0:
-		return "", fmt.Errorf("ticket '%s' not found", partial)
-	case 1:
-		return matches[0], nil
-	default:
-		return "", fmt.Errorf("ambiguous ID '%s' matches: %s", partial, strings.Join(matches, ", "))
+		db.UpsertTicket(t, abs)
 	}
 }
 

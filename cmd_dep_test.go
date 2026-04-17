@@ -151,6 +151,7 @@ func TestCmdDepTreeJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer setupTestDB(t)()
 			tmpDir := t.TempDir()
 			ticketsDir := filepath.Join(tmpDir, ".ko", "tickets")
 			if err := os.MkdirAll(ticketsDir, 0755); err != nil {

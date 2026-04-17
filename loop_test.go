@@ -93,6 +93,8 @@ func TestLoopResult(t *testing.T) {
 }
 
 func TestTriageQueue(t *testing.T) {
+	defer setupTestDB(t)()
+
 	dir := t.TempDir()
 	ticketsDir := filepath.Join(dir, ".ko", "tickets")
 	if err := os.MkdirAll(ticketsDir, 0755); err != nil {
