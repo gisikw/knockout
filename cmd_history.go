@@ -186,9 +186,10 @@ func cmdHistoryGlobal(db *DB, project string, limit int, asJSON bool) int {
 
 // formatTime formats an RFC3339 timestamp for display.
 func formatTime(ts string) string {
-	t, err := time.Parse(time.RFC3339, ts)
-	if err != nil {
+	t := parseTimeFlexible(ts)
+	if t.IsZero() {
 		// Try without timezone
+		var err error
 		t, err = time.Parse("2006-01-02T15:04:05Z", ts)
 		if err != nil {
 			return ts[:min(16, len(ts))]

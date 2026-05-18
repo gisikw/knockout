@@ -8,6 +8,16 @@ import (
 	"time"
 )
 
+// parseTimeFlexible tries RFC3339Nano first, then RFC3339.
+// Handles timestamps written by both pre- and post-Phase 4c code.
+func parseTimeFlexible(s string) time.Time {
+	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
+		return t
+	}
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+
 // OpenReadDB opens the shadow DB for reading. Unlike getShadowDB, this
 // returns an actionable error if the DB is missing or empty.
 func OpenReadDB() (*DB, error) {
@@ -408,9 +418,9 @@ func scanBuilds(rows *sql.Rows) ([]BuildEntry, error) {
 		}
 		// Calculate duration if completed
 		if b.CompletedAt.Valid && b.StartedAt != "" {
-			start, err1 := time.Parse(time.RFC3339, b.StartedAt)
-			end, err2 := time.Parse(time.RFC3339, b.CompletedAt.String)
-			if err1 == nil && err2 == nil {
+			start := parseTimeFlexible(b.StartedAt)
+			end := parseTimeFlexible(b.CompletedAt.String)
+			if !start.IsZero() && !end.IsZero() {
 				dur := end.Sub(start)
 				if dur >= time.Minute {
 					b.Duration = fmt.Sprintf("%dm %02ds", int(dur.Minutes()), int(dur.Seconds())%60)
@@ -581,7 +591,7 @@ func (d *DB) ListTicketsDB(project, status string, includeAll bool, limit int) (
 		t.Snooze = snooze.String
 		t.Triage = triage.String
 		if updatedAt != "" {
-			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
+			t.ModTime = parseTimeFlexible(updatedAt)
 		}
 		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
 			t.Deps = deps
@@ -631,7 +641,7 @@ func (d *DB) ListTicketsByDir(ticketsDir string) ([]*Ticket, error) {
 		t.Snooze = snooze.String
 		t.Triage = triage.String
 		if updatedAt != "" {
-			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
+			t.ModTime = parseTimeFlexible(updatedAt)
 		}
 		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
 			t.Deps = deps
@@ -762,7 +772,7 @@ func (d *DB) ListReadyDB(project string, limit int) ([]*Ticket, error) {
 		t.Snooze = snooze.String
 		t.Triage = triage.String
 		if updatedAt != "" {
-			t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
+			t.ModTime = parseTimeFlexible(updatedAt)
 		}
 		if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
 			t.Deps = deps
@@ -806,7 +816,7 @@ func (d *DB) GetTicketDB(ticketID string) (*Ticket, error) {
 	t.Snooze = snooze.String
 	t.Triage = triage.String
 	if updatedAt != "" {
-		t.ModTime, _ = time.Parse(time.RFC3339, updatedAt)
+		t.ModTime = parseTimeFlexible(updatedAt)
 	}
 	if deps, _ := d.GetTicketDeps(t.ID); deps != nil {
 		t.Deps = deps

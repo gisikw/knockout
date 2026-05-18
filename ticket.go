@@ -511,11 +511,8 @@ func ensureProjectSynced(db *DB, ticketsDir string) {
 		var updatedAt string
 		err := db.db.QueryRow("SELECT updated_at FROM tickets WHERE id = ?", uuid).Scan(&updatedAt)
 		if err == nil {
-			dbTime, perr := time.Parse(time.RFC3339Nano, updatedAt)
-			if perr != nil {
-				dbTime, perr = time.Parse(time.RFC3339, updatedAt)
-			}
-			if perr == nil && !t.ModTime.After(dbTime) {
+			dbTime := parseTimeFlexible(updatedAt)
+			if !dbTime.IsZero() && !t.ModTime.After(dbTime) {
 				continue
 			}
 		}
