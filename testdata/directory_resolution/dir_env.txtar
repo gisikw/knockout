@@ -1,26 +1,14 @@
-# TICKETS_DIR env var takes priority
-env TICKETS_DIR=other-tickets
+# TICKETS_DIR env var selects the right project
+exec ko add 'Default ticket'
 exec ko ls
-stdout 'other-0001'
-! stdout 'parent-0001'
+stdout 'Default ticket'
 
--- .ko/tickets/parent-0001.md --
----
-id: parent-0001
-status: open
-deps: []
-created: 2026-01-01T00:00:00Z
-type: task
-priority: 2
----
-# Parent ticket
--- other-tickets/other-0001.md --
----
-id: other-0001
-status: open
-deps: []
-created: 2026-01-01T00:00:00Z
-type: task
-priority: 2
----
-# Other ticket
+# Create a second project in a different dir
+mkdir $WORK/other/.ko/tickets
+env TICKETS_DIR=$WORK/other/.ko/tickets
+exec ko add 'Other ticket'
+exec ko ls
+stdout 'Other ticket'
+! stdout 'Default ticket'
+
+-- .ko/tickets/.keep --

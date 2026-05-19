@@ -142,11 +142,9 @@ func cmdLs(args []string) int {
 		return 1
 	}
 
-	// Try SQLite first (Phase 3), fall back to filesystem during migration
 	db, dbErr := OpenReadDB()
 	if dbErr == nil {
 		defer db.Close()
-		ensureProjectSynced(db, ticketsDir)
 		project, _ := db.ResolveProjectTag(ticketsDir)
 		tickets, err := db.ListTicketsDB(project, *statusFilter, *allTickets, *limit)
 		if err != nil {
@@ -272,11 +270,9 @@ func cmdReady(args []string) int {
 		return 1
 	}
 
-	// Try SQLite first (Phase 3), fall back to filesystem during migration
 	db, dbErr := OpenReadDB()
 	if dbErr == nil {
 		defer db.Close()
-		ensureProjectSynced(db, ticketsDir)
 		project, _ := db.ResolveProjectTag(ticketsDir)
 		ready, err := db.ListReadyDB(project, *limit)
 		if err != nil {

@@ -13,10 +13,12 @@ cd $WORK/alpha
 
 # beta-0001 is closed
 cp $WORK/beta_ticket.txt $WORK/beta/.ko/tickets/beta-0001.md
+seed $WORK/beta/.ko/tickets
 
 # alpha has a locally ready ticket AND one blocked on cross-project dep
 cp $WORK/alpha_ready.txt $WORK/alpha/.ko/tickets/alp-0001.md
 cp $WORK/alpha_blocked.txt $WORK/alpha/.ko/tickets/alp-0002.md
+seed $WORK/alpha/.ko/tickets
 
 # Ready should show the local ticket
 exec ko ready

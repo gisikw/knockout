@@ -41,7 +41,11 @@ func OpenDB() (*DB, error) {
 	if path == "" {
 		return nil, fmt.Errorf("cannot determine database path")
 	}
+	return OpenDBAt(path)
+}
 
+// OpenDBAt opens (or creates) a database at the given path and runs pending migrations.
+func OpenDBAt(path string) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, err
 	}
@@ -86,7 +90,7 @@ func (d *DB) migrate() error {
 		if _, err := d.db.Exec(schemaSQL); err != nil {
 			return fmt.Errorf("schema init: %w", err)
 		}
-		_, err := d.db.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)",
+		_, err := d.db.Exec("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)",
 			time.Now().UTC().Format(time.RFC3339))
 		return err
 	}
@@ -95,9 +99,13 @@ func (d *DB) migrate() error {
 	}
 
 	// Check current version, run incremental migrations if needed.
-	var version int
-	if err := d.db.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
+	var versionNull sql.NullInt64
+	if err := d.db.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&versionNull); err != nil {
 		return err
+	}
+	var version int
+	if versionNull.Valid {
+		version = int(versionNull.Int64)
 	}
 
 	if version < 2 {
@@ -145,7 +153,7 @@ func (d *DB) migrateV2() error {
 		}
 	}
 
-	_, err := d.db.Exec("INSERT INTO schema_migrations (version, applied_at) VALUES (2, ?)",
+	_, err := d.db.Exec("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)",
 		time.Now().UTC().Format(time.RFC3339))
 	return err
 }

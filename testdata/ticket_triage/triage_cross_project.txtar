@@ -2,31 +2,22 @@
 env HOME=$WORK/home
 mkdir $WORK/home
 
-# Register the "fn" project
+# Register the "fn" project and create a ticket via ko add
+mkdir $WORK/fn/.ko
 mkdir $WORK/fn/.ko/tickets
 cd $WORK/fn
 exec ko project set '#fn'
-cp $WORK/fn_ticket.txt $WORK/fn/.ko/tickets/fn-test.md
+exec ko add 'Cross-project ticket'
 
 # Change to a directory outside the fn project
 cd $WORK/outside
 
-exec ko triage fn-test do something
-stdout 'fn-test updated'
+# Triage the ticket using partial prefix lookup (fn- resolves across projects)
+exec ko triage fn- do something
+stdout 'updated'
 
-env TICKETS_DIR=$WORK/fn/.ko/tickets
-exec ko show fn-test
+# Verify triage was applied
+exec ko show --project fn fn-
 stdout 'triage: do something'
 
 -- outside/.gitkeep --
-
--- fn_ticket.txt --
----
-id: fn-test
-status: open
-deps: []
-created: 2026-01-01T00:00:00Z
-type: task
-priority: 2
----
-# Cross-project ticket

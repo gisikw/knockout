@@ -413,7 +413,6 @@ func LoadTicket(ticketsDir, id string) (*Ticket, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not available")
 	}
-	ensureProjectSynced(db, ticketsDir)
 	return db.GetTicketDB(id)
 }
 
@@ -423,7 +422,6 @@ func SaveTicket(ticketsDir string, t *Ticket) error {
 	if db == nil {
 		return fmt.Errorf("database not available")
 	}
-	ensureProjectSynced(db, ticketsDir)
 	return db.UpsertTicket(t, ticketsDir)
 }
 
@@ -433,44 +431,11 @@ func ListTickets(ticketsDir string) ([]*Ticket, error) {
 	if db == nil {
 		return nil, nil
 	}
-	ensureProjectSynced(db, ticketsDir)
 	abs, err := filepath.Abs(ticketsDir)
 	if err != nil {
 		abs = ticketsDir
 	}
 	return db.ListTicketsByDir(abs)
-}
-
-// listTicketsFromFS reads all tickets directly from the filesystem.
-// Used by import and auto-sync; production reads should go through ListTickets.
-func listTicketsFromFS(ticketsDir string) ([]*Ticket, error) {
-	entries, err := os.ReadDir(ticketsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var tickets []*Ticket
-	for _, e := range entries {
-		if !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		path := filepath.Join(ticketsDir, e.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		t, err := ParseTicket(string(data))
-		if err != nil {
-			continue
-		}
-		if info, statErr := e.Info(); statErr == nil {
-			t.ModTime = info.ModTime()
-		}
-		tickets = append(tickets, t)
-	}
-	return tickets, nil
 }
 
 // ResolveID finds a ticket by exact match, then by substring match, using the database.
@@ -480,44 +445,7 @@ func ResolveID(ticketsDir, partial string) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("ticket '%s' not found", partial)
 	}
-	ensureProjectSynced(db, ticketsDir)
 	return db.ResolveIDDB(ticketsDir, partial)
-}
-
-// ensureProjectSynced reconciles the DB with the tickets directory on disk.
-// Ensures the project row exists, imports any .md files new to the DB, and
-// re-imports files whose mtime is newer than the DB record (external edits).
-func ensureProjectSynced(db *DB, ticketsDir string) {
-	if db == nil || ticketsDir == "" {
-		return
-	}
-	abs, err := filepath.Abs(ticketsDir)
-	if err != nil {
-		return
-	}
-	if _, err := db.ensureProject(abs); err != nil {
-		return
-	}
-	tickets, err := listTicketsFromFS(abs)
-	if err != nil || len(tickets) == 0 {
-		return
-	}
-	// Sort by depth so parents import before children (parent FK dependency).
-	sort.Slice(tickets, func(i, j int) bool {
-		return Depth(tickets[i].ID) < Depth(tickets[j].ID)
-	})
-	for _, t := range tickets {
-		uuid := ticketUUID(extractPrefix(t.ID), t.ID)
-		var updatedAt string
-		err := db.db.QueryRow("SELECT updated_at FROM tickets WHERE id = ?", uuid).Scan(&updatedAt)
-		if err == nil {
-			dbTime := parseTimeFlexible(updatedAt)
-			if !dbTime.IsZero() && !t.ModTime.After(dbTime) {
-				continue
-			}
-		}
-		db.UpsertTicket(t, abs)
-	}
 }
 
 // ResolveTicket tries to resolve a partial ticket ID, first locally in ticketsDir,

@@ -56,8 +56,6 @@ func (d *DB) UpsertTicket(t *Ticket, ticketsDir string) error {
 
 	prefix := extractPrefix(t.ID)
 	uuid := ticketUUID(prefix, t.ID)
-	// RFC3339Nano so updated_at can be compared against file mtimes at
-	// sub-second precision during FS reconciliation (see ensureProjectSynced).
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 
 	// Resolve parent UUID if present, but only set FK if parent exists in DB.

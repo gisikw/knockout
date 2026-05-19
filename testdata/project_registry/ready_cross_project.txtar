@@ -15,9 +15,11 @@ cd $WORK/alpha
 
 # beta-0001 is closed in beta
 cp $WORK/beta_ticket.txt $WORK/beta/.ko/tickets/beta-0001.md
+seed $WORK/beta/.ko/tickets
 
 # alpha has a ticket blocked on beta-0001
 cp $WORK/alpha_blocked.txt $WORK/alpha/.ko/tickets/alp-0001.md
+seed $WORK/alpha/.ko/tickets
 
 # No locally ready tickets (alp-0001 dep not found locally)
 # but cross-project check finds beta-0001 is closed
