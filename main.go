@@ -20,6 +20,13 @@ func run(args []string) int {
 	cmd := args[0]
 	rest := args[1:]
 
+	// If a remote server is configured, proxy eligible commands over HTTP.
+	if isRemoteCommand(cmd) {
+		if cfg, err := LoadGlobalConfig(); err == nil && cfg.Server != "" {
+			return remoteExec(cfg.Server, args)
+		}
+	}
+
 	switch cmd {
 	case "add":
 		return cmdCreate(rest)

@@ -10,6 +10,7 @@ import (
 // that apply across all projects unless overridden at the project level.
 type GlobalConfig struct {
 	Summarizer string // command to summarize long titles (e.g., "ollama run qwen3:0.6b --nowordwrap")
+	Server     string // remote ko serve URL (e.g., "https://ko.gisi.network") — when set, CLI proxies commands over HTTP
 }
 
 // GlobalConfigPath returns the path to the global config file.
@@ -62,6 +63,8 @@ func ParseGlobalConfig(content string) (*GlobalConfig, error) {
 		switch key {
 		case "summarizer":
 			g.Summarizer = val
+		case "server":
+			g.Server = val
 		}
 	}
 	return g, nil
