@@ -27,6 +27,16 @@ func TestLoadHarness_BuiltInCursor(t *testing.T) {
 	}
 }
 
+func TestLoadHarness_BuiltInMuse(t *testing.T) {
+	config, err := LoadHarness("muse")
+	if err != nil {
+		t.Fatalf("LoadHarness(muse) failed: %v", err)
+	}
+	if config.ScriptPath == "" {
+		t.Error("expected script path to be non-empty")
+	}
+}
+
 func TestLoadHarness_UnknownName(t *testing.T) {
 	_, err := LoadHarness("nonexistent")
 	if err == nil {
