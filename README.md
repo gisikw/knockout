@@ -278,9 +278,9 @@ is still supported. The system checks for `config.yaml` first, then falls back t
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `agent` | `claude` | Agent adapter: `claude` \| `cursor` |
+| `agent` | `muse` | Agent adapter: `muse` \| `claude` \| `cursor` |
 | `command` | — | Raw command override (mutually exclusive with `agent`) |
-| `allow_all_tool_calls` | `false` | Maps to `--dangerously-skip-permissions` (claude), `--force` (cursor) |
+| `allow_all_tool_calls` | `false` | Maps to agent-specific permission behavior where supported. No-op for `muse`, `--dangerously-skip-permissions` for `claude`, `--force` for `cursor`. |
 | `allowed_tools` | `[]` | List of tool names to auto-allow (e.g., `Read`, `Write`, `Bash`). Can be set at pipeline, workflow, or node level with override semantics (node > workflow > pipeline). Only used when `allow_all_tool_calls` is false. Tool names are case-sensitive. |
 | `model` | — | Default model for all prompt nodes |
 | `max_retries` | `2` | Retry attempts per node |
@@ -322,7 +322,7 @@ is still supported. The system checks for `config.yaml` first, then falls back t
 
 Agent harnesses are executable shell scripts that receive parameters via
 KO_-namespaced environment variables and invoke an agent CLI. Built-in harnesses
-(`claude`, `cursor`) ship with `ko`. You can add custom harnesses to extend
+(`muse`, `claude`, `cursor`) ship with `ko`. You can add custom harnesses to extend
 support for other agents.
 
 Harness search order:

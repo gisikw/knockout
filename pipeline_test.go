@@ -223,8 +223,8 @@ workflows:
 	if err != nil {
 		t.Fatalf("ParsePipeline failed: %v", err)
 	}
-	if p.Agent != "claude" {
-		t.Errorf("Agent = %q, want %q", p.Agent, "claude")
+	if p.Agent != "muse" {
+		t.Errorf("Agent = %q, want %q", p.Agent, "muse")
 	}
 }
 
@@ -1427,7 +1427,7 @@ func TestMergePipeline(t *testing.T) {
 	}
 
 	override := &Pipeline{
-		Agent:      "claude", // default — should NOT override since setFields won't include it
+		Agent:      "muse", // default — should NOT override since setFields won't include it
 		Model:      "sonnet",
 		MaxRetries: 2, // default — should NOT override
 		setFields:  map[string]bool{"model": true, "on_succeed": true},

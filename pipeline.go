@@ -23,7 +23,7 @@ type ProjectConfig struct {
 
 // Pipeline represents a parsed .ko/pipeline.yml config (v2).
 type Pipeline struct {
-	Agent        string                // agent adapter name: claude | cursor (default: "claude")
+	Agent        string                // agent adapter name: muse | claude | cursor (default: "muse")
 	Command      string                // raw command override (mutually exclusive with agent)
 	AllowAll     bool                  // maps to --dangerously-skip-permissions, --force, etc.
 	AllowedTools []string              // list of tool names to auto-allow (e.g., Read, Write, Bash)
@@ -159,7 +159,7 @@ func ParsePipeline(content string) (*Pipeline, error) {
 // (where workflows may be absent, inherited from the template).
 func parsePipelineRaw(content string) (*Pipeline, error) {
 	p := &Pipeline{
-		Agent:      "claude",
+		Agent:      "muse",
 		MaxRetries: 2,
 		MaxDepth:   2,
 		Discretion: "medium",
@@ -448,7 +448,7 @@ func parsePipelineRaw(content string) (*Pipeline, error) {
 
 	// Validate: agent and command are mutually exclusive.
 	// If command: is set without an explicit agent:, clear the default agent.
-	if p.Command != "" && p.Agent == "claude" && !p.agentExplicit {
+	if p.Command != "" && p.Agent == "muse" && !p.agentExplicit {
 		p.Agent = ""
 	}
 	if p.Agent != "" && p.Command != "" {
