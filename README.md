@@ -439,3 +439,35 @@ automatically unblocks (status returns to `open`).
 
 Tickets are markdown files with YAML frontmatter in `.ko/tickets/`. No database,
 no index, no derived state. The file is the source of truth.
+
+## Questbook migration (compat shim + export)
+
+Knockout is being superseded by [Questbook](../questbook) (QQL API at
+qb.gisi.network). Three pieces bridge the cutover; all are **off by default**.
+
+- **`ko export`** — dumps every ticket across every project to JSON for the
+  Questbook bulk importer. Contract: `EXPORT_SCHEMA.md`.
+
+  ```
+  ko export --out dump.json          # all projects
+  ko export --project fort-nix       # one project, to stdout
+  ```
+
+- **QQL shim (`KO_QQL=1`)** — routes the familiar `ko` surface (`add`, `ls`,
+  `show`, `dep`, `start`/`close`, …) to Questbook's QQL API instead of the local
+  store, so muscle memory and old `ko …` references keep working during cutover.
+  Every invocation is logged as JSONL to `~/.local/state/knockout/shim-usage.jsonl`
+  (override `KO_SHIM_LOG`) — the log going quiet is the evidence migration is
+  done. Unsupported subcommands fail loudly with a QQL pointer. Project→realm
+  mapping: `QQL_MAPPING.md` / `qql-mapping.example.yaml`.
+
+  ```
+  KO_QQL=1 ko add "a new quest"      # creates a real Questbook quest, prints q-…
+  KO_QQL=1 ko ls
+  ```
+
+- **Read-only legacy mode (`KO_READONLY=1`)** — freezes the local store: reads
+  still work (history spelunking), writes are rejected with a pointer to the
+  shim/QQL.
+
+See `WORKLOG.md` for decisions and known limitations.

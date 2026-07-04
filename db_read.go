@@ -67,20 +67,20 @@ type ProjectStats struct {
 
 // StatsResult holds all aggregate statistics.
 type StatsResult struct {
-	Total           int
-	ByStatus        []StatusCount
-	ByType          []TypeCount
-	ByPriority      []PriorityCount
-	CreatedThisWeek int
-	ClosedThisWeek  int
+	Total            int
+	ByStatus         []StatusCount
+	ByType           []TypeCount
+	ByPriority       []PriorityCount
+	CreatedThisWeek  int
+	ClosedThisWeek   int
 	CreatedThisMonth int
-	ClosedThisMonth int
-	Ready           int
-	Blocked         int
-	TotalBuilds     int
-	Succeeded       int
-	Failed          int
-	ByProject       []ProjectStats
+	ClosedThisMonth  int
+	Ready            int
+	Blocked          int
+	TotalBuilds      int
+	Succeeded        int
+	Failed           int
+	ByProject        []ProjectStats
 }
 
 // QueryStats returns aggregate metrics, optionally filtered by project tag.
@@ -507,6 +507,32 @@ func scanMutations(rows *sql.Rows) ([]MutationEntry, error) {
 		results = append(results, m)
 	}
 	return results, nil
+}
+
+// ExportTicketHistory returns all mutation events grouped by ticket_id,
+// ordered chronologically (oldest first) within each ticket. This is a single
+// bulk query so history can be attached to an export cheaply. Ticket IDs are
+// globally unique in ko, so grouping by ticket_id is unambiguous across projects.
+func (d *DB) ExportTicketHistory() (map[string][]MutationEntry, error) {
+	q := `SELECT occurred_at, COALESCE(project_tag, ''), COALESCE(ticket_id, ''), event_type, payload
+		  FROM mutation_events
+		  WHERE ticket_id IS NOT NULL AND ticket_id != ''
+		  ORDER BY occurred_at ASC`
+	rows, err := d.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byTicket := make(map[string][]MutationEntry)
+	for rows.Next() {
+		var m MutationEntry
+		if err := rows.Scan(&m.OccurredAt, &m.Project, &m.TicketID, &m.EventType, &m.Payload); err != nil {
+			return nil, err
+		}
+		byTicket[m.TicketID] = append(byTicket[m.TicketID], m)
+	}
+	return byTicket, rows.Err()
 }
 
 // GetTicketTitle looks up just the title for a ticket ID.

@@ -13,15 +13,16 @@ import (
 
 // localOnlyCommands are commands that should never proxy to a remote server.
 var localOnlyCommands = map[string]bool{
-	"serve":   true, // is the server
-	"agent":   true, // pipeline execution is local
-	"help":    true,
-	"--help":  true,
-	"-h":      true,
-	"version": true,
+	"serve":     true, // is the server
+	"agent":     true, // pipeline execution is local
+	"help":      true,
+	"--help":    true,
+	"-h":        true,
+	"version":   true,
 	"--version": true,
-	"-v":      true,
-	"import":  true, // not in serve whitelist
+	"-v":        true,
+	"import":    true, // not in serve whitelist
+	"export":    true, // reads the local DB directly; never proxy
 }
 
 // isRemoteCommand returns true if the command should proxy to a remote server.

@@ -1,0 +1,21 @@
+# Example ko → Questbook realm/campaign mapping.
+# Copy to ~/.config/knockout/qql-mapping.yaml (or point KO_QQL_MAPPING at it)
+# and edit. See QQL_MAPPING.md for the full contract.
+#
+# Keys under `projects:` are ko registry tags (the #tag), matching `ko export`.
+
+# Fallback realm slug for any project not listed below.
+default_realm: knockout-legacy
+
+projects:
+  fort-nix:
+    realm: fort-nix
+    campaign: fort-nix-maintenance
+  questbook:
+    realm: questbook
+    campaign: questbook-buildout
+  knockout:
+    realm: knockout
+  # Realm-only projects are fine; campaign is optional.
+  gee:
+    realm: gee

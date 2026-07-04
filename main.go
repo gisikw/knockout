@@ -20,6 +20,19 @@ func run(args []string) int {
 	cmd := args[0]
 	rest := args[1:]
 
+	// QQL shim (opt-in, inert by default): route the familiar ko surface to
+	// Questbook's QQL API instead of the local store. Nothing changes until
+	// KO_QQL is set.
+	if ShimEnabled() {
+		return runShim(args)
+	}
+
+	// Read-only legacy mode (opt-in): once the local store is frozen for the
+	// cutover, reject writes loudly while still serving reads.
+	if ReadonlyEnabled() && isLegacyWrite(cmd, rest) {
+		return rejectLegacyWrite(cmd)
+	}
+
 	// If a remote server is configured, proxy eligible commands over HTTP.
 	if isRemoteCommand(cmd) {
 		if cfg, err := LoadGlobalConfig(); err == nil && cfg.Server != "" {
@@ -74,6 +87,8 @@ func run(args []string) int {
 		return cmdSearch(rest)
 	case "history":
 		return cmdHistory(rest)
+	case "export":
+		return cmdExport(rest)
 	case "help", "--help", "-h":
 		return cmdHelp(rest)
 	case "version", "--version", "-v":
@@ -178,6 +193,8 @@ Commands:
                      Search tickets by title and body (cross-project by default)
   history [<id>] [--project=tag] [--limit=N] [--json]
                      Show build/event history (per-ticket if ID given, global otherwise)
+  export [--out FILE] [--project=tag] [--no-history]
+                     Dump all tickets across all projects as JSON (Questbook import contract)
 
   help               Show this help
   version            Show version`)
