@@ -23,7 +23,13 @@ func run(args []string) int {
 	// QQL shim (opt-in, inert by default): route the familiar ko surface to
 	// Questbook's QQL API instead of the local store. Nothing changes until
 	// KO_QQL is set.
-	if ShimEnabled() {
+	//
+	// `serve` is exempt: the daemon must start normally under KO_QQL so it can
+	// exec a fresh ko per remote request (cmd_serve.go), each of which inherits
+	// KO_QQL and is itself shim-routed to Questbook (+ logged to KO_SHIM_LOG).
+	// Without this exemption `ko serve` would be rejected as an unsupported shim
+	// subcommand and the overlay would crash-loop.
+	if ShimEnabled() && cmd != "serve" {
 		return runShim(args)
 	}
 
