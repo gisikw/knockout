@@ -90,7 +90,19 @@ func TestShimUnsupportedFailsLoud(t *testing.T) {
 	}
 }
 
+// fakeQuests is the fixed quest set the fake QQL server filters over. Each has a
+// ko-namespaced external_ref so external_ref resolution (A1) is exercised, and a
+// mix of statuses so the default non-terminal ls filter (A2) is exercised.
+var fakeQuests = []map[string]any{
+	{"id": "q-1", "external_ref": "ko:tmt-1", "title": "first", "status": "open", "priority": float64(1)},
+	{"id": "q-2", "external_ref": "ko:tmt-2", "title": "second", "status": "open", "priority": float64(2)},
+	{"id": "q-done", "external_ref": "ko:old-9", "title": "finished", "status": "done", "priority": float64(3)},
+}
+
 // fakeQQL is a minimal stand-in for the Questbook QQL API for round-trip tests.
+// Its /api/query respects the id, external_ref, and status quest filters so the
+// shim's resolution and filtering logic is genuinely tested (realm is treated as
+// "all quests are in the realm").
 func fakeQQL(t *testing.T) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -99,18 +111,20 @@ func fakeQQL(t *testing.T) *httptest.Server {
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &req)
 		entity, _ := req["entity"].(string)
+		filters, _ := req["filters"].(map[string]any)
 		switch entity {
 		case "realm":
 			writeJSON(w, QQLResponse{Entities: map[string]any{
 				"realms": []any{map[string]any{"id": "r-fake", "slug": "testrealm"}},
 			}})
 		case "quest":
-			writeJSON(w, QQLResponse{Entities: map[string]any{
-				"quests": []any{
-					map[string]any{"id": "q-2", "title": "second", "status": "open", "priority": float64(2)},
-					map[string]any{"id": "q-1", "title": "first", "status": "open", "priority": float64(1)},
-				},
-			}})
+			var matched []any
+			for _, q := range fakeQuests {
+				if fakeQuestMatches(q, filters) {
+					matched = append(matched, q)
+				}
+			}
+			writeJSON(w, QQLResponse{Entities: map[string]any{"quests": matched}})
 		default:
 			writeJSON(w, QQLResponse{})
 		}
@@ -130,18 +144,38 @@ func fakeQQL(t *testing.T) *httptest.Server {
 	return srv
 }
 
+// fakeQuestMatches applies the id/external_ref/status exact-match filters the
+// shim uses; realm (and any unknown filter) is treated as "matches all".
+func fakeQuestMatches(q map[string]any, filters map[string]any) bool {
+	for k, v := range filters {
+		switch k {
+		case "id", "external_ref", "status", "title":
+			if q[k] != v {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func writeJSON(w http.ResponseWriter, resp QQLResponse) {
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
 
-// shimTestEnv points the shim at a fake server, an empty mapping, and a temp log.
+// shimTestEnv points the shim at a fake server, an empty (but present) mapping,
+// and a temp log. The mapping file must exist: an explicitly-set-but-missing
+// KO_QQL_MAPPING is now a loud error (A3), so tests write a real empty file.
 func shimTestEnv(t *testing.T, url string) string {
 	t.Helper()
 	logPath := filepath.Join(t.TempDir(), "usage.jsonl")
+	mappingPath := filepath.Join(t.TempDir(), "mapping.yaml")
+	if err := os.WriteFile(mappingPath, []byte("default_realm: testrealm\n"), 0644); err != nil {
+		t.Fatalf("write mapping: %v", err)
+	}
 	t.Setenv("KO_QQL", "1")
 	t.Setenv("KO_QQL_URL", url)
-	t.Setenv("KO_QQL_MAPPING", filepath.Join(t.TempDir(), "nonexistent-mapping.yaml"))
+	t.Setenv("KO_QQL_MAPPING", mappingPath)
 	t.Setenv("KO_SHIM_LOG", logPath)
 	return logPath
 }
@@ -224,4 +258,114 @@ func TestShimUnsupportedViaRunShim(t *testing.T) {
 	if code := runShim([]string{"stats"}); code == 0 {
 		t.Error("runShim stats returned 0, want nonzero (unsupported)")
 	}
+}
+
+// A1: a legacy ko-style ref resolves via external_ref to the qb id.
+func TestShimResolvesKoRef(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+
+	out := captureStdout(t, func() {
+		if code := runShim([]string{"show", "tmt-1"}); code != 0 {
+			t.Errorf("runShim show tmt-1 returned %d", code)
+		}
+	})
+	if !strings.Contains(out, "id: q-1") {
+		t.Errorf("show tmt-1 did not resolve to q-1:\n%s", out)
+	}
+}
+
+// A1: a native qb id still resolves directly (no regression).
+func TestShimResolvesQBID(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+
+	out := captureStdout(t, func() {
+		if code := runShim([]string{"show", "q-2"}); code != 0 {
+			t.Errorf("runShim show q-2 returned %d", code)
+		}
+	})
+	if !strings.Contains(out, "id: q-2") {
+		t.Errorf("show q-2 output missing id: q-2:\n%s", out)
+	}
+}
+
+// A1: an unknown ref fails loudly, naming both lookups it tried.
+func TestShimUnknownRefFailsLoud(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+
+	stderr := captureStderr(t, func() {
+		if code := runShim([]string{"show", "nope-0000"}); code == 0 {
+			t.Error("runShim show nope-0000 returned 0, want nonzero")
+		}
+	})
+	if !strings.Contains(stderr, "external_ref ko:nope-0000") {
+		t.Errorf("not-found error did not name both lookups:\n%s", stderr)
+	}
+}
+
+// A1: status shortcuts resolve ko refs too, and echo the resolved qb id.
+func TestShimStatusResolvesKoRef(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+
+	out := captureStdout(t, func() {
+		if code := runShim([]string{"close", "tmt-2"}); code != 0 {
+			t.Errorf("runShim close tmt-2 returned %d", code)
+		}
+	})
+	if strings.TrimSpace(out) != "q-2 updated" {
+		t.Errorf("close tmt-2 printed %q, want 'q-2 updated'", strings.TrimSpace(out))
+	}
+}
+
+// A2: `ko ls` hides done quests by default; `--all` includes them.
+func TestShimLsHidesDoneByDefault(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+
+	def := captureStdout(t, func() {
+		if code := runShim([]string{"ls"}); code != 0 {
+			t.Errorf("runShim ls returned %d", code)
+		}
+	})
+	if strings.Contains(def, "q-done") {
+		t.Errorf("ls (default) leaked a done quest:\n%s", def)
+	}
+
+	all := captureStdout(t, func() {
+		if code := runShim([]string{"ls", "--all"}); code != 0 {
+			t.Errorf("runShim ls --all returned %d", code)
+		}
+	})
+	if !strings.Contains(all, "q-done") {
+		t.Errorf("ls --all omitted the done quest:\n%s", all)
+	}
+}
+
+// A3: an explicitly-set-but-missing mapping file is a loud error, not a silent
+// empty tracker.
+func TestShimMissingMappingErrorsLoud(t *testing.T) {
+	srv := fakeQQL(t)
+	shimTestEnv(t, srv.URL)
+	// Override the mapping to a path that does not exist.
+	t.Setenv("KO_QQL_MAPPING", filepath.Join(t.TempDir(), "does-not-exist.yaml"))
+
+	if code := runShim([]string{"ls"}); code == 0 {
+		t.Error("runShim ls with missing explicit mapping returned 0, want nonzero")
+	}
+}
+
+// captureStderr mirrors captureStdout for error-path assertions.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	defer func() { os.Stderr = orig }()
+	fn()
+	w.Close()
+	out, _ := io.ReadAll(r)
+	return string(out)
 }

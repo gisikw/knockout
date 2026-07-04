@@ -336,6 +336,59 @@ func (s *shimCtx) resolveCampaignID(slug string) string {
 	return ""
 }
 
+// --- quest-id resolution ---------------------------------------------------
+
+// looksLikeQBID reports whether ref is a native Questbook quest id (q-...).
+// Everything else is treated as a legacy ko ref (tmt-ecf3, crn-472f, ...),
+// stored in Questbook as external_ref "ko:<ref>".
+func looksLikeQBID(ref string) bool {
+	return strings.HasPrefix(ref, "q-")
+}
+
+// resolveQuestID maps a user-supplied quest reference onto a Questbook quest id.
+// Native qb ids (q-...) are looked up directly; on a miss, or for any ref that
+// doesn't look like a qb id, it retries as an external_ref query with the "ko:"
+// namespace so legacy muscle-memory addressing (`ko show tmt-ecf3`) keeps
+// working. When both lookups miss, the error names both so a real not-found is
+// never mistaken for data loss.
+func (s *shimCtx) resolveQuestID(ref string) (string, error) {
+	if looksLikeQBID(ref) {
+		id, err := s.lookupQuestID("id", ref)
+		if err != nil {
+			return "", err
+		}
+		if id != "" {
+			return id, nil
+		}
+	}
+	id, err := s.lookupQuestID("external_ref", "ko:"+ref)
+	if err != nil {
+		return "", err
+	}
+	if id != "" {
+		return id, nil
+	}
+	return "", fmt.Errorf("quest '%s' not found (tried id and external_ref ko:%s)", ref, ref)
+}
+
+// lookupQuestID runs a single-field quest query and returns the first match's
+// id, or "" if nothing matched.
+func (s *shimCtx) lookupQuestID(field, value string) (string, error) {
+	resp, err := s.client.Query(map[string]any{
+		"entity":  "quest",
+		"filters": map[string]any{field: value},
+		"return":  []string{"id"},
+	})
+	if err != nil {
+		return "", err
+	}
+	quests := resp.entityList("quests")
+	if len(quests) == 0 {
+		return "", nil
+	}
+	return strField(quests[0], "id"), nil
+}
+
 // --- handlers --------------------------------------------------------------
 
 func (s *shimCtx) add(args []string) int {
@@ -427,7 +480,7 @@ func (s *shimCtx) ls(args []string) int {
 	fs := flag.NewFlagSet("ls", flag.ContinueOnError)
 	statusFilter := fs.String("status", "", "filter by status")
 	jsonOut := fs.Bool("json", false, "JSON output")
-	fs.Bool("all", false, "include done quests")
+	all := fs.Bool("all", false, "include done quests")
 	_ = fs.Int("limit", 0, "limit")
 	if err := fs.Parse(reorderArgs(args, map[string]bool{"status": true, "limit": true})); err != nil {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
@@ -440,6 +493,9 @@ func (s *shimCtx) ls(args []string) int {
 		fmt.Fprintf(os.Stderr, "ko ls: %v\n", err)
 		return 1
 	}
+	// A4: make the scope visible — ls resolves the realm from cwd/project tag,
+	// so print which realm we landed on (stderr, out of the way of piping).
+	fmt.Fprintf(os.Stderr, "# realm: %s\n", realm)
 	filters := map[string]any{"realm": realmID}
 	if *statusFilter != "" {
 		filters["status"] = mapKoStatus(*statusFilter)
@@ -454,6 +510,12 @@ func (s *shimCtx) ls(args []string) int {
 		return 1
 	}
 	quests := resp.entityList("quests")
+	// A2: legacy `ko ls` hid done tickets. QQL filters are single-value (no
+	// status-list), so default to non-terminal client-side. An explicit
+	// --status already narrowed server-side; --all drops the filter entirely.
+	if *statusFilter == "" && !*all {
+		quests = filterNonTerminalStatus(quests)
+	}
 	sortQuests(quests)
 	if *jsonOut {
 		emitJSON(quests)
@@ -519,7 +581,11 @@ func (s *shimCtx) show(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko show: quest ID required")
 		return 1
 	}
-	id := fs.Arg(0)
+	id, err := s.resolveQuestID(fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko show: %v\n", err)
+		return 1
+	}
 	// NOTE: QQL's query API returns only scalar quest columns — its project()
 	// drops every relation projection (dependencies/subquests/parent.slug). So
 	// realm/campaign/parent come back as bare IDs and the dependency graph is
@@ -581,12 +647,21 @@ func (s *shimCtx) dep(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: ko dep <quest> <dep>  |  ko dep tree <quest>")
 		return 1
 	}
-	quest, dep := args[0], args[1]
+	quest, err := s.resolveQuestID(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
+		return 1
+	}
+	dep, err := s.resolveQuestID(args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko dep: %v\n", err)
+		return 1
+	}
 	if quest == dep {
 		fmt.Fprintln(os.Stderr, "ko dep: quest cannot depend on itself")
 		return 1
 	}
-	_, err := s.client.Mutate(map[string]any{
+	_, err = s.client.Mutate(map[string]any{
 		"update": map[string]any{
 			"quests": map[string]any{
 				quest: map[string]any{"dependencies+": []string{dep}},
@@ -607,8 +682,17 @@ func (s *shimCtx) undep(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko undep: two quest IDs required")
 		return 1
 	}
-	quest, dep := args[0], args[1]
-	_, err := s.client.Mutate(map[string]any{
+	quest, err := s.resolveQuestID(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
+		return 1
+	}
+	dep, err := s.resolveQuestID(args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko undep: %v\n", err)
+		return 1
+	}
+	_, err = s.client.Mutate(map[string]any{
 		"update": map[string]any{
 			"quests": map[string]any{
 				quest: map[string]any{"dependencies-": []string{dep}},
@@ -651,13 +735,18 @@ func (s *shimCtx) statusShortcut(args []string, koStatus string) int {
 	return s.applyStatus(args[0], koStatus)
 }
 
-func (s *shimCtx) applyStatus(id, koStatus string) int {
+func (s *shimCtx) applyStatus(ref, koStatus string) int {
 	qqlStatus, ok := koToQQLStatus[koStatus]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "ko: unknown status %q\n", koStatus)
 		return 1
 	}
-	_, err := s.client.Mutate(map[string]any{
+	id, err := s.resolveQuestID(ref)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko: %v\n", err)
+		return 1
+	}
+	_, err = s.client.Mutate(map[string]any{
 		"update": map[string]any{
 			"quests": map[string]any{id: map[string]any{"status": qqlStatus}},
 		},
@@ -699,7 +788,11 @@ func (s *shimCtx) update(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko update: quest ID required")
 		return 1
 	}
-	id := fs.Arg(0)
+	id, err := s.resolveQuestID(fs.Arg(0))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko update: %v\n", err)
+		return 1
+	}
 
 	fields := map[string]any{}
 	if *title != "" {
@@ -730,7 +823,7 @@ func (s *shimCtx) update(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko update: no proxyable fields specified to update")
 		return 1
 	}
-	_, err := s.client.Mutate(map[string]any{
+	_, err = s.client.Mutate(map[string]any{
 		"update": map[string]any{"quests": map[string]any{id: fields}},
 	})
 	if err != nil {
@@ -747,7 +840,11 @@ func (s *shimCtx) note(args []string) int {
 		fmt.Fprintln(os.Stderr, "ko note: quest ID and note text required")
 		return 1
 	}
-	id := args[0]
+	id, err := s.resolveQuestID(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ko note: %v\n", err)
+		return 1
+	}
 	note := strings.Join(args[1:], " ")
 	ts := time.Now().UTC().Format("2006-01-02 15:04:05 UTC")
 	newBody, err := s.appendedBody(id, fmt.Sprintf("**%s:** %s", ts, note))
@@ -792,6 +889,26 @@ func (s *shimCtx) appendedBody(id, text string) (string, error) {
 }
 
 // --- small helpers ---------------------------------------------------------
+
+// lsDefaultStatuses is the set of QQL statuses `ko ls` shows by default —
+// the non-terminal ones. Terminal statuses (done) are hidden unless --all or an
+// explicit --status is given, matching legacy ko's open-ish default.
+var lsDefaultStatuses = map[string]bool{
+	"open":        true,
+	"in_progress": true,
+	"blocked":     true,
+}
+
+// filterNonTerminalStatus drops quests whose status is terminal (e.g. done).
+func filterNonTerminalStatus(quests []map[string]any) []map[string]any {
+	out := quests[:0]
+	for _, q := range quests {
+		if lsDefaultStatuses[strField(q, "status")] {
+			out = append(out, q)
+		}
+	}
+	return out
+}
 
 // mapKoStatus maps a ko status to its QQL equivalent, passing through anything
 // already in QQL vocabulary.

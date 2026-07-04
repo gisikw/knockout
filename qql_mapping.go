@@ -50,17 +50,22 @@ func QQLMappingPath() string {
 	return filepath.Join(configDir, "knockout", "qql-mapping.yaml")
 }
 
-// LoadQQLMapping reads the mapping file. A missing file is not an error: it
-// returns an empty mapping (the shim then falls back to the project tag as the
-// realm slug), so the shim works out of the box during early cutover.
+// LoadQQLMapping reads the mapping file. A missing *default* file is not an
+// error: it returns an empty mapping (the shim then falls back to the project
+// tag as the realm slug), so the shim works out of the box during early
+// cutover. But an *explicitly* requested file (KO_QQL_MAPPING set) that does not
+// exist IS an error — silently substituting an empty mapping there sends every
+// quest to a fallback realm and makes `ko ls` look like an empty tracker. Fail
+// loudly instead, consistent with how `ko show` errors on a bad reference.
 func LoadQQLMapping() (*QQLMapping, error) {
+	explicit := os.Getenv("KO_QQL_MAPPING") != ""
 	path := QQLMappingPath()
 	if path == "" {
 		return &QQLMapping{Projects: map[string]QQLProjectMap{}}, nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if os.IsNotExist(err) && !explicit {
 			return &QQLMapping{Projects: map[string]QQLProjectMap{}}, nil
 		}
 		return nil, err
