@@ -293,13 +293,14 @@ func (s *shimCtx) resolveRealmID(slug string) (string, error) {
 		}
 	}
 	// Create it.
+	// QQL /api/mutate returns id_map natively and rejects unknown top-level
+	// keys (only create/update), so we do NOT send a "return" projection.
 	resp, err = s.client.Mutate(map[string]any{
 		"create": map[string]any{
 			"realms": map[string]any{
 				"$r": map[string]any{"slug": slug, "name": slug},
 			},
 		},
-		"return": []string{"id_map"},
 	})
 	if err != nil {
 		return "", err
@@ -404,9 +405,9 @@ func (s *shimCtx) add(args []string) int {
 		}
 	}
 
+	// id_map is returned natively; mutate rejects a "return" key (see resolveRealmID).
 	resp, err := s.client.Mutate(map[string]any{
 		"create": map[string]any{"quests": map[string]any{"$q": quest}},
-		"return": []string{"id_map"},
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ko add: %v\n", err)
